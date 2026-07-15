@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include "actor.h"
 #include "gates.h"
 #include "lexer.h"
 #include "logic.h"
@@ -185,6 +186,52 @@ static void test_ram(void)
     check(moop_ram_read(&ram, 3) == 0xCD, "ram overwrites (forgets) freely");
 }
 
+static bool msg_maybe(MoopActor *self)
+{
+    return moop_maybe(&self->core);
+}
+
+static bool msg_ping(MoopActor *self)
+{
+    (void)self;
+    return true;
+}
+
+static void test_actor(void)
+{
+    bool a[5] = {1, 0, 1, 1, 0}, b[7] = {0, 1, 1, 0, 1, 0, 1};
+    bool a0[5], b0[7], ma[5], mb[7];
+    memcpy(a0, a, sizeof a);
+    memcpy(b0, b, sizeof b);
+
+    MoopMessage table[4];
+    MoopActor actor;
+    moop_actor_init(&actor, a, ma, 5, b, mb, 7, table, 4);
+
+    bool reply = false;
+    check(!moop_actor_send(&actor, "ping", &reply),
+          "an unhosted message is a miss");
+    check(moop_actor_host(&actor, "ping", msg_ping) &&
+          moop_actor_send(&actor, "ping", &reply) && reply,
+          "a hosted message answers");
+
+    check(!moop_actor_send(&actor, "parent", &reply),
+          "lookup never delegates: actors are non-hereditary");
+
+    /* the body inherits reversibility from the substrate: undo the
+     * reversible effects of every observation and the actor's entire
+     * state is back — replies were the only irreversible product */
+    moop_actor_host(&actor, "maybe", msg_maybe);
+    enum { DRAWS = 9 };
+    for (int i = 0; i < DRAWS; i++)
+        moop_actor_send(&actor, "maybe", &reply);
+    for (int i = 0; i < DRAWS; i++)
+        moop_core_step_back(&actor.core);
+    check(memcmp(a0, a, sizeof a) == 0 && memcmp(b0, b, sizeof b) == 0 &&
+          actor.core.a.head == 0 && actor.core.b.head == 0,
+          "actor bodies inherit reversibility from the substrate");
+}
+
 static void test_lexer(void)
 {
     MoopLexer lx;
@@ -234,5 +281,6 @@ int main(void)
     test_irreversible_logic();
     test_maybe();
     test_ram();
+    test_actor();
     return failures;
 }

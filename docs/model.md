@@ -103,13 +103,32 @@ Segregation rules:
   touch RAM.
 - Irreversible operators act only on user-facing values; they must never
   write system memory.
-- **MAYBE is the sole sanctioned bridge.** `moop_maybe(core)` advances the
-  reversible core one tick and observes the cell under loop A's head. It is
-  deterministic and reproducible (same tapes → same answers), and its only
-  effect on the system layer is a reversible step, so even the bridge loses
-  no information. This is the initial design for MAYBE — an unpredictable-
-  looking but replayable truth value, with the reversible substrate as the
-  oracle — and is expected to iterate.
+- **Bridging is sanctioned only in one shape**: reversible effect inside,
+  irreversible observation outside. MAYBE is the primitive bridge:
+  `moop_maybe(core)` advances the reversible core one tick and observes the
+  cell under loop A's head — deterministic and reproducible (same tapes →
+  same answers), and its only effect on the system layer is a reversible
+  step, so even the bridge loses no information. Actors (below) generalize
+  this same shape into the object model.
+
+## Actors
+
+Actors (`src/actor.{h,c}`) are the bridging construct between the layers.
+
+- **Non-hereditary, yet they inherit.** Actors have no parents: message
+  lookup is strictly local, and a miss never delegates — `<-` has no
+  meaning for an actor. What an actor *does* inherit comes from the
+  substrate, constitutionally: its body is a reversible core, so every
+  actor is reversible and homoiconic by construction, not by lineage.
+- **They host irreversible, user-facing messages.** The hosted surface is
+  a table of named messages; sending consumes a reply into the forgetful
+  user world. Handlers may act on the body only through reversible
+  operations (gates, steps) and observation. Hosting and un-hosting are
+  themselves irreversible, user-layer acts.
+- The paradox resolves into the layer boundary drawn through each object:
+  reversible interior, irreversible interface. Undo the reversible steps
+  and the actor's whole state returns — the replies it gave are the only
+  irreversible product (covered by tests).
 
 ## Open questions
 

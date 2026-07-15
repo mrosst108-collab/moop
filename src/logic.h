@@ -9,7 +9,9 @@
  * discarded, which is exactly what the reversible layer must never do).
  * Segregation rule: nothing in this layer may write system memory.
  *
- * moop_maybe is the sole sanctioned bridge between the layers: it advances
+ * moop_maybe is the primitive bridge between the layers (actors in
+ * actor.h generalize the same shape — reversible effect inside,
+ * irreversible observation outside): it advances
  * the reversible core one tick and observes the cell under loop A's head.
  * Deterministic and reproducible (same tapes, same answers), and its only
  * effect on system memory is a reversible step — no information is lost.
