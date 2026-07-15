@@ -2,7 +2,10 @@
 
 moop is a new programming language. Its implementation is written in C23.
 
-Two influences guide its design:
+moop is a [derived language](docs/derivation.md): constructs are derived
+from a small set of axioms — and derived *away* when a uniform rule
+covers them — rather than added feature by feature. Two influences
+anchor the axioms:
 
 - **Naturalism**, in the spirit of Quorum (Andreas Stefik): syntax that reads
   naturally and favors learnability, with design choices grounded in evidence

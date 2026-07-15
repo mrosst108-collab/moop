@@ -13,6 +13,8 @@ When making language or implementation decisions, weigh them against both princi
 
 **We optimize for minimalism through synergy and orthogonality.** Every feature must compound with the rest of the design (synergy: reversibility × homoiconicity = causal closure; pruning × homoiconicity = GC and dead-code elimination as one operation) and own exactly one non-overlapping job (orthogonality: generation is who-made-you, inheritance is whom-you-defer-to, names are the only mutable handle). A feature that duplicates another's role, or that doesn't multiply the value of what's already there, doesn't get in.
 
+**moop is a derived language** (`docs/derivation.md` — read it before proposing features). Constructs are derived from the axioms, never added by fiat, and they are *derived away* when a uniform rule covers them (`self` → headless chains; `generate` → the article). Apply the **deletion test** to every proposal: a construct is redundant iff a uniform contextual rule covers all its uses without creating silence (mistakes becoming actions) or ambiguity (one form, two meanings). A proposal must name what forces it, what it compounds with, and why the deletion test doesn't dissolve it. When an axiom and the implementation conflict, the implementation loses. Borrowings from Quorum/Io must be re-derivable in moop's own terms, not copied on authority.
+
 ## The computational core
 
 The central primitive is a **CCNOT (Toffoli) gate connected to two counter-rotating circular Turing tape loops** (`src/tapeloop.{h,c}`, design notes in `docs/model.md`). Loop A rotates forward, loop B backward; each tick the gate fires symmetrically (controls = cells under both heads, driving two CCNOTs that target the next cell of *each* loop) and then the loops rotate.
@@ -68,7 +70,8 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 - `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/encode.{h,c}` the value-onto-tapes encoding; `src/lexer.{h,c}`, `src/parser.{h,c}`, `src/eval.{h,c}` the interpreter pipeline.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
-- `docs/syntax.md` — surface syntax design notes; semantics documented there are intent until the evaluator exists.
+- `docs/syntax.md` — surface syntax design notes and decisions.
+- `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
 - `tests/` — see the test layers above.
 
 ## Surface syntax and the interpreter pipeline
