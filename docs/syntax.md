@@ -43,6 +43,29 @@ two-layer model surfacing in the syntax:
   the natural word rather than a symbol (naturalism: `is` reads aloud).
   Asymmetric: the name becomes a way to reach the thing; the thing is not
   altered and does not refer back. `is` is identity, not equality-testing.
+  Two designator shapes, one meaning ("the left now denotes the right"):
+  - `name is chain` — the right side evaluates now; the name denotes the
+    value.
+  - `receiver -> message is chain` — teaching. The right side is NOT
+    evaluated; it is stored as a chain and evaluated at each send, with
+    `self` bound to the receiver (so delegated sends answer from the
+    receiver's own body). Re-teaching replaces the chain. `generate` and
+    `maybe` are innate and cannot be redefined — the interpreter says so.
+
+## Ubiquitous homoiconicity (decided)
+
+Homoiconicity holds everywhere, but each layer keeps its code in its own
+medium — nothing user-facing lives on the tapes:
+
+- **System layer**: code is data *on the loops* — every cell is
+  simultaneously instruction (control) and data (target).
+- **User layer**: code is data *in RAM* — a taught message body is the
+  same chain structure the parser produced, stored and evaluated on
+  send. Lisp-style homoiconicity in the user medium.
+
+The layer discipline is untouched: the two homoiconicities never share a
+substrate, and the bridge shape (reversible effect inside, observation
+outside) remains the only crossing.
 
 ## Lexical rules
 
@@ -56,20 +79,24 @@ two-layer model surfacing in the syntax:
 
 ## Evaluation status
 
-Implemented: `name is chain` (binds; definitions are quiet), `x ->
-generate` (births a proto), `x -> maybe` (observes the body), other
-messages via delegating lookup of hosted tables, `child <- parent`
-(lineage predicate), numbers, and the preopened `world` (user-facing
-root proto, generated at startup through actor → system root). Chains
-associate left: `a -> b -> c` is a pipeline.
+Implemented: `name is chain` (binds; definitions are quiet), teaching
+(`receiver -> message is chain`, deferred body, `self`, delegation,
+override — moop is a working prototype-based OOP language), `x ->
+generate` (births a proto), `x -> maybe` (observes the body), `child <-
+parent` (lineage predicate), numbers, and the preopened `world`
+(user-facing root proto, generated at startup through actor → system
+root). Chains associate left: `a -> b -> c` is a pipeline. Dispatch
+order: innate, then taught (walking the lineage), then C-hosted tables.
 
 Not implemented, and honestly erroring: `<->` (the encoding problem),
-running files, hosting user-defined messages from the surface language.
+running files, reflection (reading a taught chain back as a value).
 
 ## Decisions
 
 - Chains associate left (pipelines read naturally).
 - `<-` is a predicate; parents are birth-fixed (see above).
+- Ubiquitous homoiconicity is layered: user code is data in RAM, system
+  code is data on tapes; nothing user-facing on the tapes (see above).
 
 ## Open questions
 
@@ -78,7 +105,8 @@ running files, hosting user-defined messages from the surface language.
   problem, the next major design step.
 - Whether inheritance interacts with `<->` (bijective inheritance would be
   strange — flag if it ever seems tempting).
-- How the surface language hosts user-defined messages (the syntax for
-  defining behavior, not just wiring values).
+- Reflection: `is` stores chains as data, but the surface language
+  cannot yet read one back (quote a chain, inspect a body, rewrite a
+  teaching programmatically). The data is there; the mirror is missing.
 - String and boolean literal forms; whether the logic operator words
   (and, or, nand, nor, xor) are keywords or ordinary messages.

@@ -63,6 +63,71 @@ static bool env_bind(const char *name, size_t len, MoopValue value)
     return true;
 }
 
+static void env_unbind(const char *name, size_t len)
+{
+    Binding *b = env_find(name, len);
+    if (b != NULL) {
+        free(b->name);
+        *b = env[--env_n];
+    }
+}
+
+/* --- teachings: user-defined messages, stored as chains --------------
+ * The user layer is homoiconic in its own medium: a message body is the
+ * same data the parser produced, kept in RAM, evaluated at each send.
+ * Nothing user-facing lives on the tapes. */
+
+typedef struct {
+    MoopProto *owner;
+    char *name;
+    MoopAst *body;  /* owned deep copy; body->root is the chain */
+} Teaching;
+
+#define TEACHINGS_MAX 128
+static Teaching teachings[TEACHINGS_MAX];
+static size_t teachings_n;
+
+static void free_body(MoopAst *body)
+{
+    for (size_t i = 0; i < body->count; i++)
+        free((char *)body->nodes[i].start);
+    free(body);
+}
+
+static MoopAst *copy_body(const MoopAst *src, int root)
+{
+    MoopAst *body = malloc(sizeof *body);
+    if (body == NULL)
+        return NULL;
+    *body = *src;
+    body->root = root;
+    /* lexemes point into the REPL's line buffer; give the copy its own */
+    for (size_t i = 0; i < body->count; i++) {
+        if (src->nodes[i].start != NULL) {
+            char *s = malloc(src->nodes[i].len);
+            if (s == NULL) {
+                body->nodes[i].start = NULL; /* free_body skips the rest */
+                free_body(body);
+                return NULL;
+            }
+            memcpy(s, src->nodes[i].start, src->nodes[i].len);
+            body->nodes[i].start = s;
+        }
+    }
+    return body;
+}
+
+static Teaching *find_teaching(const MoopProto *owner,
+                               const char *name, size_t len)
+{
+    for (size_t i = 0; i < teachings_n; i++)
+        if (teachings[i].owner == owner &&
+            strlen(teachings[i].name) == len &&
+            memcmp(teachings[i].name, name, len) == 0)
+            return &teachings[i];
+    return NULL;
+}
+
 void moop_eval_init(void)
 {
     static bool done = false;
@@ -103,6 +168,45 @@ static MoopProto *birth_proto(MoopProto *generator)
 static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
                       char *err, size_t errlen);
 
+static bool is_innate(const MoopNode *msg)
+{
+    return (msg->len == 8 && memcmp(msg->start, "generate", 8) == 0) ||
+           (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0);
+}
+
+/* Run a taught body with `self` bound to the receiver for the duration
+ * of the send, restoring whatever `self` meant before. */
+static int send_depth;
+
+static bool eval_teaching(const Teaching *t, MoopValue receiver,
+                          MoopValue *out, char *err, size_t errlen)
+{
+    if (send_depth == 32) {
+        snprintf(err, errlen, "message recursion too deep");
+        return false;
+    }
+
+    Binding *prev = env_find("self", 4);
+    bool had_self = prev != NULL;
+    MoopValue saved;
+    if (had_self)
+        saved = prev->value;
+    if (!env_bind("self", 4, receiver)) {
+        snprintf(err, errlen, "too many names");
+        return false;
+    }
+
+    send_depth++;
+    bool ok = eval_node(t->body, t->body->root, out, err, errlen);
+    send_depth--;
+
+    if (had_self)
+        env_bind("self", 4, saved);
+    else
+        env_unbind("self", 4);
+    return ok;
+}
+
 static bool eval_send(const MoopAst *ast, const MoopNode *node,
                       MoopValue *out, char *err, size_t errlen)
 {
@@ -120,6 +224,7 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
         return false;
     }
 
+    /* dispatch: innate, then taught (delegating), then C-hosted */
     if (msg->len == 8 && memcmp(msg->start, "generate", 8) == 0) {
         MoopProto *child = birth_proto(recv.proto);
         if (child == NULL) {
@@ -133,6 +238,12 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
         *out = (MoopValue){ .kind = MOOP_VAL_BOOL,
                             .truth = moop_maybe(&recv.proto->core) };
         return true;
+    }
+
+    for (MoopProto *p = recv.proto; p != NULL; p = p->parent) {
+        const Teaching *t = find_teaching(p, msg->start, msg->len);
+        if (t != NULL)
+            return eval_teaching(t, recv, out, err, errlen);
     }
 
     char name[64];
@@ -149,6 +260,49 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     }
     snprintf(err, errlen, "nothing in the lineage hosts \"%s\"", name);
     return false;
+}
+
+static bool eval_teach(const MoopAst *ast, const MoopNode *designator,
+                       int bodyidx, MoopValue *out, char *err, size_t errlen)
+{
+    MoopValue recv;
+    if (!eval_node(ast, designator->left, &recv, err, errlen))
+        return false;
+    if (recv.kind != MOOP_VAL_PROTO) {
+        snprintf(err, errlen, "only protos host messages");
+        return false;
+    }
+    const MoopNode *msg = &ast->nodes[designator->right];
+    if (is_innate(msg)) {
+        snprintf(err, errlen, "%.*s is innate", (int)msg->len, msg->start);
+        return false;
+    }
+
+    MoopAst *body = copy_body(ast, bodyidx);
+    if (body == NULL) {
+        snprintf(err, errlen, "out of memory");
+        return false;
+    }
+
+    Teaching *t = find_teaching(recv.proto, msg->start, msg->len);
+    if (t != NULL) {
+        free_body(t->body); /* re-teaching replaces the chain */
+        t->body = body;
+    } else {
+        char *name = malloc(msg->len + 1);
+        if (teachings_n == TEACHINGS_MAX || name == NULL) {
+            free(name);
+            free_body(body);
+            snprintf(err, errlen, "too many teachings");
+            return false;
+        }
+        memcpy(name, msg->start, msg->len);
+        name[msg->len] = '\0';
+        teachings[teachings_n++] =
+            (Teaching){ .owner = recv.proto, .name = name, .body = body };
+    }
+    *out = (MoopValue){ .kind = MOOP_VAL_BOOL, .truth = true };
+    return true;
 }
 
 static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
@@ -196,6 +350,9 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         snprintf(err, errlen, "bijection is not implemented yet");
         return false;
     case MOOP_NODE_IS: {
+        const MoopNode *lhs = &ast->nodes[node->left];
+        if (lhs->kind == MOOP_NODE_SEND)
+            return eval_teach(ast, lhs, node->right, out, err, errlen);
         MoopValue value;
         if (!eval_node(ast, node->right, &value, err, errlen))
             return false;

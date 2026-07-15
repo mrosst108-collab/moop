@@ -50,14 +50,25 @@ message passing, `<-` lineage, `<->` bijection, `is` naming (see
 one-way arrows forget, the two-way arrow is reversible.
 
 ```
-moop> coin is world -> generate
-moop> coin -> maybe
+moop> animal is world -> generate
+moop> animal -> mood is self -> maybe
+moop> cat is animal -> generate
+moop> cat -> mood is 9
+moop> dog is animal -> generate
+moop> dog -> mood
 false
-moop> coin <- world
+moop> cat -> mood
+9
+moop> dog <- animal
 true
 moop> a <-> b
 error: bijection is not implemented yet
 ```
+
+Prototype-based OOP works: teach a message with `receiver -> message is
+chain` (the body is stored as a chain — code as data — and runs at each
+send with `self` bound to the receiver), delegate up the lineage,
+override in children.
 
 `world` is the user-facing root proto, generated at startup by the system
 actor through the system root. `generate` births protos; `maybe` draws a

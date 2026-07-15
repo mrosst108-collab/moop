@@ -105,22 +105,26 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
             break;
     }
 
-    /* `is` may appear only as: name is chain */
-    if (peek(&p).kind == MOOP_TOK_WORD && p.toks[1].kind == MOOP_TOK_IS) {
-        MoopToken name = peek(&p);
-        advance(&p); /* name */
-        advance(&p); /* is */
-        int nameidx = add_node(&p, (MoopNode){
-            .kind = MOOP_NODE_WORD, .start = name.start, .len = name.len,
-            .left = -1, .right = -1,
-        });
-        int chain = parse_chain(&p);
-        p.ast->root = add_node(&p, (MoopNode){
-            .kind = MOOP_NODE_IS, .start = name.start, .len = name.len,
-            .left = nameidx, .right = chain,
-        });
-    } else {
-        p.ast->root = parse_chain(&p);
+    int first = parse_chain(&p);
+    p.ast->root = first;
+
+    if (!p.failed && peek(&p).kind == MOOP_TOK_IS) {
+        const MoopNode *lhs = &p.ast->nodes[first];
+        bool name_def = lhs->kind == MOOP_NODE_WORD;
+        bool msg_def = lhs->kind == MOOP_NODE_SEND &&
+                       p.ast->nodes[lhs->right].kind == MOOP_NODE_WORD;
+        if (!name_def && !msg_def) {
+            fail(&p, "only names and messages can be defined");
+        } else {
+            advance(&p); /* is */
+            int body = parse_chain(&p);
+            p.ast->root = add_node(&p, (MoopNode){
+                .kind = MOOP_NODE_IS,
+                .start = name_def ? lhs->start : NULL,
+                .len = name_def ? lhs->len : 0,
+                .left = first, .right = body,
+            });
+        }
     }
 
     if (!p.failed && peek(&p).kind == MOOP_TOK_IS)

@@ -7,12 +7,17 @@
 /* One grammar rule, by design (orthogonality: the operators differ in
  * meaning, never in shape):
  *
- *   statement := WORD "is" chain | chain
+ *   statement := chain ["is" chain]
  *   chain     := term ((-> | <- | <->) term)*   ; associates left
  *   term      := WORD | NUMBER
  *
  * `a -> b -> c` is ((a -> b) -> c): a pipeline, reading left to right.
- */
+ *
+ * The left side of `is` must be a designator: a bare WORD (naming a
+ * value; the right side evaluates now) or `term -> WORD` (teaching a
+ * message; the right side is stored as a chain — code as user-layer
+ * data — and evaluates at each send, with `self` bound to the
+ * receiver). */
 
 typedef enum {
     MOOP_NODE_WORD,

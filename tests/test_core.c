@@ -363,8 +363,18 @@ static void test_parser(void)
               ast.nodes[ast.root].kind == MOOP_NODE_BIJECT,
           "a bijection parses");
 
+    check(moop_parse("dog -> speak is self -> maybe", &ast, err, sizeof err),
+          "a message definition parses");
+    root = &ast.nodes[ast.root];
+    check(root->kind == MOOP_NODE_IS &&
+              ast.nodes[root->left].kind == MOOP_NODE_SEND &&
+              ast.nodes[root->right].kind == MOOP_NODE_SEND,
+          "a message definition is designator + stored chain");
+
     check(!moop_parse("5 is x", &ast, err, sizeof err),
-          "only names can be defined");
+          "only names and messages can be defined");
+    check(!moop_parse("a <- b is 1", &ast, err, sizeof err),
+          "inheritance is not a designator");
     check(!moop_parse("a -> -> b", &ast, err, sizeof err),
           "operators need operands");
     check(!moop_parse("a b", &ast, err, sizeof err),
