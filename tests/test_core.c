@@ -367,6 +367,22 @@ static void test_lexer(void)
     t = moop_lexer_next(&lx);
     check(t.kind == MOOP_TOK_ERROR && t.start[0] == '@',
           "unexpected characters become error tokens");
+
+    /* word spellings are the same tokens as the arrows */
+    moop_lexer_init(&lx, "rex inherits dog mirrors box ask maybe");
+    static const MoopTokKind words[] = {
+        MOOP_TOK_WORD, MOOP_TOK_INHERIT, MOOP_TOK_WORD, MOOP_TOK_BIJECT,
+        MOOP_TOK_WORD, MOOP_TOK_SEND, MOOP_TOK_WORD, MOOP_TOK_END,
+    };
+    bool same = true;
+    for (size_t i = 0; i < sizeof words / sizeof words[0]; i++)
+        same = same && moop_lexer_next(&lx).kind == words[i];
+    check(same, "ask/inherits/mirrors lex as the arrow tokens");
+
+    moop_lexer_init(&lx, "asked mirrorsmith");
+    t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_WORD && t.len == 5,
+          "reserved words do not hijack longer words");
 }
 
 static void test_parser(void)
@@ -399,6 +415,11 @@ static void test_parser(void)
               ast.nodes[root->left].kind == MOOP_NODE_SEND &&
               ast.nodes[root->right].kind == MOOP_NODE_SEND,
           "a message definition is designator + stored chain");
+
+    check(moop_parse("dog ask mood is", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_IS &&
+              ast.nodes[ast.root].right == -1,
+          "a trailing is announces an indented block");
 
     check(!moop_parse("5 is x", &ast, err, sizeof err),
           "only names and messages can be defined");

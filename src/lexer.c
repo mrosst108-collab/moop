@@ -45,9 +45,16 @@ MoopToken moop_lexer_next(MoopLexer *lx)
                s[n] == '_')
             n++;
         lx->pos = n;
-        if (n - p == 2 && strncmp(s + p, "is", 2) == 0)
-            return make(MOOP_TOK_IS, s + p, 2);
-        return make(MOOP_TOK_WORD, s + p, n - p);
+        size_t len = n - p;
+        if (len == 2 && strncmp(s + p, "is", 2) == 0)
+            return make(MOOP_TOK_IS, s + p, len);
+        if (len == 3 && strncmp(s + p, "ask", 3) == 0)
+            return make(MOOP_TOK_SEND, s + p, len);
+        if (len == 8 && strncmp(s + p, "inherits", 8) == 0)
+            return make(MOOP_TOK_INHERIT, s + p, len);
+        if (len == 7 && strncmp(s + p, "mirrors", 7) == 0)
+            return make(MOOP_TOK_BIJECT, s + p, len);
+        return make(MOOP_TOK_WORD, s + p, len);
     }
 
     if (isdigit((unsigned char)c)) {

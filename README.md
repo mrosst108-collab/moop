@@ -50,29 +50,35 @@ message passing, `<-` lineage, `<->` bijection, `is` naming (see
 one-way arrows forget, the two-way arrow is reversible.
 
 ```
-moop> animal is world -> generate
-moop> animal -> mood is self -> maybe
-moop> cat is animal -> generate
-moop> cat -> mood is 9
-moop> dog is animal -> generate
-moop> dog -> mood
+moop> animal is world ask generate
+moop> animal ask mood is
+....>     self ask maybe
+....>
+moop> cat is animal ask generate
+moop> cat ask mood is 9
+moop> dog is animal ask generate
+moop> dog ask mood
 false
-moop> cat -> mood
+moop> cat ask mood
 9
-moop> dog <- animal
+moop> dog inherits animal
 true
-moop> box is world -> generate
-moop> box -> value
+moop> box is world ask generate
+moop> box ask value
 181
-moop> 5 <-> box
+moop> 5 mirrors box
 a proto
-moop> box -> value
+moop> box ask value
 176
-moop> 5 <-> box
+moop> 5 mirrors box
 a proto
-moop> box -> value
+moop> box ask value
 181
 ```
+
+Words are the canonical operators (`ask`, `inherits`, `mirrors`, `is`);
+the arrows `->`, `<-`, `<->` are exact aliases. A trailing `is` opens an
+indented block; a blank line closes it.
 
 Prototype-based OOP works: teach a message with `receiver -> message is
 chain` (the body is stored as a chain — code as data — and runs at each

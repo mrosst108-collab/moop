@@ -45,4 +45,12 @@ void moop_eval_init(void);
 bool moop_eval(const MoopAst *ast, MoopValue *out, bool *quiet,
                char *err, size_t errlen);
 
+/* Evaluate a block definition: `head` is a statement whose `is` had no
+ * inline body (root IS node with right == -1); `bodies` are the block's
+ * lines, one parsed chain each. Takes ownership of `bodies` in every
+ * outcome. Teaching designators store the sequence; name designators
+ * evaluate it now and bind the last value. Definitions are quiet. */
+bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
+                     char *err, size_t errlen);
+
 #endif

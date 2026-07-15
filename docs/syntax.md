@@ -12,15 +12,22 @@ beside it.
 
 ## The four relational operators
 
-| Operator | Reading | Symmetry | Layer |
-|---|---|---|---|
-| `->` | message passing | asymmetric | user (irreversible) |
-| `<-` | inheritance | asymmetric | user (irreversible) |
-| `<->` | bijection | symmetric | system (reversible) |
-| `is` | identity | asymmetric | binding |
+Words are the canonical spellings (Quorum's evidence: words read better
+than symbols, especially for newcomers); the arrows are exact aliases —
+the lexer maps both to the same token, so there is one semantics with
+two notations. The words are reserved and cannot name values or
+messages.
 
-The operators wear their information behavior in their shape — this is the
-two-layer model surfacing in the syntax:
+| Word | Arrow | Reading | Symmetry | Layer |
+|---|---|---|---|---|
+| `ask` | `->` | message passing | asymmetric | user (irreversible) |
+| `inherits` | `<-` | lineage predicate | asymmetric | user (irreversible) |
+| `mirrors` | `<->` | bijection | symmetric | system (reversible) |
+| `is` | — | identity | asymmetric | binding |
+
+`mirrors` earns its name: every bijection form is an involution, so
+mirroring twice restores. The arrows wear the same information behavior
+in their shape — the two-layer model surfacing in the syntax:
 
 - **`x -> y` (message passing).** Flow reads left to right: x is sent to y.
   Sending is consumption; the receiver is free to forget. Irreversible, so
@@ -75,11 +82,32 @@ The layer discipline is untouched: the two homoiconicities never share a
 substrate, and the bridge shape (reversible effect inside, observation
 outside) remains the only crossing.
 
+## Blocks (pythonic whitespace)
+
+An `is` with nothing after it opens an indented block — the definition
+body follows, one chain per line, closed by a blank line:
+
+```
+animal ask mood is
+    self ask maybe
+
+treasure is
+    world ask generate
+    42
+```
+
+A body is a *sequence*: chains evaluate in order and the last value
+answers. Teaching designators store the sequence (deferred, `self`
+bound at each send); name designators evaluate it now and bind the last
+value. Unindented body lines, empty bodies, and nested definitions are
+refused with plain errors. The parser stays line-shaped — indentation
+is handled entirely by the reader.
+
 ## Lexical rules
 
 - Words: letters, digits, underscores; must start with a letter or
-  underscore. `is` is the only keyword so far — matched exactly, so
-  `island` stays a word.
+  underscore. Keywords (`is`, `ask`, `inherits`, `mirrors`) are matched
+  exactly, so `island` and `asked` stay words.
 - Numbers: decimal digit runs.
 - `<->` is matched before `<-` (longest match).
 - A bare `-`, `<`, or any other stray character is a lex error: the
@@ -107,6 +135,10 @@ back as a value).
 
 ## Decisions
 
+- Words are canonical, arrows are aliases: `ask`/`inherits`/`mirrors`
+  are the same tokens as `->`/`<-`/`<->`, resolved in the lexer.
+- Blocks are indentation-shaped: trailing `is` opens, blank line
+  closes, bodies are sequences whose last value answers.
 - Chains associate left (pipelines read naturally).
 - `<-` is a predicate; parents are birth-fixed (see above).
 - Ubiquitous homoiconicity is layered: user code is data in RAM, system

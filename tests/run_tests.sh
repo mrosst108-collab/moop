@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.3.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.4.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -36,6 +36,16 @@ check "self is the receiver, even when delegated" "1" "$(printf 'dog is world ->
 check "re-teaching replaces the chain" "1" "$(printf 'dog is world -> generate\ndog -> answer is 1\ndog -> answer is 2\ndog -> answer\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 2$')"
 check "innate messages cannot be redefined" "error: generate is innate" "$(printf 'world -> generate is 1\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "runaway recursion is caught" "error: message recursion too deep" "$(printf 'dog is world -> generate\ndog -> loop is self -> loop\ndog -> loop\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+
+# vocabulary: words and arrows are the same operators
+check "word vocabulary evaluates" "1" "$(printf 'c is world ask generate\nc inherits world\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
+
+# pythonic whitespace: trailing is opens an indented block
+check "block teaching delegates" "1" "$(printf 'dog is world ask generate\ndog ask mood is\n    self ask maybe\n\nrex is dog ask generate\nrex ask mood\nquit\n' | "$BIN" 2>/dev/null | grep -cE 'true|false')"
+check "name blocks answer with the last value" "1" "$(printf 'treasure is\n    world ask generate\n    42\n\ntreasure\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 42$')"
+check "unindented block lines are refused" "error: expected an indented line or a blank line" "$(printf 'dog is world ask generate\ndog ask mood is\nself ask maybe\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"
+check "empty bodies are refused" "error: the definition body is empty" "$(printf 'dog is world ask generate\ndog ask mood is\n\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"
+check "nested definitions are refused" "error: definitions cannot nest (yet)" "$(printf 'dog is world ask generate\ndog ask mood is\n    x is 1\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"
 
 # bijection: every <-> is an involution — twice is identity
 vals=$(printf 'c is world -> generate\nc -> value\n5 <-> c\nc -> value\n5 <-> c\nc -> value\nquit\n' | "$BIN" 2>/dev/null | grep -oE '[0-9]+$' | tail -3)

@@ -3,15 +3,19 @@
 
 #include <stddef.h>
 
-/* Surface syntax operators:
- *   ->   message passing      (asymmetric: left flows to right)
- *   <-   inheritance          (asymmetric: left inherits from right)
- *   <->  bijective relation   (symmetric: information-preserving)
- *   is   asymmetric identity  (the name becomes the thing, not vice versa)
+/* Surface syntax operators. Each has a word form (canonical — Quorum's
+ * evidence: words read better than symbols) and an arrow alias (compact
+ * notation, same token):
+ *   ask       ->   message passing      (asymmetric: left flows right)
+ *   inherits  <-   lineage predicate    (asymmetric)
+ *   mirrors   <->  bijection            (symmetric: an involution —
+ *                                        mirroring twice restores)
+ *   is             asymmetric identity  (the name becomes the thing)
  *
- * The arrows wear their information behavior: one-way arrows forget a
- * direction (user layer); the two-way arrow is reversible and must
- * compile to the gate layer. Semantics notes live in docs/syntax.md.
+ * The words are reserved; they cannot name values or messages. The
+ * arrows wear their information behavior: one-way arrows forget a
+ * direction (user layer); the two-way arrow is reversible and compiles
+ * to the gate layer. Semantics notes live in docs/syntax.md.
  */
 
 typedef enum {

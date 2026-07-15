@@ -1,7 +1,38 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
 #include "parser.h"
+
+MoopAst *moop_ast_clone(const MoopAst *src)
+{
+    MoopAst *copy = malloc(sizeof *copy);
+    if (copy == NULL)
+        return NULL;
+    *copy = *src;
+    for (size_t i = 0; i < copy->count; i++) {
+        if (src->nodes[i].start != NULL) {
+            char *s = malloc(src->nodes[i].len);
+            if (s == NULL) {
+                copy->count = i; /* free only what we duplicated */
+                moop_ast_free(copy);
+                return NULL;
+            }
+            memcpy(s, src->nodes[i].start, src->nodes[i].len);
+            copy->nodes[i].start = s;
+        }
+    }
+    return copy;
+}
+
+void moop_ast_free(MoopAst *ast)
+{
+    if (ast == NULL)
+        return;
+    for (size_t i = 0; i < ast->count; i++)
+        free((char *)ast->nodes[i].start);
+    free(ast);
+}
 
 #define MAX_TOKENS 128
 
@@ -117,7 +148,7 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
             fail(&p, "only names and messages can be defined");
         } else {
             advance(&p); /* is */
-            int body = parse_chain(&p);
+            int body = peek(&p).kind == MOOP_TOK_END ? -1 : parse_chain(&p);
             p.ast->root = add_node(&p, (MoopNode){
                 .kind = MOOP_NODE_IS,
                 .start = name_def ? lhs->start : NULL,
