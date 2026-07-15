@@ -408,13 +408,19 @@ static void test_parser(void)
               ast.nodes[ast.root].kind == MOOP_NODE_BIJECT,
           "a bijection parses");
 
-    check(moop_parse("dog -> speak is self -> maybe", &ast, err, sizeof err),
+    check(moop_parse("dog ask speak is ask maybe", &ast, err, sizeof err),
           "a message definition parses");
     root = &ast.nodes[ast.root];
     check(root->kind == MOOP_NODE_IS &&
               ast.nodes[root->left].kind == MOOP_NODE_SEND &&
               ast.nodes[root->right].kind == MOOP_NODE_SEND,
           "a message definition is designator + stored chain");
+
+    check(moop_parse("ask maybe", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_SEND &&
+              ast.nodes[ast.nodes[ast.root].left].kind ==
+                  MOOP_NODE_RECEIVER,
+          "a headless chain gets the receiver as its head");
 
     check(moop_parse("dog ask mood is", &ast, err, sizeof err) &&
               ast.nodes[ast.root].kind == MOOP_NODE_IS &&

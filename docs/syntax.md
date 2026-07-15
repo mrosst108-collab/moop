@@ -62,10 +62,31 @@ in their shape — the two-layer model surfacing in the syntax:
   - `name is chain` — the right side evaluates now; the name denotes the
     value.
   - `receiver -> message is chain` — teaching. The right side is NOT
-    evaluated; it is stored as a chain and evaluated at each send, with
-    `self` bound to the receiver (so delegated sends answer from the
+    evaluated; it is stored as a chain and evaluated at each send,
+    addressed to the receiver (so delegated sends answer from the
     receiver's own body). Re-teaching replaces the chain. `generate` and
     `maybe` are innate and cannot be redefined — the interpreter says so.
+
+## The receiver (decided: no keyword)
+
+There is no `self`/`me` word. Every context has a **receiver**, and a
+*headless chain* — one that begins with an operator — addresses it:
+
+```
+animal ask mood is
+    ask maybe            ; an imperative: "ask maybe", addressed to
+                         ; whoever was asked for mood
+```
+
+Inside a taught body the receiver is the object that was asked (even
+when the message was found on an ancestor). At the top level the
+receiver is the world: the REPL session is itself a body whose receiver
+is `world`, so `ask generate` at the prompt births a proto from the
+world. English drops the subject of imperatives; moop does the same.
+
+Known, accepted losses (revisit when messages take arguments): the
+receiver cannot appear as the right operand of `inherits`, and a body
+cannot answer with the receiver itself.
 
 ## Ubiquitous homoiconicity (decided)
 
@@ -89,7 +110,7 @@ body follows, one chain per line, closed by a blank line:
 
 ```
 animal ask mood is
-    self ask maybe
+    ask maybe
 
 treasure is
     world ask generate
@@ -97,7 +118,7 @@ treasure is
 ```
 
 A body is a *sequence*: chains evaluate in order and the last value
-answers. Teaching designators store the sequence (deferred, `self`
+answers. Teaching designators store the sequence (deferred, receiver-
 bound at each send); name designators evaluate it now and bind the last
 value. Unindented body lines, empty bodies, and nested definitions are
 refused with plain errors. The parser stays line-shaped — indentation
@@ -116,7 +137,7 @@ is handled entirely by the reader.
 ## Evaluation status
 
 Implemented: `name is chain` (binds; definitions are quiet), teaching
-(`receiver -> message is chain`, deferred body, `self`, delegation,
+(`receiver -> message is chain`, deferred body, implicit receiver, delegation,
 override — moop is a working prototype-based OOP language), `x ->
 generate` (births a proto), `x -> maybe` (observes the body), `child <-
 parent` (lineage predicate), numbers, and the preopened `world`
@@ -143,6 +164,8 @@ back as a value).
 - `<-` is a predicate; parents are birth-fixed (see above).
 - Ubiquitous homoiconicity is layered: user code is data in RAM, system
   code is data on tapes; nothing user-facing on the tapes (see above).
+- No receiver keyword: headless chains address the receiver; the top
+  level's receiver is the world (see above).
 
 ## Open questions
 

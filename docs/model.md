@@ -170,7 +170,8 @@ apart where other object models fuse them:
   backward.
 - **Inheritance is a pointer** (whom you defer to). Message lookup
   delegates up parent links among user-facing protos, with the original
-  receiver staying `self` (Io-style). Delegation never crosses the layer
+  receiver remaining the one addressed (where Io answers to `self`, moop
+  keeps the receiver implicit). Delegation never crosses the layer
   boundary: user-facing roots have no parent, nothing delegates into the
   system-facing root, and nothing delegates into the actor.
 

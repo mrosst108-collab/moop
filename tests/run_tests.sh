@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.4.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.5.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -32,16 +32,18 @@ check "maybe is replayable across runs" "$run1" "$run2"
 
 # teaching: user-defined messages are stored chains
 check "taught messages answer and delegate" "1" "$(printf 'dog is world -> generate\ndog -> answer is 42\nrex is dog -> generate\nrex -> answer\nquit\n' | "$BIN" 2>/dev/null | grep -c 42)"
-check "self is the receiver, even when delegated" "1" "$(printf 'dog is world -> generate\ndog -> who is self <- dog\nrex is dog -> generate\nrex -> who\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
+check "the receiver is the one asked, even delegated" "1" "$(printf 'dog is world ask generate\ndog ask who is inherits dog\nrex is dog ask generate\nrex ask who\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
+check "headless chains address the world at top level" "1" "$(printf 'ask generate\nquit\n' | "$BIN" 2>/dev/null | grep -c 'a proto')"
+check "self is no longer a special word" "error: unknown name 'self'" "$(printf 'self\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "re-teaching replaces the chain" "1" "$(printf 'dog is world -> generate\ndog -> answer is 1\ndog -> answer is 2\ndog -> answer\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 2$')"
 check "innate messages cannot be redefined" "error: generate is innate" "$(printf 'world -> generate is 1\nquit\n' | "$BIN" 2>&1 >/dev/null)"
-check "runaway recursion is caught" "error: message recursion too deep" "$(printf 'dog is world -> generate\ndog -> loop is self -> loop\ndog -> loop\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "runaway recursion is caught" "error: message recursion too deep" "$(printf 'dog is world ask generate\ndog ask loop is ask loop\ndog ask loop\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
 # vocabulary: words and arrows are the same operators
 check "word vocabulary evaluates" "1" "$(printf 'c is world ask generate\nc inherits world\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
 
 # pythonic whitespace: trailing is opens an indented block
-check "block teaching delegates" "1" "$(printf 'dog is world ask generate\ndog ask mood is\n    self ask maybe\n\nrex is dog ask generate\nrex ask mood\nquit\n' | "$BIN" 2>/dev/null | grep -cE 'true|false')"
+check "block teaching delegates" "1" "$(printf 'dog is world ask generate\ndog ask mood is\n    ask maybe\n\nrex is dog ask generate\nrex ask mood\nquit\n' | "$BIN" 2>/dev/null | grep -cE 'true|false')"
 check "name blocks answer with the last value" "1" "$(printf 'treasure is\n    world ask generate\n    42\n\ntreasure\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 42$')"
 check "unindented block lines are refused" "error: expected an indented line or a blank line" "$(printf 'dog is world ask generate\ndog ask mood is\nself ask maybe\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"
 check "empty bodies are refused" "error: the definition body is empty" "$(printf 'dog is world ask generate\ndog ask mood is\n\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"

@@ -52,7 +52,7 @@ one-way arrows forget, the two-way arrow is reversible.
 ```
 moop> animal is world ask generate
 moop> animal ask mood is
-....>     self ask maybe
+....>     ask maybe
 ....>
 moop> cat is animal ask generate
 moop> cat ask mood is 9
@@ -82,7 +82,7 @@ indented block; a blank line closes it.
 
 Prototype-based OOP works: teach a message with `receiver -> message is
 chain` (the body is stored as a chain — code as data — and runs at each
-send with `self` bound to the receiver), delegate up the lineage,
+send addressed to the receiver — headless chains like `ask maybe` speak to it), delegate up the lineage,
 override in children.
 
 `world` is the user-facing root proto, generated at startup by the system

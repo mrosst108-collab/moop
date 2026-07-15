@@ -90,9 +90,21 @@ static int parse_term(Parser *p)
     return -1;
 }
 
+static bool is_op(MoopTokKind kind)
+{
+    return kind == MOOP_TOK_SEND || kind == MOOP_TOK_INHERIT ||
+           kind == MOOP_TOK_BIJECT;
+}
+
 static int parse_chain(Parser *p)
 {
-    int left = parse_term(p);
+    int left;
+    if (is_op(peek(p).kind))
+        left = add_node(p, (MoopNode){
+            .kind = MOOP_NODE_RECEIVER, .left = -1, .right = -1,
+        });
+    else
+        left = parse_term(p);
     while (!p->failed) {
         MoopNodeKind kind;
         switch (peek(p).kind) {

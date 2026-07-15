@@ -64,15 +64,6 @@ static bool env_bind(const char *name, size_t len, MoopValue value)
     return true;
 }
 
-static void env_unbind(const char *name, size_t len)
-{
-    Binding *b = env_find(name, len);
-    if (b != NULL) {
-        free(b->name);
-        *b = env[--env_n];
-    }
-}
-
 /* --- teachings: user-defined messages, stored as chains --------------
  * The user layer is homoiconic in its own medium: a message body is the
  * same data the parser produced, kept in RAM, evaluated at each send.
@@ -110,6 +101,11 @@ static Teaching *find_teaching(const MoopProto *owner,
     return NULL;
 }
 
+/* Whoever a headless chain addresses. Taught bodies set it to the
+ * object that was asked; between sends it is the world — the top level
+ * is a body whose receiver is the world. */
+static MoopValue current_receiver;
+
 void moop_eval_init(void)
 {
     static bool done = false;
@@ -124,8 +120,9 @@ void moop_eval_init(void)
     moop_proto_generate(&sysroot, &world,
                         world_a, world_ma, LEN_A, world_b, world_mb, LEN_B,
                         world_table, TABLE_CAP);
-    env_bind("world", 5, (MoopValue){ .kind = MOOP_VAL_PROTO,
-                                      .proto = &world });
+    MoopValue w = { .kind = MOOP_VAL_PROTO, .proto = &world };
+    env_bind("world", 5, w);
+    current_receiver = w;
 }
 
 /* --- evaluation ------------------------------------------------------ */
@@ -157,8 +154,9 @@ static bool is_innate(const MoopNode *msg)
            (msg->len == 5 && memcmp(msg->start, "value", 5) == 0);
 }
 
-/* Run a taught body with `self` bound to the receiver for the duration
- * of the send, restoring whatever `self` meant before. */
+/* Run a taught body addressed to the receiver: headless chains inside
+ * it resolve to the object that was asked, then the outer receiver is
+ * restored. */
 static int send_depth;
 
 static bool eval_teaching(const Teaching *t, MoopValue receiver,
@@ -169,26 +167,14 @@ static bool eval_teaching(const Teaching *t, MoopValue receiver,
         return false;
     }
 
-    Binding *prev = env_find("self", 4);
-    bool had_self = prev != NULL;
-    MoopValue saved;
-    if (had_self)
-        saved = prev->value;
-    if (!env_bind("self", 4, receiver)) {
-        snprintf(err, errlen, "too many names");
-        return false;
-    }
-
+    MoopValue saved = current_receiver;
+    current_receiver = receiver;
     send_depth++;
     bool ok = true;
     for (size_t i = 0; ok && i < t->nbodies; i++)
         ok = eval_node(t->bodies[i], t->bodies[i]->root, out, err, errlen);
     send_depth--;
-
-    if (had_self)
-        env_bind("self", 4, saved);
-    else
-        env_unbind("self", 4);
+    current_receiver = saved;
     return ok;
 }
 
@@ -325,6 +311,9 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         *out = b->value;
         return true;
     }
+    case MOOP_NODE_RECEIVER:
+        *out = current_receiver;
+        return true;
     case MOOP_NODE_NUMBER: {
         char buf[32];
         size_t n = node->len < sizeof buf - 1 ? node->len : sizeof buf - 1;
