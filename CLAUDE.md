@@ -55,10 +55,17 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 ## Structure and state
 
-- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory.
+- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/lexer.{h,c}` the surface-syntax lexer.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
+- `docs/syntax.md` — surface syntax design notes; semantics documented there are intent until the evaluator exists.
 - `tests/` — see the test layers above.
 
-Current state: the reversible tape-loop core is implemented and tested. `src/main.c` is a REPL shell (`--version`, "quit") not yet connected to the core; the lexer, parser, and compilation of surface syntax onto tape states are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
+## Surface syntax (lexer stage)
+
+Four relational operators, whose shapes mirror the two-layer model — one-way arrows are irreversible (user layer), the two-way arrow is information-preserving and must eventually compile to the gate layer:
+
+- `->` message passing (asymmetric), `<-` inheritance (asymmetric), `<->` bijection (symmetric, reversible), `is` asymmetric identity (naming; the only keyword — matched exactly, `island` stays a word). `<->` lexes before `<-` (longest match); stray characters are lex errors, never guessed at.
+
+Current state: the reversible tape-loop core and the lexer are implemented and tested. `src/main.c` is a REPL (`--version`, "quit") that lexes input for real and reports lex errors; the parser, evaluator, and compilation of surface syntax onto tape states are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
 
 Update this file as the interpreter grows (e.g., when the lexer/parser/evaluator land, document the pipeline and where each stage lives).

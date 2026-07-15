@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "gates.h"
+#include "lexer.h"
 #include "logic.h"
 #include "ram.h"
 #include "tapeloop.h"
@@ -184,8 +185,45 @@ static void test_ram(void)
     check(moop_ram_read(&ram, 3) == 0xCD, "ram overwrites (forgets) freely");
 }
 
+static void test_lexer(void)
+{
+    MoopLexer lx;
+    moop_lexer_init(&lx, "reply is greeting -> alice <- bob <-> carol 42");
+    static const MoopTokKind expect[] = {
+        MOOP_TOK_WORD, MOOP_TOK_IS, MOOP_TOK_WORD, MOOP_TOK_SEND,
+        MOOP_TOK_WORD, MOOP_TOK_INHERIT, MOOP_TOK_WORD, MOOP_TOK_BIJECT,
+        MOOP_TOK_WORD, MOOP_TOK_NUMBER, MOOP_TOK_END,
+    };
+    bool ok = true;
+    for (size_t i = 0; i < sizeof expect / sizeof expect[0]; i++) {
+        MoopToken t = moop_lexer_next(&lx);
+        ok = ok && t.kind == expect[i];
+    }
+    check(ok, "lexer tokenizes all four operators, words and numbers");
+
+    moop_lexer_init(&lx, "island isnt");
+    MoopToken t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_WORD && t.len == 6,
+          "'is' prefix does not hijack longer words");
+    t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_WORD && t.len == 4, "isnt is a word");
+
+    moop_lexer_init(&lx, "a <-> b");
+    moop_lexer_next(&lx);
+    t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_BIJECT && t.len == 3,
+          "<-> lexes as one bijective token, not <- then >");
+
+    moop_lexer_init(&lx, "a @ b");
+    moop_lexer_next(&lx);
+    t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_ERROR && t.start[0] == '@',
+          "unexpected characters become error tokens");
+}
+
 int main(void)
 {
+    test_lexer();
     test_ccnot_truth_table();
     test_reversible_gates();
     test_counter_rotation();

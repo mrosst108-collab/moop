@@ -1,10 +1,28 @@
 #include <stdio.h>
 #include <string.h>
+#include "lexer.h"
 #include "moop.h"
 
 /* Entry point for the moop interpreter.
- * The evaluator does not exist yet; the REPL only reads input and
- * reports that evaluation is unimplemented, so nothing pretends to work. */
+ * Input is lexed for real; the parser and evaluator do not exist yet, so
+ * beyond lex errors the REPL reports that evaluation is unimplemented —
+ * nothing pretends to work. */
+
+static bool lex_line(const char *line)
+{
+    MoopLexer lx;
+    moop_lexer_init(&lx, line);
+    for (;;) {
+        MoopToken t = moop_lexer_next(&lx);
+        if (t.kind == MOOP_TOK_ERROR) {
+            fprintf(stderr, "error: unexpected character '%.*s'\n",
+                    (int)t.len, t.start);
+            return false;
+        }
+        if (t.kind == MOOP_TOK_END)
+            return true;
+    }
+}
 
 static void repl(void)
 {
@@ -19,7 +37,7 @@ static void repl(void)
         line[strcspn(line, "\n")] = '\0';
         if (strcmp(line, "quit") == 0)
             break;
-        if (line[0] != '\0')
+        if (line[0] != '\0' && lex_line(line))
             fprintf(stderr, "error: evaluation is not implemented yet\n");
     }
 }

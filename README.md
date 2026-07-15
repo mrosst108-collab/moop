@@ -44,6 +44,10 @@ compilers such as GCC 13 — the Makefile detects which one to use).
 
 ## Status
 
-Early days: the reversible tape-loop core (`src/tapeloop.c`) is implemented
-and tested; the REPL is a shell. The lexer, parser, and the compilation of
-surface syntax onto the loops do not exist yet.
+Early days: the reversible tape-loop core (`src/tapeloop.c`) and the lexer
+are implemented and tested. The surface language has four relational
+operators — `->` message passing, `<-` inheritance, `<->` bijection, `is`
+asymmetric identity (see [docs/syntax.md](docs/syntax.md)) — whose shapes
+mirror the machine: one-way arrows forget, the two-way arrow is reversible.
+The parser, evaluator, and the compilation of surface syntax onto the loops
+do not exist yet.

@@ -17,5 +17,7 @@ check() {
 check "--version prints version" "moop 0.0.1" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
+check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "repl is honest about missing evaluator" "error: evaluation is not implemented yet" "$(printf 'x is 1\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
 exit $fail
