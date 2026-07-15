@@ -15,8 +15,15 @@ Two influences guide its design:
 moop's central primitive is a **CCNOT (Toffoli) gate connected to two
 counter-rotating circular Turing tapes**. CCNOT is reversible and universal;
 tape rotation is a permutation — so the whole machine runs backward as
-readily as forward. See [docs/model.md](docs/model.md) for the wiring and
-open design questions.
+readily as forward.
+
+Around that core sit two segregated memory systems with matching operator
+layers: gate-based system memory driven by reversible operators (NOT, CNOT,
+CCNOT, SWAP), and conventional user-facing RAM driven by irreversible ones
+(AND, OR, NAND, NOR, XOR, MAYBE). MAYBE is the one bridge between the
+layers: an unpredictable-looking but replayable truth value drawn from the
+reversible core. See [docs/model.md](docs/model.md) for the wiring and open
+design questions.
 
 ## Building
 

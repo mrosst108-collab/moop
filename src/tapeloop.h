@@ -30,9 +30,6 @@ typedef struct {
     MoopLoop b;   /* rotates backward (-1 per tick) */
 } MoopCore;
 
-/* target ^= (c1 & c2) */
-void moop_ccnot(bool c1, bool c2, bool *target);
-
 void moop_core_init(MoopCore *core,
                     bool *cells_a, size_t len_a,
                     bool *cells_b, size_t len_b);

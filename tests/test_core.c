@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <string.h>
+#include "gates.h"
+#include "logic.h"
+#include "ram.h"
 #include "tapeloop.h"
 
 static int failures;
@@ -70,11 +73,86 @@ static void test_reversibility(void)
           "step_back exactly inverts step over a full cycle");
 }
 
+static void test_reversible_gates(void)
+{
+    bool x = true, y = false;
+
+    moop_not(&x);
+    check(x == false, "not flips");
+    moop_not(&x);
+    check(x == true, "not is self-inverse");
+
+    moop_cnot(true, &y);
+    check(y == true, "cnot flips target when control set");
+    moop_cnot(false, &y);
+    check(y == true, "cnot leaves target when control clear");
+    moop_cnot(true, &y);
+    check(y == false, "cnot is self-inverse");
+
+    x = true; y = false;
+    moop_swap(&x, &y);
+    check(x == false && y == true, "swap exchanges");
+    moop_swap(&x, &y);
+    check(x == true && y == false, "swap is self-inverse");
+}
+
+static void test_irreversible_logic(void)
+{
+    check(moop_and(1, 1) && !moop_and(1, 0), "and");
+    check(moop_or(0, 1) && !moop_or(0, 0), "or");
+    check(moop_nand(1, 0) && !moop_nand(1, 1), "nand");
+    check(moop_nor(0, 0) && !moop_nor(0, 1), "nor");
+    check(moop_xor(1, 0) && !moop_xor(1, 1), "xor");
+}
+
+static void test_maybe(void)
+{
+    bool a[5] = {1, 0, 1, 1, 0}, b[7] = {0, 1, 1, 0, 1, 0, 1};
+    bool a2[5], b2[7];
+    memcpy(a2, a, sizeof a);
+    memcpy(b2, b, sizeof b);
+
+    enum { DRAWS = 12 };
+    bool first[DRAWS], second[DRAWS];
+    MoopCore core, core2;
+
+    moop_core_init(&core, a, 5, b, 7);
+    for (int i = 0; i < DRAWS; i++)
+        first[i] = moop_maybe(&core);
+
+    moop_core_init(&core2, a2, 5, b2, 7);
+    for (int i = 0; i < DRAWS; i++)
+        second[i] = moop_maybe(&core2);
+    check(memcmp(first, second, sizeof first) == 0,
+          "maybe is deterministic for identical tapes");
+
+    for (int i = 0; i < DRAWS; i++)
+        moop_core_step_back(&core);
+    check(a[0] == 1 && a[1] == 0 && a[2] == 1 && a[3] == 1 && a[4] == 0 &&
+          core.a.head == 0 && core.b.head == 0,
+          "maybe's effect on system memory is fully reversible");
+}
+
+static void test_ram(void)
+{
+    uint8_t bytes[16] = {0};
+    MoopRam ram;
+    moop_ram_init(&ram, bytes, sizeof bytes);
+    moop_ram_write(&ram, 3, 0xAB);
+    check(moop_ram_read(&ram, 3) == 0xAB, "ram write/read round-trip");
+    moop_ram_write(&ram, 3, 0xCD);
+    check(moop_ram_read(&ram, 3) == 0xCD, "ram overwrites (forgets) freely");
+}
+
 int main(void)
 {
     test_ccnot_truth_table();
+    test_reversible_gates();
     test_counter_rotation();
     test_gate_computes();
     test_reversibility();
+    test_irreversible_logic();
+    test_maybe();
+    test_ram();
     return failures;
 }

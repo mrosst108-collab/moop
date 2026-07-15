@@ -1,10 +1,6 @@
 #include <assert.h>
+#include "gates.h"
 #include "tapeloop.h"
-
-void moop_ccnot(bool c1, bool c2, bool *target)
-{
-    *target ^= (c1 && c2);
-}
 
 void moop_core_init(MoopCore *core,
                     bool *cells_a, size_t len_a,

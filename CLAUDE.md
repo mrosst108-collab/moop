@@ -19,6 +19,16 @@ The central primitive is a **CCNOT (Toffoli) gate connected to two counter-rotat
 
 The gate wiring is an initial design and expected to iterate — keep wiring decisions confined to `src/tapeloop.c` and update `docs/model.md` when they change.
 
+## Two memories, two logics (segregation)
+
+The machine has two memory systems and two operator layers, and the boundary between them is a hard rule:
+
+- **System layer** — gate-based memory (the tape loops) operated on only by the reversible gates in `src/gates.{h,c}`: NOT, CNOT, CCNOT, SWAP. All self-inverse; never touch RAM from this layer.
+- **User layer** — conventional byte-addressable RAM (`src/ram.{h,c}`) operated on by the irreversible logic in `src/logic.{h,c}`: AND, OR, NAND, NOR, XOR, MAYBE. These consume values and forget; never write system memory from this layer.
+- **MAYBE is the sole sanctioned bridge**: it steps the reversible core once (a reversible, information-preserving effect) and observes the cell under loop A's head — deterministic given the same tapes. Don't add other cross-layer paths without updating `docs/model.md` and the tests.
+
+When adding operators, put them in the layer that matches their information behavior: if it loses information it cannot be a gate; if it's self-inverse it belongs in `gates.{h,c}` and must be covered by a self-inverse test in `tests/test_core.c`.
+
 ## Commands
 
 ```sh
@@ -38,7 +48,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 ## Structure and state
 
-- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core.
+- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `tests/` — see the test layers above.
 

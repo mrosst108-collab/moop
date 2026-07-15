@@ -13,7 +13,9 @@ all: $(BIN)
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BUILD)/%.o: src/%.c src/moop.h | $(BUILD)
+HDR     := $(wildcard src/*.h)
+
+$(BUILD)/%.o: src/%.c $(HDR) | $(BUILD)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BUILD):
