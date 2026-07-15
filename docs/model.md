@@ -27,6 +27,36 @@ Counter-rotation means the pair of aligned cells shifts by (+1, −1) each
 tick: with coprime loop lengths, every cell of A meets every cell of B once
 per `lcm(len_a, len_b)` ticks.
 
+## Causal pruning
+
+The loops auto-prune: information not causally related to the current state
+is discarded.
+
+- **Causal web.** Each cell carries a mark. A cell is marked the first time
+  it participates in a *firing* — a tick where both controls are set, so
+  state actually changes. Controls and target all join the web (the marking
+  rule is actual-cause, not counterfactual: a 0 control that "prevented" a
+  flip does not join).
+- **Inert = independent.** An unmarked cell has never influenced, nor been
+  influenced by, any other cell: the state factorizes into (causal web) ⊗
+  (inert cells). Zeroing an inert cell loses only its own value — nothing
+  about the rest of the state.
+- **Epoch.** One full alignment cycle, `lcm(len_a, len_b)` ticks — every
+  cell of A has met every cell of B exactly once. `moop_core_run()`
+  auto-prunes at each epoch boundary; `moop_core_prune()` prunes on demand.
+- **Pruning is the sanctioned forgetting.** The reversible layer never
+  loses information *except* here, explicitly — prunes are the system
+  layer's analogue of Bennett-style uncomputation checkpoints. The
+  step/step_back round-trip guarantee holds between prunes, not across
+  them. A prune resets marks and starts a fresh epoch, so causal status
+  must be re-earned each epoch.
+
+Honest caveats of this initial design: an inert cell pruned today might
+have fired in a *future* epoch (its alignments repeat, but A's contents
+will have changed), so pruning trades never-yet-used information for a
+smaller live state; and marks are a conservative, monotone approximation
+(stepping backward also marks).
+
 ## Two memories, two logics
 
 moop segregates the machine into layers that must not blur:
@@ -61,3 +91,8 @@ Segregation rules:
   operator (`a maybe b`) choosing between its operands.
 - How user RAM and the surface language exchange values with the system
   layer beyond MAYBE (measurement/encoding discipline).
+- The causal marking rule: should firing in reverse mark (current,
+  conservative choice)? Should repeated-alignment history deepen the
+  criterion (prune only after k inert epochs)?
+- Whether pruned cells should be *reclaimed* (loops shrink) rather than
+  zeroed in place.

@@ -17,6 +17,8 @@ The central primitive is a **CCNOT (Toffoli) gate connected to two counter-rotat
 
 **Reversibility is the load-bearing invariant.** CCNOT is self-inverse and rotation is a permutation, so `moop_core_step_back()` must exactly undo `moop_core_step()` — `tests/test_core.c` enforces this with a full-cycle round-trip. Any change to the core (wiring, gate placement, tape encoding) must preserve exact reversibility and keep that test passing. Loop A needs ≥ 2 cells or the target aliases a control and reversibility breaks (asserted in `moop_core_init`).
 
+**Causal pruning is the one sanctioned exception.** Cells are marked into the causal web when they participate in an actual firing; `moop_core_prune()` zeroes unmarked (causally inert) cells — whose values are provably independent of the rest of the state — and `moop_core_run()` auto-prunes at each epoch boundary (`lcm(len_a, len_b)` ticks). Pruning is explicit, irreversible, and resets the causal epoch: the round-trip guarantee holds *between* prunes, never across them. Marks/ticks are heuristic metadata, not reversible state. Don't add any other information-losing path to the core.
+
 The gate wiring is an initial design and expected to iterate — keep wiring decisions confined to `src/tapeloop.c` and update `docs/model.md` when they change.
 
 ## Two memories, two logics (segregation)

@@ -17,6 +17,10 @@ counter-rotating circular Turing tapes**. CCNOT is reversible and universal;
 tape rotation is a permutation — so the whole machine runs backward as
 readily as forward.
 
+The loops auto-prune: cells that stay causally unrelated to the rest of the
+state through a full alignment cycle are discarded at the epoch boundary —
+the machine's single, explicit act of forgetting.
+
 Around that core sit two segregated memory systems with matching operator
 layers: gate-based system memory driven by reversible operators (NOT, CNOT,
 CCNOT, SWAP), and conventional user-facing RAM driven by irreversible ones
