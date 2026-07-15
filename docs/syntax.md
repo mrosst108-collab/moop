@@ -51,7 +51,10 @@ two-layer model surfacing in the syntax:
   definitions, or literal tape-region aliasing.
 - Whether inheritance interacts with `<->` (bijective inheritance would be
   strange — flag if it ever seems tempting).
-- `<-` applies to user-layer values only: actors are non-hereditary, so
-  `actor <- anything` should be rejected by the evaluator when it exists.
+- `<-` applies among user-facing protos only: actors are non-hereditary
+  and delegation never crosses the layer boundary, so `actor <- anything`
+  and `user_proto <- system_root` should be rejected by the evaluator
+  when it exists. Whether `<-` *creates* the parent link or generation
+  fixes it permanently (current runtime behavior) is open.
 - String and boolean literal forms; whether the logic operator words
   (and, or, nand, nor, xor, maybe) are keywords or ordinary messages.

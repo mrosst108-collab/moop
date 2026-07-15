@@ -34,6 +34,15 @@ The machine has two memory systems and two operator layers, and the boundary bet
 - **User layer** — conventional byte-addressable RAM (`src/ram.{h,c}`) operated on by the irreversible logic in `src/logic.{h,c}`: AND, OR, NAND, NOR, XOR, MAYBE. These consume values and forget; never write system memory from this layer.
 - **Bridging has exactly one sanctioned shape** — reversible effect inside, irreversible observation outside. MAYBE is the primitive bridge: it steps the reversible core once and observes the cell under loop A's head, deterministic given the same tapes. **Actors** (`src/actor.{h,c}`) generalize that shape into the object model: an actor's body is a reversible core (so actors inherit reversibility and homoiconicity from the substrate, not from each other), and its surface is a table of hosted, irreversible, user-facing messages. Actors are non-hereditary — message lookup is strictly local, a miss never delegates, and `<-` has no meaning for them. Handlers may act on the body only via reversible operations and observation. Don't add cross-layer paths of any other shape without updating `docs/model.md` and the tests.
 
+## Protos: generation vs. inheritance
+
+The object ladder (`src/proto.{h,c}`): the system-facing actor generates the system-facing root proto → which generates user-facing root protos → which generate protos, all the way down. Two relations, kept strictly apart:
+
+- **Generation** (who made you) is the only downward system→user path. It seeds the child's tapes via MAYBE draws from the generator's dynamics — deterministic, and reversible for the generator (tests assert the generator can step back to before the birth). Every generated body is a core on the substrate, so all protos inherit reversibility and homoiconicity *by construction*.
+- **Inheritance/delegation** (whom you defer to, `<-`) walks parent links among user-facing protos only, receiver stays `self`. It never crosses the layer boundary: user roots have no parent; nothing delegates into the system root or the actor.
+
+Preserve both rules when extending the object model: generation may cross the boundary (in that one shape); delegation never does.
+
 When adding operators, put them in the layer that matches their information behavior: if it loses information it cannot be a gate; if it's self-inverse it belongs in `gates.{h,c}` and must be covered by a self-inverse test in `tests/test_core.c`.
 
 ## Commands
@@ -55,7 +64,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 ## Structure and state
 
-- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/lexer.{h,c}` the surface-syntax lexer.
+- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/lexer.{h,c}` the surface-syntax lexer.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes; semantics documented there are intent until the evaluator exists.
 - `tests/` — see the test layers above.
@@ -66,6 +75,6 @@ Four relational operators, whose shapes mirror the two-layer model — one-way a
 
 - `->` message passing (asymmetric), `<-` inheritance (asymmetric), `<->` bijection (symmetric, reversible), `is` asymmetric identity (naming; the only keyword — matched exactly, `island` stays a word). `<->` lexes before `<-` (longest match); stray characters are lex errors, never guessed at.
 
-Current state: the reversible tape-loop core, the actor runtime, and the lexer are implemented and tested. `src/main.c` is a REPL (`--version`, "quit") that lexes input for real and reports lex errors; the parser, evaluator, and compilation of surface syntax onto tape states are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
+Current state: the reversible tape-loop core, the actor runtime, the proto hierarchy, and the lexer are implemented and tested. `src/main.c` is a REPL (`--version`, "quit") that lexes input for real and reports lex errors; the parser, evaluator, and compilation of surface syntax onto tape states are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
 
 Update this file as the interpreter grows (e.g., when the lexer/parser/evaluator land, document the pipeline and where each stage lives).

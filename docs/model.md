@@ -130,6 +130,37 @@ Actors (`src/actor.{h,c}`) are the bridging construct between the layers.
   and the actor's whole state returns — the replies it gave are the only
   irreversible product (covered by tests).
 
+## Protos and generation
+
+Above the actor sits a generative hierarchy (`src/proto.{h,c}`): the
+system-facing actor generates the system-facing root proto; the system
+root generates user-facing root protos; user-facing protos generate
+protos, which generate protos... All of them inherit reversibility and
+homoiconicity — by construction, because every generated body is a
+reversible core on the substrate. That inheritance flows down the
+*generative* chain, and is independent of message delegation.
+
+Generation and inheritance are distinct relations, and moop keeps them
+apart where other object models fuse them:
+
+- **Generation is an act** (who made you). It is the only downward path
+  from system to user layer, and it has the sanctioned bridge shape: a
+  child's initial tapes are seeded by observing the generator's
+  reversible dynamics — one MAYBE draw per cell. Generation is therefore
+  deterministic given the generator's state, and *costs the generator
+  nothing irreversible*: step it back and it returns to the moment before
+  the birth. Provenance needs no pointer; the substrate can always run
+  backward.
+- **Inheritance is a pointer** (whom you defer to). Message lookup
+  delegates up parent links among user-facing protos, with the original
+  receiver staying `self` (Io-style). Delegation never crosses the layer
+  boundary: user-facing roots have no parent, nothing delegates into the
+  system-facing root, and nothing delegates into the actor.
+
+So the full object ladder is: actor (non-hereditary) → system root proto
+(delegation root, generative factory) → user root protos (roots of user
+delegation trees) → protos all the way down.
+
 ## Open questions
 
 - Whether one gate suffices in practice or the core grows a ring of gates.

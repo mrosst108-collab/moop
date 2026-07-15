@@ -2,6 +2,7 @@
 #include <string.h>
 #include "actor.h"
 #include "gates.h"
+#include "proto.h"
 #include "lexer.h"
 #include "logic.h"
 #include "ram.h"
@@ -232,6 +233,76 @@ static void test_actor(void)
           "actor bodies inherit reversibility from the substrate");
 }
 
+static bool msg_observe(MoopProto *self)
+{
+    /* answers from the receiver's own body: proves self stays the
+     * receiver even when the handler is found on an ancestor */
+    return self->core.a.cells[0];
+}
+
+static void test_proto_generation(void)
+{
+    bool aa[5] = {1, 0, 1, 1, 0}, ab[7] = {0, 1, 1, 0, 1, 0, 1};
+    bool maa[5], mab[7];
+    MoopMessage atable[2];
+    MoopActor actor;
+    moop_actor_init(&actor, aa, maa, 5, ab, mab, 7, atable, 2);
+
+    bool sa[4], sb[5], msa[4], msb[5];
+    bool ua[4], ub[5], mua[4], mub[5];
+    bool pa[4], pb[5], mpa[4], mpb[5];
+    MoopProtoMessage stable[2], utable[2], ptable[2];
+    MoopProto sysroot, uroot, proto;
+
+    /* actor -> system root -> user root -> proto */
+    moop_actor_generate_root(&actor, &sysroot, sa, msa, 4, sb, msb, 5,
+                             stable, 2);
+    moop_proto_generate(&sysroot, &uroot, ua, mua, 4, ub, mub, 5,
+                        utable, 2);
+    moop_proto_generate(&uroot, &proto, pa, mpa, 4, pb, mpb, 5,
+                        ptable, 2);
+
+    check(sysroot.facing == MOOP_FACING_SYSTEM && sysroot.parent == NULL,
+          "the actor generates the system-facing root");
+    check(uroot.facing == MOOP_FACING_USER && uroot.parent == NULL,
+          "the system root generates user-facing roots with no parent");
+    check(proto.facing == MOOP_FACING_USER && proto.parent == &uroot,
+          "user-facing protos generate hereditary children");
+
+    /* delegation is hereditary among user protos, self = receiver */
+    bool reply = false;
+    moop_proto_host(&uroot, "observe", msg_observe);
+    check(moop_proto_send(&proto, "observe", &reply) && reply == pa[0],
+          "lookup delegates to the parent; self stays the receiver");
+
+    /* ...but never crosses the layer boundary */
+    moop_proto_host(&sysroot, "system", msg_observe);
+    check(!moop_proto_send(&uroot, "system", &reply),
+          "delegation never crosses into the system-facing root");
+
+    /* every generated body inherits reversibility from the substrate */
+    bool pa0[4], pb0[5];
+    memcpy(pa0, pa, sizeof pa0);
+    memcpy(pb0, pb, sizeof pb0);
+    for (int i = 0; i < 11; i++)
+        moop_core_step(&proto.core);
+    for (int i = 0; i < 11; i++)
+        moop_core_step_back(&proto.core);
+    check(memcmp(pa0, pa, sizeof pa0) == 0 &&
+          memcmp(pb0, pb, sizeof pb0) == 0,
+          "generated protos inherit reversibility");
+
+    /* generation itself is reversible for the generator: undo the
+     * seeding draws and the actor is back before the birth */
+    for (int i = 0; i < 4 + 5; i++)
+        moop_core_step_back(&actor.core); /* undo sysroot's 9 seed draws */
+    bool aa0[5] = {1, 0, 1, 1, 0}, ab0[7] = {0, 1, 1, 0, 1, 0, 1};
+    check(memcmp(aa, aa0, sizeof aa0) == 0 &&
+          memcmp(ab, ab0, sizeof ab0) == 0 &&
+          actor.core.a.head == 0 && actor.core.b.head == 0,
+          "generating costs the generator nothing irreversible");
+}
+
 static void test_lexer(void)
 {
     MoopLexer lx;
@@ -282,5 +353,6 @@ int main(void)
     test_maybe();
     test_ram();
     test_actor();
+    test_proto_generation();
     return failures;
 }
