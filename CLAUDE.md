@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project
+
+- **Name:** moop
+
 ## Repository Status
 
 This repository (`moop`) is currently empty — it contains no source code, build configuration, or documentation yet.
