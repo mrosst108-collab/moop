@@ -390,7 +390,7 @@ static void test_parser(void)
     MoopAst ast;
     char err[64];
 
-    check(moop_parse("x is a -> b -> c", &ast, err, sizeof err),
+    check(moop_parse("x is p -> q -> r", &ast, err, sizeof err),
           "a definition of a pipeline parses");
     const MoopNode *root = &ast.nodes[ast.root];
     bool shape = root->kind == MOOP_NODE_IS &&
@@ -404,7 +404,7 @@ static void test_parser(void)
     check(moop_parse("42", &ast, err, sizeof err) &&
               ast.nodes[ast.root].kind == MOOP_NODE_NUMBER,
           "a bare number parses");
-    check(moop_parse("a <-> b", &ast, err, sizeof err) &&
+    check(moop_parse("p <-> q", &ast, err, sizeof err) &&
               ast.nodes[ast.root].kind == MOOP_NODE_BIJECT,
           "a bijection parses");
 
@@ -422,6 +422,13 @@ static void test_parser(void)
                   MOOP_NODE_RECEIVER,
           "a headless chain gets the receiver as its head");
 
+    check(moop_parse("rex is a dog", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_IS &&
+              ast.nodes[ast.nodes[ast.root].right].kind == MOOP_NODE_BIRTH,
+          "the article parses as a birth");
+    check(!moop_parse("a ask maybe", &ast, err, sizeof err),
+          "the article must be followed by a name");
+
     check(moop_parse("dog ask mood is", &ast, err, sizeof err) &&
               ast.nodes[ast.root].kind == MOOP_NODE_IS &&
               ast.nodes[ast.root].right == -1,
@@ -429,11 +436,11 @@ static void test_parser(void)
 
     check(!moop_parse("5 is x", &ast, err, sizeof err),
           "only names and messages can be defined");
-    check(!moop_parse("a <- b is 1", &ast, err, sizeof err),
+    check(!moop_parse("p <- q is 1", &ast, err, sizeof err),
           "inheritance is not a designator");
-    check(!moop_parse("a -> -> b", &ast, err, sizeof err),
+    check(!moop_parse("p -> -> q", &ast, err, sizeof err),
           "operators need operands");
-    check(!moop_parse("a b", &ast, err, sizeof err),
+    check(!moop_parse("p q", &ast, err, sizeof err),
           "adjacent terms need an operator");
 }
 

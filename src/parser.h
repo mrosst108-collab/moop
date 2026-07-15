@@ -9,7 +9,7 @@
  *
  *   statement := chain ["is" [chain]]
  *   chain     := [term] ((-> | <- | <->) term)*   ; associates left
- *   term      := WORD | NUMBER
+ *   term      := ("a" | "an") term | WORD | NUMBER
  *
  * `a -> b -> c` is ((a -> b) -> c): a pipeline, reading left to right.
  * The operators also have word spellings (ask, inherits, mirrors) —
@@ -19,6 +19,11 @@
  * — an English imperative, instructions addressed to whoever is being
  * spoken to. In a taught body that is the object that was asked; at the
  * top level it is the world. There is no receiver keyword.
+ *
+ * The indefinite article is birth, exactly as in English: `rex is dog`
+ * is identity (an alias), `rex is a dog` introduces a NEW proto
+ * generated from dog. A bare `a dog` is an anonymous birth. There is no
+ * creation message.
  *
  * The left side of `is` must be a designator: a bare WORD (naming a
  * value; the right side evaluates now) or `term -> WORD` (teaching a
@@ -34,6 +39,7 @@ typedef enum {
     MOOP_NODE_WORD,
     MOOP_NODE_NUMBER,
     MOOP_NODE_RECEIVER, /* implicit head of a chain that starts with an op */
+    MOOP_NODE_BIRTH,    /* a/an: left = the generator term */
     MOOP_NODE_SEND,     /* ->  */
     MOOP_NODE_INHERIT,  /* <-  */
     MOOP_NODE_BIJECT,   /* <-> */

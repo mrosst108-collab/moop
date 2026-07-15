@@ -50,35 +50,39 @@ message passing, `<-` lineage, `<->` bijection, `is` naming (see
 one-way arrows forget, the two-way arrow is reversible.
 
 ```
-moop> animal is world ask generate
+moop> animal is a world
 moop> animal ask mood is
 ....>     ask maybe
 ....>
-moop> cat is animal ask generate
+moop> cat is an animal
 moop> cat ask mood is 9
-moop> dog is animal ask generate
+moop> dog is an animal
 moop> dog ask mood
 false
 moop> cat ask mood
 9
 moop> dog inherits animal
 true
-moop> box is world ask generate
+moop> box is a world
 moop> box ask value
-181
+52
 moop> 5 mirrors box
 a proto
 moop> box ask value
-176
+49
 moop> 5 mirrors box
 a proto
 moop> box ask value
-181
+52
 ```
 
 Words are the canonical operators (`ask`, `inherits`, `mirrors`, `is`);
-the arrows `->`, `<-`, `<->` are exact aliases. A trailing `is` opens an
-indented block; a blank line closes it.
+the arrows `->`, `<-`, `<->` are exact aliases. The indefinite article
+is birth: `cat is an animal` introduces a new proto generated from
+`animal`, while `alias is animal` (no article) names the same one —
+exactly the identity/membership distinction English draws. There is no
+creation keyword. A trailing `is` opens an indented block; a blank line
+closes it.
 
 Prototype-based OOP works: teach a message with `receiver -> message is
 chain` (the body is stored as a chain — code as data — and runs at each
@@ -86,9 +90,8 @@ send addressed to the receiver — headless chains like `ask maybe` speak to it)
 override in children.
 
 `world` is the user-facing root proto, generated at startup by the system
-actor through the system root. `generate` births protos; `maybe` draws a
-replayable truth from a proto's reversible body; `value` decodes a body's
-loop A as a number. `<->` compiles to real gates and every form is an
+actor through the system root. `maybe` draws a replayable truth from a
+proto's reversible body; `value` decodes a body's loop A as a number. `<->` compiles to real gates and every form is an
 involution — the same `<->` twice is the identity (5 XOR-deposited onto
 181 gives 176; deposited again, 181 returns). General invertible
 functions under `<->` are the next open problem, and the interpreter

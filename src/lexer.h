@@ -11,6 +11,9 @@
  *   mirrors   <->  bijection            (symmetric: an involution —
  *                                        mirroring twice restores)
  *   is             asymmetric identity  (the name becomes the thing)
+ *   a / an         birth                (the indefinite article: `a dog`
+ *                                        is a NEW proto generated from
+ *                                        dog, exactly as in English)
  *
  * The words are reserved; they cannot name values or messages. The
  * arrows wear their information behavior: one-way arrows forget a
@@ -25,6 +28,7 @@ typedef enum {
     MOOP_TOK_INHERIT,  /* <-  */
     MOOP_TOK_BIJECT,   /* <-> */
     MOOP_TOK_IS,       /* is  */
+    MOOP_TOK_ARTICLE,  /* a, an */
     MOOP_TOK_END,      /* end of input */
     MOOP_TOK_ERROR,    /* unexpected character (in start/len) */
 } MoopTokKind;

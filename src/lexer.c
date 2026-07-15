@@ -46,6 +46,10 @@ MoopToken moop_lexer_next(MoopLexer *lx)
             n++;
         lx->pos = n;
         size_t len = n - p;
+        if (len == 1 && s[p] == 'a')
+            return make(MOOP_TOK_ARTICLE, s + p, len);
+        if (len == 2 && strncmp(s + p, "an", 2) == 0)
+            return make(MOOP_TOK_ARTICLE, s + p, len);
         if (len == 2 && strncmp(s + p, "is", 2) == 0)
             return make(MOOP_TOK_IS, s + p, len);
         if (len == 3 && strncmp(s + p, "ask", 3) == 0)

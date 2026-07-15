@@ -149,8 +149,7 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
 
 static bool is_innate(const MoopNode *msg)
 {
-    return (msg->len == 8 && memcmp(msg->start, "generate", 8) == 0) ||
-           (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) ||
+    return (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) ||
            (msg->len == 5 && memcmp(msg->start, "value", 5) == 0);
 }
 
@@ -196,15 +195,6 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     }
 
     /* dispatch: innate, then taught (delegating), then C-hosted */
-    if (msg->len == 8 && memcmp(msg->start, "generate", 8) == 0) {
-        MoopProto *child = birth_proto(recv.proto);
-        if (child == NULL) {
-            snprintf(err, errlen, "out of memory");
-            return false;
-        }
-        *out = (MoopValue){ .kind = MOOP_VAL_PROTO, .proto = child };
-        return true;
-    }
     if (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) {
         *out = (MoopValue){ .kind = MOOP_VAL_BOOL,
                             .truth = moop_maybe(&recv.proto->core) };
@@ -314,6 +304,22 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
     case MOOP_NODE_RECEIVER:
         *out = current_receiver;
         return true;
+    case MOOP_NODE_BIRTH: {
+        MoopValue from;
+        if (!eval_node(ast, node->left, &from, err, errlen))
+            return false;
+        if (from.kind != MOOP_VAL_PROTO) {
+            snprintf(err, errlen, "births come from protos");
+            return false;
+        }
+        MoopProto *child = birth_proto(from.proto);
+        if (child == NULL) {
+            snprintf(err, errlen, "out of memory");
+            return false;
+        }
+        *out = (MoopValue){ .kind = MOOP_VAL_PROTO, .proto = child };
+        return true;
+    }
     case MOOP_NODE_NUMBER: {
         char buf[32];
         size_t n = node->len < sizeof buf - 1 ? node->len : sizeof buf - 1;

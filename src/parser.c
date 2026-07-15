@@ -78,6 +78,18 @@ static int add_node(Parser *p, MoopNode node)
 static int parse_term(Parser *p)
 {
     MoopToken t = peek(p);
+    if (t.kind == MOOP_TOK_ARTICLE) {
+        advance(p);
+        MoopTokKind inner = peek(p).kind;
+        if (inner != MOOP_TOK_WORD && inner != MOOP_TOK_NUMBER) {
+            fail(p, "'a' introduces a new thing: a name must follow");
+            return -1;
+        }
+        int core = parse_term(p);
+        return add_node(p, (MoopNode){
+            .kind = MOOP_NODE_BIRTH, .left = core, .right = -1,
+        });
+    }
     if (t.kind == MOOP_TOK_WORD || t.kind == MOOP_TOK_NUMBER) {
         advance(p);
         return add_node(p, (MoopNode){

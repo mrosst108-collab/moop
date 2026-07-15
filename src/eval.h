@@ -8,17 +8,19 @@
 
 /* The evaluator: the user-facing layer of the interpreter.
  *
- * Each operator has one job (orthogonality):
+ * Each construct has one job (orthogonality):
  *   name is thing   binds a name (names are the mutable, user-layer
  *                   handle; lineage is fixed at generation)
- *   x -> message    sends: `generate` births a proto from x,
- *                   `maybe` observes x's reversible body, anything
- *                   else is looked up in x's hosted table
+ *   a thing         birth — the indefinite article: a NEW proto
+ *                   generated from thing; `rex is a dog` introduces,
+ *                   `rex is dog` aliases. There is no creation message.
+ *   x -> message    sends: `maybe` observes x's reversible body,
+ *                   `value` decodes it, anything else is looked up in
+ *                   x's taught and hosted tables (delegating)
  *   child <- parent lineage predicate: true iff parent is child's
  *                   birth-fixed delegation parent
- *   a <-> b         NOT IMPLEMENTED — compiling bijections onto tape
- *                   states is the open encoding problem; it errors
- *                   honestly rather than approximating
+ *   x <-> y         gate-backed involutions: value deposit / body
+ *                   exchange; applying the same one twice is identity
  *
  * At startup the world is generated as the model prescribes: a
  * system-facing actor generates the system root, which generates the

@@ -24,6 +24,7 @@ messages.
 | `inherits` | `<-` | lineage predicate | asymmetric | user (irreversible) |
 | `mirrors` | `<->` | bijection | symmetric | system (reversible) |
 | `is` | — | identity | asymmetric | binding |
+| `a` / `an` | — | birth | prefix | generation (the bridge) |
 
 `mirrors` earns its name: every bijection form is an involution, so
 mirroring twice restores. The arrows wear the same information behavior
@@ -66,6 +67,27 @@ in their shape — the two-layer model surfacing in the syntax:
     addressed to the receiver (so delegated sends answer from the
     receiver's own body). Re-teaching replaces the chain. `generate` and
     `maybe` are innate and cannot be redefined — the interpreter says so.
+
+## Birth: the indefinite article (decided: no creation word)
+
+There is no `generate`/`create`/`new`. Birth is grammar — the
+indefinite article, used exactly as English uses it:
+
+```
+rex is dog       ; identity: rex names that very proto (an alias)
+rex is a dog     ; membership: rex names a NEW proto generated from dog
+a world          ; an anonymous birth
+```
+
+"Clark is Superman" versus "Clark is a reporter" — the article is how
+English separates identity from instantiation, so `is` keeps one
+meaning per *syntactic* form (no type-dependent behavior). This follows
+Quorum's own precedent: Quorum has no `new`; declaration instantiates.
+`a` and `an` are the same token — use whichever reads well. The article
+applies to a single term; `a 5` is refused (births come from protos).
+Underneath, a birth is still `moop_proto_generate`: tapes seeded from
+the generator's reversible dynamics, deterministic, costing the
+generator nothing irreversible.
 
 ## The receiver (decided: no keyword)
 
@@ -127,8 +149,8 @@ is handled entirely by the reader.
 ## Lexical rules
 
 - Words: letters, digits, underscores; must start with a letter or
-  underscore. Keywords (`is`, `ask`, `inherits`, `mirrors`) are matched
-  exactly, so `island` and `asked` stay words.
+  underscore. Keywords (`is`, `ask`, `inherits`, `mirrors`, `a`, `an`)
+  are matched exactly, so `island`, `asked`, and `answer` stay words.
 - Numbers: decimal digit runs.
 - `<->` is matched before `<-` (longest match).
 - A bare `-`, `<`, or any other stray character is a lex error: the
@@ -137,13 +159,14 @@ is handled entirely by the reader.
 ## Evaluation status
 
 Implemented: `name is chain` (binds; definitions are quiet), teaching
-(`receiver -> message is chain`, deferred body, implicit receiver, delegation,
-override — moop is a working prototype-based OOP language), `x ->
-generate` (births a proto), `x -> maybe` (observes the body), `child <-
-parent` (lineage predicate), numbers, and the preopened `world`
+(`receiver -> message is chain`, deferred body, implicit receiver,
+delegation, override — moop is a working prototype-based OOP language),
+the article (`a dog` births), `x -> maybe` (observes the body), `child
+<- parent` (lineage predicate), numbers, and the preopened `world`
 (user-facing root proto, generated at startup through actor → system
-root). Chains associate left: `a -> b -> c` is a pipeline. Dispatch
-order: innate, then taught (walking the lineage), then C-hosted tables.
+root). Chains associate left: `p -> q -> r` is a pipeline. Dispatch
+order: innate (`maybe`, `value`), then taught (walking the lineage),
+then C-hosted tables.
 
 `<->` is implemented for value↔body (XOR deposit) and body↔body
 (exchange); `x -> value` decodes a body. Interpreter bodies carry 8-cell
@@ -166,6 +189,8 @@ back as a value).
   code is data on tapes; nothing user-facing on the tapes (see above).
 - No receiver keyword: headless chains address the receiver; the top
   level's receiver is the world (see above).
+- No creation word: the indefinite article births; `is` + article
+  introduces, `is` alone aliases (see above).
 
 ## Open questions
 
