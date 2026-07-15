@@ -111,6 +111,23 @@ Segregation rules:
   step, so even the bridge loses no information. Actors (below) generalize
   this same shape into the object model.
 
+## Value encoding
+
+Numbers live on tape states as binary: bit i of a value is cell i of
+loop A (`src/encode.{h,c}`). The primitives are involutions, keeping
+`<->` bijective as a fact:
+
+- **Deposit** (`moop_encode_xor`): XOR the value in via gate-layer NOTs.
+  Self-inverse — writing and unwriting are the same reversible act.
+  Deposited cells are causally marked so pruning spares deliberate
+  deposits.
+- **Exchange** (`moop_exchange`): pairwise gate-layer SWAPs between two
+  bodies' A-tapes; marks travel with their cells.
+- **Decode** (`moop_decode`): pure observation, no effect.
+
+Values wider than the loop are refused, never truncated: silent
+truncation would make a "bijection" lossy.
+
 ## Actors
 
 Actors (`src/actor.{h,c}`) are the bridging construct between the layers.

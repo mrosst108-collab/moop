@@ -34,11 +34,19 @@ two-layer model surfacing in the syntax:
   impossible by construction — no cycle-detection machinery to carry
   (minimalism). To change behavior, generate a fresh proto and rebind
   names; lineage is physics, names are the mutable handle.
-- **`x <-> y` (bijection).** An information-preserving, invertible relation:
-  each side is derivable from the other. This is the syntax's window onto
-  the reversible core — a `<->` must compile down to gate-layer
-  constructions (self-inverse, no information loss). The only symmetric
-  operator, and the only one that can run backward.
+- **`x <-> y` (bijection).** An information-preserving, invertible relation,
+  compiled to gate-layer constructions — the syntax's window onto the
+  reversible core. Every implemented form is an **involution**: applying
+  the same `<->` twice is the identity, so "bijective" is a tested fact.
+  - `5 <-> box` (value ↔ body): XOR-encodes the number onto the body's
+    loop A via gate-layer NOTs. Self-inverse — depositing and erasing are
+    the same act. Values that don't fit are refused, never truncated
+    (truncation would make `<->` lossy — the one thing it must never be).
+  - `a <-> b` (body ↔ body): exchanges the two bodies' A-tapes via
+    gate-layer SWAPs; causal marks travel with their bits.
+  - Yields the (left) body, so pipelines continue: `5 <-> box -> value`.
+  - The innate message `value` decodes loop A as binary (bit i = cell i):
+    pure observation, the bridge shape with zero effect.
 - **`name is thing` (asymmetric identity).** Definitional naming, written as
   the natural word rather than a symbol (naturalism: `is` reads aloud).
   Asymmetric: the name becomes a way to reach the thing; the thing is not
@@ -88,8 +96,14 @@ parent` (lineage predicate), numbers, and the preopened `world`
 root). Chains associate left: `a -> b -> c` is a pipeline. Dispatch
 order: innate, then taught (walking the lineage), then C-hosted tables.
 
-Not implemented, and honestly erroring: `<->` (the encoding problem),
-running files, reflection (reading a taught chain back as a value).
+`<->` is implemented for value↔body (XOR deposit) and body↔body
+(exchange); `x -> value` decodes a body. Interpreter bodies carry 8-cell
+A-loops: values 0..255.
+
+Not implemented, and honestly erroring: number↔number bijections
+(general invertible functions — `celsius <-> fahrenheit` — remain the
+open design work), running files, reflection (reading a taught chain
+back as a value).
 
 ## Decisions
 
@@ -100,9 +114,9 @@ running files, reflection (reading a taught chain back as a value).
 
 ## Open questions
 
-- What `<->` binds at the value level: paired names, invertible function
-  definitions, or literal tape-region aliasing — this is the encoding
-  problem, the next major design step.
+- General invertible functions under `<->` (`celsius <-> fahrenheit`):
+  the primitive involutions exist (deposit, exchange); composing them
+  into definable bijections is the next design step.
 - Whether inheritance interacts with `<->` (bijective inheritance would be
   strange — flag if it ever seems tempting).
 - Reflection: `is` stores chains as data, but the surface language

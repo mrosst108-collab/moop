@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "encode.h"
 #include "eval.h"
 #include "logic.h"
 
 /* Loop lengths for interpreter-made protos: coprime, so an epoch
- * covers every alignment. */
-#define LEN_A 4
-#define LEN_B 5
+ * covers every alignment. 8 cells on loop A = values 0..255. */
+#define LEN_A 8
+#define LEN_B 13
 #define TABLE_CAP 4
 
 /* --- the world ------------------------------------------------------- */
@@ -171,7 +172,8 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
 static bool is_innate(const MoopNode *msg)
 {
     return (msg->len == 8 && memcmp(msg->start, "generate", 8) == 0) ||
-           (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0);
+           (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) ||
+           (msg->len == 5 && memcmp(msg->start, "value", 5) == 0);
 }
 
 /* Run a taught body with `self` bound to the receiver for the duration
@@ -237,6 +239,11 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     if (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) {
         *out = (MoopValue){ .kind = MOOP_VAL_BOOL,
                             .truth = moop_maybe(&recv.proto->core) };
+        return true;
+    }
+    if (msg->len == 5 && memcmp(msg->start, "value", 5) == 0) {
+        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER,
+                            .number = (long)moop_decode(&recv.proto->core) };
         return true;
     }
 
@@ -344,11 +351,39 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
                             .truth = child.proto->parent == parent.proto };
         return true;
     }
-    case MOOP_NODE_BIJECT:
-        /* deliberately before evaluating operands: the whole form is
-         * unimplemented, and honesty beats a partial answer */
-        snprintf(err, errlen, "bijection is not implemented yet");
+    case MOOP_NODE_BIJECT: {
+        MoopValue l, r;
+        if (!eval_node(ast, node->left, &l, err, errlen) ||
+            !eval_node(ast, node->right, &r, err, errlen))
+            return false;
+        if (l.kind == MOOP_VAL_PROTO && r.kind == MOOP_VAL_PROTO) {
+            moop_exchange(&l.proto->core, &r.proto->core);
+            *out = l; /* the left body, so pipelines continue */
+            return true;
+        }
+        MoopValue *num = NULL, *body = NULL;
+        if (l.kind == MOOP_VAL_NUMBER && r.kind == MOOP_VAL_PROTO) {
+            num = &l; body = &r;
+        } else if (l.kind == MOOP_VAL_PROTO && r.kind == MOOP_VAL_NUMBER) {
+            num = &r; body = &l;
+        }
+        if (num != NULL) {
+            unsigned long max = moop_encode_max(&body->proto->core);
+            if (num->number < 0 || (unsigned long)num->number > max) {
+                snprintf(err, errlen,
+                         "an %zu-cell loop carries at most %lu",
+                         body->proto->core.a.len, max);
+                return false;
+            }
+            moop_encode_xor(&body->proto->core,
+                            (unsigned long)num->number);
+            *out = *body;
+            return true;
+        }
+        snprintf(err, errlen,
+                 "a bijection relates a value and a body, or two bodies");
         return false;
+    }
     case MOOP_NODE_IS: {
         const MoopNode *lhs = &ast->nodes[node->left];
         if (lhs->kind == MOOP_NODE_SEND)

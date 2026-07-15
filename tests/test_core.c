@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "actor.h"
+#include "encode.h"
 #include "gates.h"
 #include "proto.h"
 #include "lexer.h"
@@ -234,6 +235,34 @@ static void test_actor(void)
           "actor bodies inherit reversibility from the substrate");
 }
 
+static void test_encoding(void)
+{
+    bool a[8] = {0}, b[13] = {0}, ma[8], mb[13];
+    MoopCore core;
+    moop_core_init(&core, a, ma, 8, b, mb, 13);
+
+    check(moop_encode_max(&core) == 255, "an 8-cell loop carries 0..255");
+    moop_encode_xor(&core, 5);
+    check(moop_decode(&core) == 5, "decode reads back what encode wrote");
+    check(a[0] && !a[1] && a[2], "bit i of the value is cell i of loop A");
+    check(ma[0] && ma[2] && !ma[1],
+          "deliberate deposits are causally marked (pruning spares them)");
+    moop_encode_xor(&core, 5);
+    check(moop_decode(&core) == 0, "encoding is self-inverse");
+
+    bool xa[8] = {0}, xb[13] = {0}, mxa[8], mxb[13];
+    MoopCore other;
+    moop_core_init(&other, xa, mxa, 8, xb, mxb, 13);
+    moop_encode_xor(&core, 9);
+    moop_encode_xor(&other, 3);
+    moop_exchange(&core, &other);
+    check(moop_decode(&core) == 3 && moop_decode(&other) == 9,
+          "exchange moves values both ways");
+    moop_exchange(&core, &other);
+    check(moop_decode(&core) == 9 && moop_decode(&other) == 3,
+          "exchange is self-inverse");
+}
+
 static bool msg_observe(MoopProto *self)
 {
     /* answers from the receiver's own body: proves self stays the
@@ -395,6 +424,7 @@ int main(void)
     test_irreversible_logic();
     test_maybe();
     test_ram();
+    test_encoding();
     test_actor();
     test_proto_generation();
     return failures;

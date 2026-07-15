@@ -61,8 +61,17 @@ moop> cat -> mood
 9
 moop> dog <- animal
 true
-moop> a <-> b
-error: bijection is not implemented yet
+moop> box is world -> generate
+moop> box -> value
+181
+moop> 5 <-> box
+a proto
+moop> box -> value
+176
+moop> 5 <-> box
+a proto
+moop> box -> value
+181
 ```
 
 Prototype-based OOP works: teach a message with `receiver -> message is
@@ -72,6 +81,9 @@ override in children.
 
 `world` is the user-facing root proto, generated at startup by the system
 actor through the system root. `generate` births protos; `maybe` draws a
-replayable truth from a proto's reversible body. Bijections — the
-compilation of `<->` onto tape states — are the open problem, and the
-interpreter says so rather than pretending.
+replayable truth from a proto's reversible body; `value` decodes a body's
+loop A as a number. `<->` compiles to real gates and every form is an
+involution — the same `<->` twice is the identity (5 XOR-deposited onto
+181 gives 176; deposited again, 181 returns). General invertible
+functions under `<->` are the next open problem, and the interpreter
+says so rather than pretending.
