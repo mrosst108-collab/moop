@@ -6,6 +6,7 @@ BUILD   := build
 BIN     := $(BUILD)/moop
 SRC     := $(wildcard src/*.c)
 OBJ     := $(SRC:src/%.c=$(BUILD)/%.o)
+TESTBIN := $(BUILD)/test_core
 
 all: $(BIN)
 
@@ -18,7 +19,10 @@ $(BUILD)/%.o: src/%.c src/moop.h | $(BUILD)
 $(BUILD):
 	mkdir -p $(BUILD)
 
-test: $(BIN)
+$(TESTBIN): tests/test_core.c $(filter-out $(BUILD)/main.o,$(OBJ)) | $(BUILD)
+	$(CC) $(CFLAGS) -Isrc -o $@ $^
+
+test: $(BIN) $(TESTBIN)
 	sh tests/run_tests.sh
 
 clean:

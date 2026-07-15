@@ -11,6 +11,14 @@ moop is a new programming language implemented in C23. Two influences anchor eve
 
 When making language or implementation decisions, weigh them against both principles. If a change adds a concept, it needs to earn its place.
 
+## The computational core
+
+The central primitive is a **CCNOT (Toffoli) gate connected to two counter-rotating circular Turing tape loops** (`src/tapeloop.{h,c}`, design notes in `docs/model.md`). Loop A rotates forward, loop B backward; each tick the gate fires (controls = cells under both heads, target = A's next cell) and then the loops rotate.
+
+**Reversibility is the load-bearing invariant.** CCNOT is self-inverse and rotation is a permutation, so `moop_core_step_back()` must exactly undo `moop_core_step()` — `tests/test_core.c` enforces this with a full-cycle round-trip. Any change to the core (wiring, gate placement, tape encoding) must preserve exact reversibility and keep that test passing. Loop A needs ≥ 2 cells or the target aliases a control and reversibility breaks (asserted in `moop_core_init`).
+
+The gate wiring is an initial design and expected to iterate — keep wiring decisions confined to `src/tapeloop.c` and update `docs/model.md` when they change.
+
 ## Commands
 
 ```sh
@@ -26,13 +34,14 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 ## Toolchain notes
 
 - The Makefile probes the compiler and uses `-std=c23` when supported, falling back to `-std=c2x` (GCC 13, the compiler in this environment, only knows `c2x`). Both mean C23; write C23 code.
-- Tests are plain POSIX sh (`tests/run_tests.sh`), driven by the `check` helper which compares expected vs. actual output of the built binary. Add new smoke tests as `check` lines there.
+- Tests come in two layers, both run by `make test`: `tests/test_core.c` (C unit tests linked against everything in `src/` except `main.c`, built to `build/test_core`) and `tests/run_tests.sh` (POSIX-sh smoke tests against the binaries, using the `check` expected-vs-actual helper). Add C tests for core semantics, `check` lines for CLI behavior.
 
 ## Structure and state
 
-- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary; every `.c` file currently depends on `src/moop.h` (version constant lives there).
-- `tests/run_tests.sh` — end-to-end smoke tests run against the built binary.
+- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core.
+- `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
+- `tests/` — see the test layers above.
 
-Current state: only the entry point exists (`src/main.c`: REPL loop, `--version`, file-argument stub). The lexer, parser, and evaluator are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
+Current state: the reversible tape-loop core is implemented and tested. `src/main.c` is a REPL shell (`--version`, "quit") not yet connected to the core; the lexer, parser, and compilation of surface syntax onto tape states are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
 
 Update this file as the interpreter grows (e.g., when the lexer/parser/evaluator land, document the pipeline and where each stage lives).

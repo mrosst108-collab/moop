@@ -10,6 +10,14 @@ Two influences guide its design:
 - **Minimalism**, in the spirit of Io (Steve Dekorte): a tiny core with few
   concepts, kept simple enough to hold in your head — implementation included.
 
+## The core model
+
+moop's central primitive is a **CCNOT (Toffoli) gate connected to two
+counter-rotating circular Turing tapes**. CCNOT is reversible and universal;
+tape rotation is a permutation — so the whole machine runs backward as
+readily as forward. See [docs/model.md](docs/model.md) for the wiring and
+open design questions.
+
 ## Building
 
 ```sh
@@ -23,5 +31,6 @@ compilers such as GCC 13 — the Makefile detects which one to use).
 
 ## Status
 
-Early days: the project currently builds a REPL shell and version banner.
-The lexer, parser, and evaluator do not exist yet.
+Early days: the reversible tape-loop core (`src/tapeloop.c`) is implemented
+and tested; the REPL is a shell. The lexer, parser, and the compilation of
+surface syntax onto the loops do not exist yet.
