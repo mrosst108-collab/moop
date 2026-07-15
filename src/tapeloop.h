@@ -8,15 +8,24 @@
  * counter-rotating circular Turing tapes ("loops").
  *
  * Each tick:
- *   1. gate fires: controls are the cells under each loop's head;
- *      target is the next cell (in rotation order) on loop A.
+ *   1. the gate fires symmetrically: controls are the cells under each
+ *      loop's head; the shared controls drive two CCNOTs, one targeting
+ *      the next cell (in rotation order) of EACH loop.
  *   2. the loops rotate one cell in opposite directions
  *      (A forward, B backward).
  *
- * CCNOT is reversible and rotation is a permutation, so every tick is
- * reversible; moop_core_step_back() exactly undoes moop_core_step().
- * This wiring (which cells are controls, where the target sits) is the
- * initial design and is expected to iterate — keep it confined here.
+ * The two CCNOTs share controls and have distinct targets, so they
+ * commute and the pair is self-inverse; rotation is a permutation — every
+ * tick is reversible and moop_core_step_back() exactly undoes
+ * moop_core_step().
+ *
+ * The symmetric wiring is what makes the loops HOMOICONIC: there is no
+ * designated program tape. Every cell is simultaneously potential
+ * instruction (control) and potential data (target); code rewrites code,
+ * and because each rewrite is reversible, running any state backward
+ * recovers the program that produced it. The system is causally closed —
+ * nothing outside the loops is needed to go forward or back. This wiring
+ * is still expected to iterate — keep it confined here.
  *
  * Causal pruning. Each loop carries causal marks: a cell is marked the
  * first time it participates in a firing (both controls set, so state

@@ -39,13 +39,16 @@ static void test_counter_rotation(void)
 
 static void test_gate_computes(void)
 {
-    /* both heads on 1-cells: the gate must flip A's next cell */
+    /* both heads on 1-cells: the gate must flip the next cell of BOTH
+     * loops — no loop is a read-only program tape (homoiconicity) */
     bool a[4] = {1, 0, 1, 0}, b[3] = {1, 1, 0}, ma[4], mb[3];
     MoopCore core;
     moop_core_init(&core, a, ma, 4, b, mb, 3);
     moop_core_step(&core);
-    check(a[1] == 1, "ccnot flips target when both controls set");
-    check(ma[0] && mb[0] && ma[1], "a firing marks controls and target causal");
+    check(a[1] == 1, "firing flips loop A's next cell");
+    check(b[2] == 1, "firing flips loop B's next cell too (code rewrites code)");
+    check(ma[0] && mb[0] && ma[1] && mb[2],
+          "a firing marks controls and both targets causal");
     check(!ma[2] && !mb[1], "bystander cells stay causally unmarked");
 }
 
@@ -65,8 +68,8 @@ static void test_reversibility(void)
     enum { TICKS = 35 }; /* one full lcm(5,7) alignment cycle */
     for (int i = 0; i < TICKS; i++)
         moop_core_step(&core);
-    bool changed = memcmp(a0, a, sizeof a) != 0;
-    check(changed, "stepping actually transforms the tape");
+    check(memcmp(a0, a, sizeof a) != 0, "stepping transforms loop A");
+    check(memcmp(b0, b, sizeof b) != 0, "stepping transforms loop B");
 
     for (int i = 0; i < TICKS; i++)
         moop_core_step_back(&core);
@@ -143,9 +146,9 @@ static void test_causal_pruning(void)
     bool a[4] = {1, 0, 1, 0}, b[3] = {1, 0, 0}, ma[4], mb[3];
     MoopCore core;
     moop_core_init(&core, a, ma, 4, b, mb, 3);
-    moop_core_step(&core); /* fires: controls a[0], b[0]; target a[1] */
+    moop_core_step(&core); /* fires: controls a[0], b[0]; targets a[1], b[2] */
     size_t discarded = moop_core_prune(&core);
-    check(a[0] == 1 && a[1] == 1 && b[0] == 1,
+    check(a[0] == 1 && a[1] == 1 && b[0] == 1 && b[2] == 1,
           "pruning preserves the causal web");
     check(a[2] == 0, "pruning zeroes causally inert cells");
     check(discarded == 1, "prune reports discarded set bits");

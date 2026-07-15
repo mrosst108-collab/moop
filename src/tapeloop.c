@@ -6,9 +6,10 @@ void moop_core_init(MoopCore *core,
                     bool *cells_a, bool *marks_a, size_t len_a,
                     bool *cells_b, bool *marks_b, size_t len_b)
 {
-    /* With len_a < 2 the target would alias a control, and a cell that
-     * controls its own flip is not self-inverse — reversibility breaks. */
-    assert(len_a >= 2 && len_b >= 1);
+    /* With a loop shorter than 2 cells its target would alias a control,
+     * and a cell that controls its own flip is not self-inverse —
+     * reversibility breaks. */
+    assert(len_a >= 2 && len_b >= 2);
     core->a = (MoopLoop){ .cells = cells_a, .marks = marks_a, .len = len_a };
     core->b = (MoopLoop){ .cells = cells_b, .marks = marks_b, .len = len_b };
     core->ticks = 0;
@@ -19,25 +20,31 @@ void moop_core_init(MoopCore *core,
 }
 
 /* Fire the gate for the current alignment: controls are the cells under
- * both heads, target is the cell about to rotate under the gate on A.
- * Controls are never written and CCNOT is self-inverse, so firing twice
- * at the same alignment is the identity — which is what makes
- * step/step_back exact inverses.
+ * both heads; the shared controls drive two CCNOTs, targeting the cell
+ * about to rotate under the gate on each loop (A's next is +1, B rotates
+ * the other way so its next is -1). Controls are never written, the two
+ * targets are distinct, and CCNOT is self-inverse — so the pair commutes
+ * and firing twice at the same alignment is the identity, which is what
+ * makes step/step_back exact inverses. Symmetric targets mean neither
+ * loop is a fixed program: code rewrites code (homoiconicity).
  *
- * A firing that changes state (both controls set) pulls all three cells
+ * A firing that changes state (both controls set) pulls all four cells
  * into the causal web. Marks only ever grow within an epoch; firing in
  * reverse marks too, a conservative over-approximation. */
 static void fire(MoopCore *core)
 {
-    size_t t = (core->a.head + 1) % core->a.len;
+    size_t ta = (core->a.head + 1) % core->a.len;
+    size_t tb = (core->b.head + core->b.len - 1) % core->b.len;
     bool c1 = core->a.cells[core->a.head];
     bool c2 = core->b.cells[core->b.head];
     if (c1 && c2) {
         core->a.marks[core->a.head] = true;
         core->b.marks[core->b.head] = true;
-        core->a.marks[t] = true;
+        core->a.marks[ta] = true;
+        core->b.marks[tb] = true;
     }
-    moop_ccnot(c1, c2, &core->a.cells[t]);
+    moop_ccnot(c1, c2, &core->a.cells[ta]);
+    moop_ccnot(c1, c2, &core->b.cells[tb]);
 }
 
 void moop_core_step(MoopCore *core)

@@ -13,9 +13,11 @@ Two influences guide its design:
 ## The core model
 
 moop's central primitive is a **CCNOT (Toffoli) gate connected to two
-counter-rotating circular Turing tapes**. CCNOT is reversible and universal;
-tape rotation is a permutation — so the whole machine runs backward as
-readily as forward.
+counter-rotating circular Turing tapes**. The tapes are reversible *and*
+homoiconic, and the pair is synergistic: the gate fires symmetrically into
+both loops, so there is no designated program tape — code rewrites code —
+while every tick remains exactly invertible. The system is causally closed:
+running any state backward recovers the program that produced it.
 
 The loops auto-prune: cells that stay causally unrelated to the rest of the
 state through a full alignment cycle are discarded at the epoch boundary —

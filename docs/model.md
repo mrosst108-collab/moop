@@ -17,15 +17,45 @@ Implemented in `src/tapeloop.{h,c}`:
 
 - Loop **A** rotates forward one cell per tick; loop **B** rotates backward.
 - Gate controls: the cell under A's head and the cell under B's head.
-- Gate target: the *next* cell on A (the one about to rotate under the gate),
-  so each tick's output becomes a control on the following tick — that
-  feedback is what makes the core compute rather than merely permute.
-- Loop A must have at least 2 cells, or the target would alias a control and
-  self-inverseness (hence reversibility) breaks.
+- Gate targets, symmetric: the shared controls drive two CCNOTs, one on the
+  *next* cell of each loop (the one about to rotate under the gate). Each
+  tick's outputs become controls on later ticks — that feedback is what
+  makes the core compute rather than merely permute.
+- The two CCNOTs share controls and write distinct targets, so they commute
+  and the pair is self-inverse: reversibility survives the double write.
+- Each loop must have at least 2 cells, or its target would alias a control
+  and self-inverseness (hence reversibility) breaks.
 
 Counter-rotation means the pair of aligned cells shifts by (+1, −1) each
 tick: with coprime loop lengths, every cell of A meets every cell of B once
 per `lcm(len_a, len_b)` ticks.
+
+## Reversible + homoiconic: causal closure
+
+The loops are required to be both **reversible** and **homoiconic**, and the
+two properties are synergistic — each makes the other worth having:
+
+- Homoiconicity puts the program on the tapes: there is no designated
+  program loop (the symmetric targets guarantee this — a read-only loop
+  would be a frozen external program). Every cell is simultaneously
+  potential instruction (control) and potential data (target).
+- Reversibility means the state alone determines both future and past.
+- Together the system is **causally closed**: nothing outside the loops is
+  needed to run forward or backward — and running backward from any state
+  recovers *the program that produced it*. Every program carries its own
+  provenance.
+- Self-modifying code becomes safe: every self-rewrite is invertible, so
+  the audit trail is never destroyed — time-travel debugging of
+  self-modifying code.
+- Evaluation is a bijection on program-space: running code *is* a
+  reversible transformation of code.
+- It composes with causal pruning: when code and data share a substrate,
+  garbage collection and dead-code elimination are the same operation —
+  causally inert cells are dead code and dead data at once.
+
+Neither property alone yields any of this: reversibility with an external
+program keeps the *system* irreversible; homoiconicity without
+reversibility is self-modification with amnesia.
 
 ## Causal pruning
 
@@ -86,7 +116,6 @@ Segregation rules:
 - Whether one gate suffices in practice or the core grows a ring of gates.
 - How programs are encoded onto the loops, and how the surface language
   (natural, Quorum-like syntax) compiles down to initial tape states.
-- Target placement: on A, on B, or alternating.
 - MAYBE's final semantics: nullary oracle draw (current design), or a binary
   operator (`a maybe b`) choosing between its operands.
 - How user RAM and the surface language exchange values with the system
