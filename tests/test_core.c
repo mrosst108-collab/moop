@@ -5,6 +5,7 @@
 #include "proto.h"
 #include "lexer.h"
 #include "logic.h"
+#include "parser.h"
 #include "ram.h"
 #include "tapeloop.h"
 
@@ -339,9 +340,41 @@ static void test_lexer(void)
           "unexpected characters become error tokens");
 }
 
+static void test_parser(void)
+{
+    MoopAst ast;
+    char err[64];
+
+    check(moop_parse("x is a -> b -> c", &ast, err, sizeof err),
+          "a definition of a pipeline parses");
+    const MoopNode *root = &ast.nodes[ast.root];
+    bool shape = root->kind == MOOP_NODE_IS &&
+                 ast.nodes[root->right].kind == MOOP_NODE_SEND &&
+                 ast.nodes[ast.nodes[root->right].left].kind ==
+                     MOOP_NODE_SEND;
+    check(shape, "pipelines associate left");
+    check(root->len == 1 && root->start[0] == 'x',
+          "the definition carries its name");
+
+    check(moop_parse("42", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_NUMBER,
+          "a bare number parses");
+    check(moop_parse("a <-> b", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_BIJECT,
+          "a bijection parses");
+
+    check(!moop_parse("5 is x", &ast, err, sizeof err),
+          "only names can be defined");
+    check(!moop_parse("a -> -> b", &ast, err, sizeof err),
+          "operators need operands");
+    check(!moop_parse("a b", &ast, err, sizeof err),
+          "adjacent terms need an operator");
+}
+
 int main(void)
 {
     test_lexer();
+    test_parser();
     test_ccnot_truth_table();
     test_reversible_gates();
     test_counter_rotation();

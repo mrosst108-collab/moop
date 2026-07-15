@@ -1,27 +1,36 @@
 #include <stdio.h>
 #include <string.h>
-#include "lexer.h"
+#include "eval.h"
 #include "moop.h"
+#include "parser.h"
 
 /* Entry point for the moop interpreter.
- * Input is lexed for real; the parser and evaluator do not exist yet, so
- * beyond lex errors the REPL reports that evaluation is unimplemented —
- * nothing pretends to work. */
+ * The pipeline is lex -> parse -> eval; whatever a stage cannot do yet
+ * is reported honestly (bijections, files) — nothing pretends to work. */
 
-static bool lex_line(const char *line)
+static void print_value(const MoopValue *v)
 {
-    MoopLexer lx;
-    moop_lexer_init(&lx, line);
-    for (;;) {
-        MoopToken t = moop_lexer_next(&lx);
-        if (t.kind == MOOP_TOK_ERROR) {
-            fprintf(stderr, "error: unexpected character '%.*s'\n",
-                    (int)t.len, t.start);
-            return false;
-        }
-        if (t.kind == MOOP_TOK_END)
-            return true;
+    switch (v->kind) {
+    case MOOP_VAL_NUMBER: printf("%ld\n", v->number);              break;
+    case MOOP_VAL_BOOL:   printf(v->truth ? "true\n" : "false\n"); break;
+    case MOOP_VAL_PROTO:  printf("a proto\n");                     break;
     }
+}
+
+static void interpret(const char *line)
+{
+    MoopAst ast;
+    MoopValue value;
+    bool quiet = false;
+    char err[128];
+
+    if (!moop_parse(line, &ast, err, sizeof err) ||
+        !moop_eval(&ast, &value, &quiet, err, sizeof err)) {
+        fprintf(stderr, "error: %s\n", err);
+        return;
+    }
+    if (!quiet)
+        print_value(&value);
 }
 
 static void repl(void)
@@ -37,8 +46,8 @@ static void repl(void)
         line[strcspn(line, "\n")] = '\0';
         if (strcmp(line, "quit") == 0)
             break;
-        if (line[0] != '\0' && lex_line(line))
-            fprintf(stderr, "error: evaluation is not implemented yet\n");
+        if (line[strspn(line, " \t")] != '\0')
+            interpret(line);
     }
 }
 
@@ -52,6 +61,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "error: running files is not implemented yet\n");
         return 1;
     }
+    moop_eval_init();
     repl();
     return 0;
 }

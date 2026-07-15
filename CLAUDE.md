@@ -11,6 +11,8 @@ moop is a new programming language implemented in C23. Two influences anchor eve
 
 When making language or implementation decisions, weigh them against both principles. If a change adds a concept, it needs to earn its place.
 
+**We optimize for minimalism through synergy and orthogonality.** Every feature must compound with the rest of the design (synergy: reversibility × homoiconicity = causal closure; pruning × homoiconicity = GC and dead-code elimination as one operation) and own exactly one non-overlapping job (orthogonality: generation is who-made-you, inheritance is whom-you-defer-to, names are the only mutable handle). A feature that duplicates another's role, or that doesn't multiply the value of what's already there, doesn't get in.
+
 ## The computational core
 
 The central primitive is a **CCNOT (Toffoli) gate connected to two counter-rotating circular Turing tape loops** (`src/tapeloop.{h,c}`, design notes in `docs/model.md`). Loop A rotates forward, loop B backward; each tick the gate fires symmetrically (controls = cells under both heads, driving two CCNOTs that target the next cell of *each* loop) and then the loops rotate.
@@ -64,17 +66,24 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 ## Structure and state
 
-- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/lexer.{h,c}` the surface-syntax lexer.
+- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/lexer.{h,c}`, `src/parser.{h,c}`, `src/eval.{h,c}` the interpreter pipeline.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes; semantics documented there are intent until the evaluator exists.
 - `tests/` — see the test layers above.
 
-## Surface syntax (lexer stage)
+## Surface syntax and the interpreter pipeline
 
-Four relational operators, whose shapes mirror the two-layer model — one-way arrows are irreversible (user layer), the two-way arrow is information-preserving and must eventually compile to the gate layer:
+The pipeline is lex (`src/lexer.{h,c}`) → parse (`src/parser.{h,c}`) → eval (`src/eval.{h,c}`), driven line-by-line by the REPL in `src/main.c`. One grammar rule: `statement := WORD "is" chain | chain`, `chain := term (op term)*`, left-associative — `a -> b -> c` is a pipeline.
 
-- `->` message passing (asymmetric), `<-` inheritance (asymmetric), `<->` bijection (symmetric, reversible), `is` asymmetric identity (naming; the only keyword — matched exactly, `island` stays a word). `<->` lexes before `<-` (longest match); stray characters are lex errors, never guessed at.
+Four relational operators, whose shapes mirror the two-layer model — one-way arrows are irreversible (user layer), the two-way arrow is information-preserving and must eventually compile to the gate layer. Each has exactly one job:
 
-Current state: the reversible tape-loop core, the actor runtime, the proto hierarchy, and the lexer are implemented and tested. `src/main.c` is a REPL (`--version`, "quit") that lexes input for real and reports lex errors; the parser, evaluator, and compilation of surface syntax onto tape states are not implemented — the REPL deliberately reports "evaluation is not implemented yet" rather than pretending to work. Keep that honesty: never stub behavior in a way that silently looks functional.
+- `->` message passing: `x -> generate` births a proto from x (the built-in generative message), `x -> maybe` observes x's reversible body; other messages look up x's hosted table (delegating, receiver stays self).
+- `<-` **lineage predicate** (decided, not open): parents are fixed at generation and `<-` cannot rewire them — it evaluates to true/false ("is this my birth parent?"). Immutable parents keep the delegation graph acyclic by construction; behavior changes are done by generating anew and rebinding names, never by re-parenting.
+- `<->` bijection: **not implemented** — compiling bijections onto tape states is the central open problem; it errors honestly. Do not approximate it in the user layer: a fake `<->` that isn't gate-backed would violate the design.
+- `is` asymmetric identity: binds a name in the environment; names are the mutable user-layer handle (rebinding is fine). The only keyword — matched exactly, `island` stays a word.
+
+At startup the evaluator builds the world as the model prescribes: static actor → system root → user-facing root proto, bound to the name `world`. Values are numbers, booleans, and proto references. `<->` lexes before `<-` (longest match); stray characters are lex errors, never guessed at.
+
+Current state: core, gates, logic, RAM, actors, protos, lexer, parser, and a first evaluator slice are implemented and tested. Not implemented (and honestly erroring): `<->`, running files, user-defined message hosting from the surface language, and the value encoding of numbers onto tape states. The REPL deliberately reports what it cannot do rather than pretending — keep that honesty: never stub behavior in a way that silently looks functional.
 
 Update this file as the interpreter grows (e.g., when the lexer/parser/evaluator land, document the pipeline and where each stage lives).

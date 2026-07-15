@@ -44,10 +44,23 @@ compilers such as GCC 13 — the Makefile detects which one to use).
 
 ## Status
 
-Early days: the reversible tape-loop core (`src/tapeloop.c`) and the lexer
-are implemented and tested. The surface language has four relational
-operators — `->` message passing, `<-` inheritance, `<->` bijection, `is`
-asymmetric identity (see [docs/syntax.md](docs/syntax.md)) — whose shapes
-mirror the machine: one-way arrows forget, the two-way arrow is reversible.
-The parser, evaluator, and the compilation of surface syntax onto the loops
-do not exist yet.
+The first slice of the language runs. Four relational operators — `->`
+message passing, `<-` lineage, `<->` bijection, `is` naming (see
+[docs/syntax.md](docs/syntax.md)) — whose shapes mirror the machine:
+one-way arrows forget, the two-way arrow is reversible.
+
+```
+moop> coin is world -> generate
+moop> coin -> maybe
+false
+moop> coin <- world
+true
+moop> a <-> b
+error: bijection is not implemented yet
+```
+
+`world` is the user-facing root proto, generated at startup by the system
+actor through the system root. `generate` births protos; `maybe` draws a
+replayable truth from a proto's reversible body. Bijections — the
+compilation of `<->` onto tape states — are the open problem, and the
+interpreter says so rather than pretending.
