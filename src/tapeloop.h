@@ -38,6 +38,14 @@
  * them. moop_core_run() auto-prunes at every epoch boundary (one full
  * alignment cycle, lcm(len_a, len_b) ticks). Marks and ticks are heuristic
  * metadata, not part of the reversible state.
+ *
+ * Admissibility (asserted in moop_core_init): each loop has >= 2 cells
+ * (else a target aliases a control and self-inverseness breaks), and the
+ * lengths are coprime (else shared factors partition the (A, B) pairings
+ * into alignment classes that never meet, and "one epoch = every pairing
+ * consulted once" — which pruning relies on — no longer holds).
+ * moop_core_step_back() asserts ticks > 0: stepping back past the epoch
+ * start would cross a prune boundary, where the guarantee ends.
  */
 
 typedef struct {

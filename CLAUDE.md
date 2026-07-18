@@ -21,7 +21,7 @@ The central primitive is a **CCNOT (Toffoli) gate connected to two counter-rotat
 
 **Reversibility and homoiconicity are the load-bearing invariants, and they work as a pair** (causal closure: the state alone determines future *and* past, and running backward recovers the program that produced any state — see `docs/model.md`).
 
-- *Reversibility*: the two CCNOTs share controls and write distinct targets, so each tick is self-inverse before rotation; `moop_core_step_back()` must exactly undo `moop_core_step()` — `tests/test_core.c` enforces this with a full-cycle round-trip. Each loop needs ≥ 2 cells or its target aliases a control and reversibility breaks (asserted in `moop_core_init`).
+- *Reversibility*: the two CCNOTs share controls and write distinct targets, so each tick is self-inverse before rotation; `moop_core_step_back()` must exactly undo `moop_core_step()` — `tests/test_core.c` enforces this with a full-cycle round-trip. Each loop needs ≥ 2 cells or its target aliases a control and reversibility breaks, and loop lengths must be coprime or unreachable alignment classes change what pruning means (both asserted in `moop_core_init`); `moop_core_step_back()` asserts it is never called across a prune boundary (ticks > 0).
 - *Homoiconicity*: no loop may become a read-only "program tape" — both loops must remain writable by execution (the symmetric targets guarantee this; the tests assert both loops are transformed). Code and data are the same substrate by design.
 
 Any change to the core (wiring, gate placement, tape encoding) must preserve both properties and keep those tests passing.
