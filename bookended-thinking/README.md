@@ -21,11 +21,47 @@ study is unrun; the outer loop has no outcomes because it needs a time constant
 nobody has waited out. What exists here are architectural rulings rendered as
 executable constraints.
 
-Runtime enforces this rather than stating it. Absent a validation record from
-an anchor external to the architecture, every report is stamped
-`COHERENCE_ONLY`. A classifier built on the architecture's own assumptions
-measures its priors rather than the model's behaviour, and a report that did
-not say so would be internal recurrence wearing a lab coat.
+Runtime enforces this rather than stating it. Absent a validation record
+discharging the `classifier` anchor, every report is stamped `COHERENCE_ONLY`.
+A classifier built on the architecture's own assumptions measures its priors
+rather than the model's behaviour, and a report that did not say so would be
+internal recurrence wearing a lab coat.
+
+### Anti-retroactivity is enforced pointwise, not globally
+
+Three separate claims, and only the first two are true.
+
+**Pointwise enforcement — yes.** Six back-referencing mechanisms are checked
+against the record they characterise rather than believed:
+
+| Field | Checked against |
+|---|---|
+| `standing_since` | the referenced commitment's *content*, not its existence |
+| `commitment_ref` | a sealed response already in the chain |
+| `declared_order` | the classified operator sequence, by order fidelity |
+| `self_classification` | the bridge classifier's independent typing |
+| `ontology_version` | the ontology the engine actually loaded |
+| `prior_state` | specified as replay-verified; unbuilt with the ruling layer |
+
+**The general rule — yes, as a derived constraint.** *A current declaration may
+characterise a prior record; it may not constitute or silently rewrite one.* It
+was not declared at the outset. It emerged from five concrete failures in
+sequence — version string, standing custody, prior state, validation scope,
+anchor decidedness — each asking the same question: can the present record make
+itself true by describing the past differently.
+
+**Global enforcement — no.** Nothing in this tree would catch a seventh site. A
+field added tomorrow that characterises prior state fails no test, fires no
+check, and enters exactly as `ontology_version` did: present, plausible, and
+consulted by nobody. The rule is a habit plus six specific tests.
+
+A registry of back-referencing fields would establish that *every known* such
+field has a verifier. It could not establish that *every* such field is known —
+and the registry would itself be a maintained declaration about the
+architecture, subject to the same discovery failure it was introduced to fix.
+So the gap is recorded rather than papered over. An instrument built around
+what the record can establish must not claim an invariant its own test surface
+cannot detect violations of.
 
 ---
 
@@ -536,6 +572,11 @@ the first person to build a UI would violate without noticing.
 | Three-valued audit state (CLEAN / FINDINGS / UNEXAMINED) | Enforced; partial coverage cannot reach CLEAN |
 | Required set induced by the record, not by a norm | Enforced |
 | Ledger completeness | **Held.** Would be a normative judgement the audit is not authorised to make |
+| Anti-retroactivity, pointwise | Enforced at six identified sites |
+| Anti-retroactivity, globally | **Absent.** No mechanism discovers a seventh site |
+| Constitutional ruling layer | **Unbuilt.** Blocked on the plurality question below |
+| Plurality of custodians: scope and conflict rule of a ruling | **Open.** Global, lineage-scoped or community-scoped; contradiction, fork or differing scope. Not derivable — the custody model has only ever represented one answerable party |
+| Entrenchment: the rule naming who may append rulings is not itself rulable | Settled — otherwise the chain amends its own amendment rule |
 | Claim licensing ladder | Implemented; headline results are typed, not numbers with a warning |
 | `COHERENCE_ONLY` as a gate rather than a label | Closed for the silent path; a reader copying a figure by hand is still outside the instrument |
 | Every headline quantity typed; raw computations namespaced | Enforced — no quotable number sits outside the ladder |
