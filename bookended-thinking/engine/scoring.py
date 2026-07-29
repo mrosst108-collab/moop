@@ -47,6 +47,12 @@ REFUSALS = {
         "adjudicated. Bad typing and bad classifier are not separable from "
         "inside the system."
     ),
+    "clean_passage_from_partial_coverage": (
+        "A forensic audit cannot certify the absence of a finding in a region it "
+        "did not examine. An empty findings block reads as CLEAN only when every "
+        "boundary the record raises was examined; otherwise the audit state is "
+        "UNEXAMINED and says nothing about passage discipline."
+    ),
     "passage_discipline_score": (
         "The passage audit reports the record and never grades it. A count of "
         "unprotected openings is Layer 1; a discipline score supplies a warrant "

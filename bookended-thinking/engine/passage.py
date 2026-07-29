@@ -73,12 +73,59 @@ MEANING = {
 }
 
 NOT_VIOLATED = (
-    "No state here is a finding of promotion. 'Unprotected by the record' means "
-    "the record does not protect the opening, not that the opening was promoted: "
-    "it may have been held all along and written down late. 'Unresolved' is "
+    "NOT_VIOLATED means the record does not establish a violation. It does not "
+    "mean the record establishes compliance. "
+    "No state here is a finding of promotion: 'unprotected by the record' means "
+    "the record does not protect the opening, not that the opening was promoted "
+    "-- it may have been held all along and written down late. 'Unresolved' is "
     "weaker still. Turning missing provenance into a finding of promotion is "
     "interpolating what the record does not establish, which is the one thing "
     "the forensic layer prohibits."
+)
+
+# -- audit states -----------------------------------------------------------
+
+CLEAN = "CLEAN"
+FINDINGS = "FINDINGS"
+UNEXAMINED = "UNEXAMINED"
+
+FULL_COVERAGE = "FULL"
+PARTIAL_COVERAGE = "PARTIAL"
+NO_COVERAGE = "UNEXAMINED"
+
+AUDIT_STATE_MEANING = {
+    CLEAN: (
+        "Every passage relation the record raises was examined, and no positive "
+        "finding was recorded. This is the only state that may be read as 'the "
+        "examined record contains no finding'."
+    ),
+    FINDINGS: (
+        "One or more positive findings. If coverage is not full, the findings "
+        "stand and the unexamined boundaries are not thereby clean."
+    ),
+    UNEXAMINED: (
+        "The record does not contain enough layer-addressable commitments and "
+        "closures to establish that the relations it raises were examined. This "
+        "says nothing about passage discipline, in either direction."
+    ),
+}
+
+COVERAGE_RULE = (
+    "A forensic audit cannot certify the absence of a finding in a region it "
+    "did not examine. An empty findings block from an impoverished record and "
+    "an empty findings block from a disciplined one are not the same result, "
+    "and the difference is carried in the audit state rather than left to be "
+    "inferred from a count."
+)
+
+REQUIRED_SET_NOTE = (
+    "The required set is induced by the record, not by a norm. A boundary "
+    "(C_i, O_i+1) is *raised* when the record itself contains a closure at i or "
+    "an opening at i+1 -- the record's own assertion that the layer was in play "
+    "is what makes the passage question live there. Deriving the required set "
+    "from what a properly conducted run *should* have contained would be a "
+    "normative judgement about what the user ought to have declared, which this "
+    "audit is not authorised to make."
 )
 
 FORENSIC_ONLY = (
@@ -162,8 +209,51 @@ def classify(ledger, entry: dict, closure_rec: dict) -> dict:
             "detail": f"standing since commitment at seq {record['seq']}"}
 
 
+def coverage(ledger) -> dict:
+    """Which passage boundaries the record raises, and which of them it can answer.
+
+    Boundary granularity, deliberately distinct from the pair count in the
+    findings block: several closures at layer i and several openings at i+1
+    produce many comparisons across one boundary, and coverage is a question
+    about boundaries.
+    """
+    closure_layers = {r["payload"]["layer"] for r in ledger.records if r["type"] == "closure"}
+    opening_layers = {e["opening"]["layer"] for e in ledger.openings()}
+
+    raised, examined, unexamined = [], [], []
+    for lower, upper in zip(LAYER_IDS, LAYER_IDS[1:]):
+        has_closure, has_opening = lower in closure_layers, upper in opening_layers
+        if not (has_closure or has_opening):
+            continue
+        raised.append((lower, upper))
+        if has_closure and has_opening:
+            examined.append((lower, upper))
+        else:
+            unexamined.append({
+                "boundary": (lower, upper),
+                "missing": "opening at " + upper if has_closure else "closure at " + lower,
+            })
+
+    if not examined:
+        status = NO_COVERAGE
+    elif len(examined) == len(raised):
+        status = FULL_COVERAGE
+    else:
+        status = PARTIAL_COVERAGE
+
+    return {
+        "required_boundaries": len(raised),
+        "examined_boundaries": len(examined),
+        "raised": raised,
+        "examined": examined,
+        "unexamined": unexamined,
+        "coverage_status": status,
+        "required_set_note": REQUIRED_SET_NOTE,
+    }
+
+
 def audit(ledger) -> dict:
-    """Two reports: findings about the run, provenance quality about the ledger."""
+    """Findings about the run, provenance quality about the ledger, coverage about both."""
     closures = [r for r in ledger.records if r["type"] == "closure"]
     openings = ledger.openings()
 
@@ -181,11 +271,31 @@ def audit(ledger) -> dict:
     unpaired = [e["opening"]["opening_id"] for e in openings
                 if e["opening"]["opening_id"] not in examined_ids]
 
+    positive = [f for f in findings if FINDING_TYPE[f["state"]] is not None]
+    cover = coverage(ledger)
+
+    if positive:
+        state = FINDINGS
+    elif cover["coverage_status"] == FULL_COVERAGE:
+        state = CLEAN
+    else:
+        # Partial coverage cannot support a clean conclusion: some boundary the
+        # record itself raised went unexamined, and absence of a finding there
+        # is absence of a look.
+        state = UNEXAMINED
+
     return {
+        "state": state,
+        "state_meaning": AUDIT_STATE_MEANING[state],
+        "coverage": cover,
+        "coverage_rule": COVERAGE_RULE,
+        "findings_stand_despite_partial_coverage": (
+            state == FINDINGS and cover["coverage_status"] != FULL_COVERAGE
+        ),
         "pairs_examined": len(findings),
         "findings": findings,
-        "counts": {state: counts.get(state, 0) for state in STATES},
-        "positive_findings": [f for f in findings if FINDING_TYPE[f["state"]] is not None],
+        "counts": {s: counts.get(s, 0) for s in STATES},
+        "positive_findings": positive,
         "openings_with_no_preceding_closure": sorted(set(unpaired)),
         "provenance_quality": {
             "unresolved": counts.get(UNRESOLVED, 0),
@@ -205,13 +315,24 @@ def audit(ledger) -> dict:
 
 
 def render(result: dict) -> str:
-    lines = ["Passage audit (forensic; the record, never a grade)", ""]
+    cover = result["coverage"]
+    lines = [
+        f"Passage audit: {result['state']}  (forensic; the record, never a grade)",
+        f"  {result['state_meaning']}",
+        "",
+        f"  coverage: {cover['examined_boundaries']}/{cover['required_boundaries']} "
+        f"boundaries raised by the record were examined -- {cover['coverage_status']}",
+    ]
+    for gap in cover["unexamined"]:
+        lo, hi = gap["boundary"]
+        lines.append(f"    not examined: {lo} -> {hi} (no {gap['missing']})")
+    if result["findings_stand_despite_partial_coverage"]:
+        lines.append("    findings below stand; the unexamined boundaries are not thereby clean")
+    lines.append("")
+
     lines.append(f"  pairs examined: {result['pairs_examined']}")
     for state in STATES:
         lines.append(f"    {state:30s} {result['counts'][state]}")
-    if result["openings_with_no_preceding_closure"]:
-        lines.append(f"  openings with no preceding closure (not examined): "
-                     f"{', '.join(result['openings_with_no_preceding_closure'])}")
     lines.append("")
     for finding in result["positive_findings"]:
         layer = FINDING_TYPE[finding["state"]]

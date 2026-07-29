@@ -46,7 +46,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 96 tests, stdlib only
+./run_tests.sh                 # 109 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -259,6 +259,50 @@ scored: *"O₄ was sealed after C₃ in three of seven runs"* is a record, while
 *"your passage discipline is 6/10"* supplies a criterion, which is Layer 5, and
 hands custody of Cᵢ to the instrument.
 
+> **`NOT_VIOLATED` means the record does not establish a violation. It does not
+> mean the record establishes compliance.**
+
+### The coverage confound
+
+An empty findings block from an impoverished record and an empty findings block
+from a disciplined run are not the same result, and the difference cannot be
+left to be inferred from a count. So the audit's top-level outcome is
+three-valued:
+
+| State | Meaning |
+|---|---|
+| `CLEAN` | Every boundary the record raises was examined; no positive finding. The only state readable as "the examined record contains no finding". |
+| `FINDINGS` | One or more positive findings. Under partial coverage the findings stand and the unexamined boundaries are *not* thereby clean. |
+| `UNEXAMINED` | Not enough layer-addressable commitments and closures to establish that the raised relations were examined. Says nothing about passage discipline, in either direction. |
+
+Partial coverage cannot reach `CLEAN`: a forensic audit cannot certify the
+absence of a finding in a region it did not examine. This closes the Goodhart
+surface at the ledger layer — declining to commit openings no longer buys a
+clean audit, it buys `UNEXAMINED`.
+
+**Where the required set comes from, and why it is not a norm.** Saying
+"required: 5" needs a definition of which relations *should* have been examined,
+and taking that from what a properly conducted run ought to have contained would
+be a normative judgement about what the user should have declared — the thing
+this audit is not authorised to make. The required set is instead **induced by
+the record**: a boundary (Cᵢ, O₍ᵢ₊₁₎) is *raised* when the record itself
+contains a closure at i or an opening at i+1. The record's own assertion that a
+layer was in play is what makes the passage question live there. A quiet run
+raises nothing and is reported as examining nothing, which is accurate rather
+than clean.
+
+Coverage is **boundary-granular**, deliberately distinct from `pairs_examined`
+in the findings block: several closures at layer i against several openings at
+i+1 produce many comparisons across one boundary. (The fields are
+`required_boundaries` / `examined_boundaries` rather than `required_pairs` /
+`examined_pairs`, to keep the two granularities from being read as one number.)
+
+**Still held, and deliberately.** *Ledger completeness* — whether the record
+contains what a properly conducted run should have produced — is not built. The
+coverage report says what the record represents and does not interpret its
+absence; a completeness judgement would say "you failed to declare Oᵢ", which is
+normative and unauthorised. The two must not be merged.
+
 ---
 
 ## What the engine refuses
@@ -280,6 +324,7 @@ Refusals are executable, not documentary — `scoring.report` returns them and
 | the γ *inference* for a non-defined operator pair | γ *is* [G♯, G̃♯]. Any other pair measures order dependence, and treating every noncommutativity result as evidence for one particular commutator is the mistake the arms are separated to avoid. The observation is still reported; only the inference is withheld. |
 | γ from arms with no order-faithful trajectories | A run that did not perform the order it declared cannot measure the effect of that order. |
 | a cross-check from a bare γ label count | The count cannot separate a classifier tracking the ordering from one repeating a label, and those are different findings. `cross_check` raises on an integer. |
+| a clean passage reading from partial coverage | A forensic audit cannot certify the absence of a finding in a region it did not examine. |
 
 Two further guards sit in the ledger. An outcome record must name an external
 source: if the student decides which retained bridges failed, the loop
@@ -369,6 +414,9 @@ the first person to build a UI would violate without noticing.
 | Observation / inference kept apart in the γ result | Enforced; no code path renders a bare "γ ≠ 0" |
 | Cell/path cross-check, 2×3 with relocation profiling | Implemented; carries the bias caveat with every reading; refuses a bare count |
 | Passage audit | Implemented; five states, two of them positive findings at different layers |
+| Three-valued audit state (CLEAN / FINDINGS / UNEXAMINED) | Enforced; partial coverage cannot reach CLEAN |
+| Required set induced by the record, not by a norm | Enforced |
+| Ledger completeness | **Held.** Would be a normative judgement the audit is not authorised to make |
 | `standing_since` resolved by content, not pointer | Enforced — otherwise the field is a backdating primitive |
 | Passage findings vs provenance quality | Reported separately |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |
