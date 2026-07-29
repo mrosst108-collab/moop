@@ -1,0 +1,56 @@
+# Drill 1 -- Layer sweep. Hold the content fixed, vary the layer.
+#
+# Runnable today: needs the pole classifier and nothing else. No resampling,
+# no null baseline, no rater panel, no settled grid count.
+
+id: layer_sweep
+version: "0.6.2"
+axis_exercised: epistemic
+requires: [pole_classifier]
+requires_not: [classifier_validation, resampling, rater_panel]
+
+content: "The historical record is incomplete."
+
+premise: |
+  The same proposition is not the same epistemic act. Decomposition under
+  forensic conditions and decomposition under epistemic-validity conditions are
+  different operations, not one operation in two settings. If that is right,
+  the student's six responses should be six operations over one sentence; if it
+  is wrong, they will be six paraphrases.
+
+tasks:
+  - layer: "L1"
+    instruction: "What does the surviving record establish?"
+  - layer: "L2"
+    instruction: "Who is answerable for claiming that the record establishes it?"
+  - layer: "L3"
+    instruction: "What counts as a record in this inquiry, and what does that commit you to?"
+  - layer: "L4"
+    instruction: "What follows if the record is represented under the framework you declared?"
+  - layer: "L5"
+    instruction: "What warrant does an incomplete record supply, and under what standard?"
+  - layer: "L6"
+    instruction: "What entities does the vocabulary of this inquiry commit you to?"
+
+check: |
+  Classify each of the six responses with the pole classifier. The drill passes
+  when the classified operation changes across the six while the content does
+  not. It fails -- informatively -- when the classifier reports the same
+  operation six times, or when it cannot separate any two adjacent layers.
+
+pre_registration:
+  predicted: "Six distinguishable operations; L1 and L6 the most distinct."
+  informative_negative: |
+    Responses that differ in vocabulary but classify identically. That would
+    say the student has learned the layers' words and not their operations,
+    which is the Goodhart failure the whole design exists to detect -- and it
+    would say the same about a classifier that types on keywords.
+  ambiguity_to_declare_first: |
+    A student failure and a classifier failure are not separable here. Run this
+    drill to find out whether anything is happening, not to score anyone.
+
+zero_guards:
+  - layer: "L1"
+    rule: "A response that fills gaps in the record has fabricated, not synthesised. Forensic zero."
+  - layer: "L6"
+    rule: "A response that derives the vocabulary rather than inhabiting it has breached the ontological zero."

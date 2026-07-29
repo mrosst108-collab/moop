@@ -1,0 +1,91 @@
+# Communicative Pragmatism -- the six-layer epistemic interface.
+#
+# This file DESCRIBES the layers. It carries no predictions about which
+# dynamic objects may operate at which layer. Those live in typing_rules.yaml
+# and are withheld from the classifier.
+
+version: "0.6.2"
+status: sealed
+axis:
+  name: epistemic
+  kind: dependency_order
+  note: |
+    An order, not a set of six interchangeable labels. Positions are not
+    permutable, which a product factor would be. This is one of the two
+    reasons "7x6" misdescribes the object.
+  passage_constraint: "C_i satisfied is a precondition for entering layer i+1, never a warrant for O_i+1."
+  firewall:
+    between: ["L5", "L6"]
+    reason: |
+      Epistemic validity is not ontological standing. Folding the two closes
+      the Apel/Rorty fork by structural accident rather than adjudication.
+      A displacement crossing this boundary is not commensurable with the
+      other five steps and is reported separately.
+
+middle_width_profile:
+  status: interpretive_untested
+  note: |
+    The per-layer widths recorded below were asserted in v0.6 s5 and have
+    never been measured. They are withheld from the classifier and the engine
+    refuses to report width conclusions absent a classifier-validation record.
+
+layers:
+  - id: "L1"
+    name: Forensic
+    question: "What does the record establish?"
+    objects: [record, provenance, evidence, admissibility]
+    opening: "What record is admissible?"
+    closure: "What the record establishes."
+    middle_width: near_zero
+    zero: forensic_zero
+    failure_mode: "A record fabricated, or an opening claimed that the record does not show was held."
+
+  - id: "L2"
+    name: Performative
+    question: "What act or commitment occurred?"
+    objects: [speech_act, declaration, commitment, answerability]
+    opening: "What act or commitment occurred?"
+    closure: "What the speaker is answerable for."
+    middle_width: narrow
+    zero: none
+    failure_mode: "A commitment misrepresented, or never undertaken in the act it is attributed to."
+
+  - id: "L3"
+    name: Metatheory
+    question: "What primitives, rules and presuppositions are declared?"
+    objects: [framework, axiom, primitive, rule]
+    opening: "What primitives and rules are declared?"
+    closure: "What framework has been specified."
+    middle_width: narrow
+    zero: none
+    failure_mode: "A primitive smuggled in without declaration."
+
+  - id: "L4"
+    name: "Object Theory"
+    question: "What follows within the declared system?"
+    objects: [admitted_entity, relation, derivation, transformation]
+    opening: "What objects are admitted?"
+    closure: "What follows within the system."
+    middle_width: widest
+    zero: none
+    failure_mode: "A derivation exceeding its declared domain."
+
+  - id: "L5"
+    name: "Epistemic Validity"
+    question: "What standards of warrant apply?"
+    objects: [justification, evidence_standard, validity_condition]
+    opening: "What standards of warrant apply?"
+    closure: "What is warranted under those standards."
+    middle_width: narrow
+    zero: none
+    failure_mode: "Warrant mistaken for ontological standing -- firewall breach."
+
+  - id: "L6"
+    name: "Local Ontological Soundness"
+    question: "What vocabulary is inhabited, and is it coherent on its own terms?"
+    objects: [local_ontology, category, entity, relation]
+    opening: "What vocabulary is inhabited?"
+    closure: "Whether it is coherent on its own terms."
+    middle_width: near_zero
+    zero: ontological_zero
+    failure_mode: "A local vocabulary treated as though it carried universal authority."

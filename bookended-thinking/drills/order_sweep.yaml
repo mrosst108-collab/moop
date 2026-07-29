@@ -1,0 +1,61 @@
+# Drill 3 -- Order sweep. Hold the layer fixed, vary the order of composition.
+#
+# The only drill that can produce gamma evidence, and the only one whose
+# negative result is informative in a specific direction. It exists because
+# neither of the other two can see a path structure: a cell-level classifier is
+# blind to both passage along the epistemic axis and composition along the
+# dynamic one.
+
+id: order_sweep
+version: "0.6.2"
+axis_exercised: composition
+requires: [pole_classifier, bridge_classifier]
+requires_not: [classifier_validation, rater_panel]
+
+layer: "L4"
+content: "The historical record is incomplete."
+
+commutator_arm:
+  premise: |
+    gamma is defined as [G#, G~#]. That pair, and only that pair, tests gamma
+    as defined. Any other pair tests order dependence in general, which may or
+    may not be gamma -- a distinction worth keeping because a positive result
+    on the wrong pair would be read as a gamma result.
+  runs:
+    - order: [G_sharp, G_tilde_sharp]
+      instruction: "Let the claim descend to a resting point; then confine the result toward an end it does not reach."
+    - order: [G_tilde_sharp, G_sharp]
+      instruction: "Confine the claim toward an end it does not reach; then let the result descend to a resting point."
+  check: "Classify both outputs. Do they differ, and does the difference survive resampling?"
+
+general_arm:
+  premise: "Order dependence beyond the defined commutator. Positive here is NOT a gamma result."
+  runs:
+    - order: [J_sharp, G_sharp]
+      instruction: "Carry the claim into the system without loss; then let the result descend."
+    - order: [G_sharp, J_sharp]
+      instruction: "Let the claim descend; then carry the result into the system without loss."
+
+pre_registration:
+  predicted: "Order matters for the commutator arm. Undeclared for the general arm."
+  informative_negative: |
+    If order never changes the output, gamma is not merely unaddressable at
+    cell level -- it is inert under the conditions tested, and the path-level
+    proposal loses its only current support.
+  resolution_limit: |
+    Declared before running, or a null will be over-read. G# and G~# differ by a
+    property of the flow -- convergent gradient descent versus non-convergent
+    confinement -- not by what the sentence describes. In prose both read as
+    narrowing. Failure to separate them is therefore ambiguous between "the
+    ontology does not carve" and "prose cannot express this carve", and only
+    the first would be a finding.
+  what_would_disambiguate: |
+    Nothing available in this tree. It needs a representation in which the two
+    flows differ observably, which is the representation problem the whole
+    instrument is blocked on.
+
+records:
+  note: |
+    Seal both orders as one commitment before either runs. Running one, reading
+    it, then declaring the second is retrofitting, and the ledger refuses a
+    response whose commitment is not already sealed.
