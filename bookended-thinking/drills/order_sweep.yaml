@@ -15,18 +15,60 @@ requires_not: [classifier_validation, rater_panel]
 layer: "L4"
 content: "The historical record is incomplete."
 
+measurement: |
+  The classifier never meets gamma in this drill. It types the constituent
+  operation of each step -- one observed entry per step, in order -- and the
+  engine composes the invariant afterwards (engine/trajectory.py). gamma is
+  observationally historical: it is a property of two trajectories and their
+  ordering, so no single classification can carry it, and asking a classifier
+  to recognise it was the wrong abstraction. Recognition belongs to operators;
+  measurement belongs to trajectory analysis.
+
+  Two consequences of that decomposition, both enforced in the engine:
+
+  * The endpoint is read off the LAYER, not the operator. The operator is how
+    you moved; the layer is where you are. Arm A necessarily ends with the
+    second declared operator and arm B with the other one, so an
+    operator-valued endpoint would make every pair noncommute by construction
+    -- a measurement of the experimental design rather than of the operators.
+  * Order fidelity is checked per trajectory. A run that declared G# then G~#
+    but was classified the other way round did not perform the order it
+    declared; it is excluded and counted, never averaged in.
+
 commutator_arm:
   premise: |
     gamma is defined as [G#, G~#]. That pair, and only that pair, tests gamma
     as defined. Any other pair tests order dependence in general, which may or
     may not be gamma -- a distinction worth keeping because a positive result
-    on the wrong pair would be read as a gamma result.
+    on the wrong pair would be read as a gamma result. The engine refuses the
+    gamma label for any pair that is not the defined commutator.
   runs:
     - order: [G_sharp, G_tilde_sharp]
       instruction: "Let the claim descend to a resting point; then confine the result toward an end it does not reach."
     - order: [G_tilde_sharp, G_sharp]
       instruction: "Confine the claim toward an end it does not reach; then let the result descend to a resting point."
-  check: "Classify both outputs. Do they differ, and does the difference survive resampling?"
+  check: |
+    Classify each step of both runs. The engine compares the endpoint
+    distributions, and separately the route distributions, with a permutation
+    test. Endpoints carry the commutator; routes differing while endpoints
+    agree is not noncommutation, because two orders can trivially differ in the
+    middle -- that is what ordering is.
+
+cross_check:
+  premise: |
+    The cell-level and path-level results check each other, which neither does
+    alone. The classifier still sees gamma as a bare label with no definition,
+    so a cell-level gamma remains reportable and the void conjecture remains
+    falsifiable.
+  readings:
+    - when: "order effect measured, no cell typed gamma"
+      reading: "path_level_supported -- gamma has a referent one level up"
+    - when: "no order effect, no cell typed gamma"
+      reading: "gamma_inert -- the path-level proposal loses its only support"
+    - when: "order effect measured, cells typed gamma"
+      reading: "classifier_relocated -- a typing question, not a gamma question"
+    - when: "no order effect, cells typed gamma"
+      reading: "label_without_operation -- the classifier is typing on the name"
 
 general_arm:
   premise: "Order dependence beyond the defined commutator. Positive here is NOT a gamma result."
@@ -49,6 +91,12 @@ pre_registration:
     narrowing. Failure to separate them is therefore ambiguous between "the
     ontology does not carve" and "prose cannot express this carve", and only
     the first would be a finding.
+
+    Moving gamma into the engine does not lift this limit. It relocates the
+    burden onto order fidelity: if the classifier cannot separate G# from G~#
+    in prose, the fidelity check will fail or pass arbitrarily and the arms
+    will not be what they claim. Excluded-trajectory counts are therefore the
+    first thing to read, before any endpoint comparison.
   what_would_disambiguate: |
     Nothing available in this tree. It needs a representation in which the two
     flows differ observably, which is the representation problem the whole

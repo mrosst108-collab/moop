@@ -135,6 +135,7 @@ def cmd_report(args) -> int:
         interaction_arms=runs.get("interaction_arms"),
         ablation_arms=runs.get("ablation_arms"),
         planted_rounds=runs.get("planted_rounds"),
+        trajectory_arms=runs.get("trajectory_arms"),
     )
     print(scoring.render(rep) if not args.json else json.dumps(rep, indent=2, default=str))
     return 0

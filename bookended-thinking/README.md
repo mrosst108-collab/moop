@@ -46,7 +46,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 51 tests, stdlib only
+./run_tests.sh                 # 70 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -108,6 +108,61 @@ numbers.
 
 ---
 
+## Adopted after review: γ is measured, not recognised
+
+κ is observationally **local** — a classifier can decide admissible or
+inadmissible from the object in front of it. γ is observationally
+**historical**: a commutator is a property of two trajectories and their
+ordering, so no single classification can carry it. Asking a classifier to
+*recognise* γ was the wrong abstraction, and it was the source of this tree's
+declared leak.
+
+So the classifier now types the constituent operations, one `observed` entry
+per step, and never meets the commutator concept. `engine/trajectory.py`
+composes the invariant afterwards. γ's `definition`, `commutator_of` and
+`computed_from` join the withheld fields and no longer reach the prompt.
+
+Three things fell out of the decomposition that were not visible before it.
+
+**The endpoint is a place, not a move.** A cell is an operator instantiated
+within a layer: the operator is *how you moved*, the layer is *where you are*.
+Arm A necessarily ends with the second declared operator and arm B with the
+other one, so an operator-valued endpoint would make every pair noncommute by
+construction — a measurement of the experimental design rather than of the
+operators. Endpoints are read off layers; routes are reported separately,
+because two orders trivially differ in the middle and reading that as
+noncommutation would find order dependence everywhere.
+
+**Order fidelity became checkable.** A run that declared G♯ then G̃♯ but was
+classified the other way round did not perform the order it declared. Those
+trajectories are excluded and counted, never averaged in.
+
+**The two levels now cross-check each other.** γ stays in the classifier's
+vocabulary as a bare label, so a cell-level γ remains reportable and the void
+conjecture remains falsifiable. Combined with the path-level measurement that
+gives four readings, none of which either instrument yields alone:
+
+| | no cell-level γ | cell-level γ reported |
+|---|---|---|
+| **order effect** | `path_level_supported` — γ has a referent one level up | `classifier_relocated` — a typing question, not a γ question |
+| **no order effect** | `gamma_inert` — the path-level proposal loses its only support | `label_without_operation` — the classifier is typing on the name |
+
+**This is not a clean win, and the code says so.** Removing the definition
+trades one bias for another: with it present the classifier was told most of
+what the void conjecture predicts; with it absent the classifier is likelier to
+miss a genuine cell-level γ, which biases toward *confirming* the conjecture.
+Neither direction is neutral. The path-level measurement carries the γ claim
+now; the cell-level test is demoted to a weak cross-check, and the caveat rides
+along with every reading the module returns.
+
+The resolution limit is not lifted either, only relocated. If the classifier
+cannot separate G♯ from G̃♯ in prose — they differ by a property of the flow, not
+by what the sentence describes — then the fidelity check passes or fails
+arbitrarily and the arms are not what they claim. Excluded-trajectory counts
+are the first thing to read, before any endpoint comparison.
+
+---
+
 ## What the engine refuses
 
 Refusals are executable, not documentary — `scoring.report` returns them and
@@ -123,6 +178,9 @@ Refusals are executable, not documentary — `scoring.report` returns them and
 | adjudicating a typing violation | Bad typing and bad classifier are not separable from inside the system. |
 | C without a null baseline | C *is* divergence from P(Y│∅). Without the null run, any number would be the model's default behaviour reported as the student's contribution. |
 | interaction without single-pole arms | Without them a bridge cannot be told from the model following one pole — and following one pole is exactly what produces a large displacement. |
+| a classifier-emitted γ as a γ measurement | γ is a property of two trajectories and their ordering. A cell-level γ is an observation; it is never promoted. |
+| the γ label for a non-defined operator pair | γ *is* [G♯, G̃♯]. Any other pair measures order dependence, and treating every noncommutativity result as evidence for one particular commutator is the mistake the arms are separated to avoid. |
+| γ from arms with no order-faithful trajectories | A run that did not perform the order it declared cannot measure the effect of that order. |
 
 Two further guards sit in the ledger. An outcome record must name an external
 source: if the student decides which retained bridges failed, the loop
@@ -162,11 +220,11 @@ as confirmation.
 
 ## Known weaknesses, declared here rather than discovered later
 
-**The γ arm is the softest test in the tree.** γ's definition — computed from
-trajectories — is given to the classifier, because withholding it would leave
-the classifier unable to recognise γ at all. That definition is already close to
-the prediction under test, so the γ result is weaker evidence than the κ result,
-where the withholding is clean.
+**The γ cross-check is the softest test in the tree**, for the reason given
+above: removing the definition biases toward confirming the void conjecture
+just as including it biased toward the classifier knowing the answer. The
+path-level measurement is sounder than the cell-level one, and neither is
+anchored.
 
 **Empty-cell tests are not anchor-free.** When an output lands in a cell the
 subgraph types as void, *bad typing* and *bad classifier* are not separable from
@@ -181,10 +239,19 @@ grid's virtue there is that it does *not* reproduce the model's ambient
 ontology, which an embedding metric would. Width claims are a different matter
 and are refused.
 
-**No drill measures a path structure.** A cell-level classifier is blind to
-both passage along the epistemic axis and composition along the dynamic one.
-The order sweep is a first approach to the second; nothing here touches the
-first.
+**Only one of the two path structures is measured.** A cell-level classifier is
+blind to both passage along the epistemic axis and composition along the
+dynamic one. `engine/trajectory.py` now measures the second. Nothing here
+touches the first: no instrument checks whether a closure was treated as
+authorising the next opening, which is the passage constraint and the failure
+mode the non-promotion firewall exists to catch.
+
+**Any visualisation of this space must be graph-based, not a heatmap.** Δ is
+partially ordered, not metric, and a heatmap irresistibly suggests Euclidean
+geometry — adjacent cells reading as near, colour gradients reading as
+distance. That would reintroduce, in the display layer, exactly the metric the
+engine refuses to assert. Recorded here because it is the kind of constraint
+the first person to build a UI would violate without noticing.
 
 ---
 
@@ -200,6 +267,10 @@ first.
 | Interaction as the definition of synthesis | Implemented; necessary, not sufficient for value |
 | Pairwise ablation with a constraint cap | Implemented; the cap binds on the declaration |
 | Channel 2 planted errors | Implemented engine-side; contest rate reported alongside accuracy |
+| γ composed by the engine from operator labels | Implemented; commutator withheld from the prompt |
+| Order fidelity per trajectory | Enforced; unfaithful runs excluded and counted |
+| Cell/path cross-check | Implemented; carries the bias caveat with every reading |
+| Passage constraint (the other path structure) | **Unmeasured.** No instrument here sees it |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |
 | Middle-width gradient | Withheld and unreported |
 | Grid count (28 vs 42) | Still blocked. Nothing here needs it: the blocks are reported separately and never summed |

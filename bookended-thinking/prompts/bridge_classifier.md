@@ -52,6 +52,17 @@ pairs can land on the same edge. Report the edge because it is observable and
 report the bridge separately in prose, and do not present the edge as if it
 were the bridge.
 
+## Multi-step runs
+
+Some runs apply more than one operation in a stated order. Classify **each step
+separately, in the order it appears**, and emit one `observed` entry per step.
+
+Do not compose them. Do not compare this run with any other run, and do not
+report what the ordering did — you are seeing one response and an ordering
+effect is not visible in one response. Something downstream holds both orders
+and composes them. Your job is the labels; the composition is not yours and you
+have not been given what it would take.
+
 ## Procedure
 
 1. Identify the response span being classified.

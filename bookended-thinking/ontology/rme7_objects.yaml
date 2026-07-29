@@ -75,7 +75,20 @@ objects:
     name: "path dependence"
     kind: invariant
     definition: "[G#, G~#]"
+    commutator_of: [G_sharp, G_tilde_sharp]
     computed_from: trajectories
     note: |
       A commutator is not an element of the space it is computed over; it is
       the obstruction to that space being commutative. Measured, not applied.
+
+      definition, commutator_of and computed_from are WITHHELD from the
+      rendered prompt. gamma is observationally historical -- a property of two
+      trajectories and their ordering -- so no single classification can carry
+      it, and a classifier that had the commutator would be told most of what
+      the void conjecture predicts. The engine composes gamma from the
+      constituent operator labels instead (engine/trajectory.py).
+
+      The classifier still sees the bare label, so a cell-level gamma remains
+      reportable and the void conjecture remains falsifiable. That test is now
+      weak in the opposite direction and is treated as a cross-check, not as
+      the gamma measurement.

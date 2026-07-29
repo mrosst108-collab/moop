@@ -26,9 +26,15 @@ KINDS = ("operator", "indicator", "invariant")
 SUPPORT = ("clear", "contested", "uncertain")
 
 #: Fields excluded from anything rendered into a classifier prompt.
+#:
+#: ``definition`` / ``commutator_of`` / ``computed_from`` are withheld because
+#: gamma is measured rather than recognised: the engine composes it from the
+#: constituent operator labels, so the classifier never needs the commutator
+#: and giving it the commutator would hand it most of the void conjecture.
 WITHHELD_FIELDS = {
     "cp_layers": ("middle_width", "zero"),
-    "rme7_objects": ("predicts_high_dispersion", "note"),
+    "rme7_objects": ("predicts_high_dispersion", "note", "definition",
+                     "commutator_of", "computed_from"),
 }
 
 
@@ -62,6 +68,7 @@ class Dynamic:
     kind: str
     fail_only: bool = False
     definition: str | None = None
+    commutator_of: tuple = ()
     computed_from: str | None = None
     predicts_high_dispersion: bool = False
     note: str | None = None
@@ -113,6 +120,7 @@ class Ontology:
                 kind=entry["kind"],
                 fail_only=bool(entry.get("fail_only", False)),
                 definition=entry.get("definition"),
+                commutator_of=tuple(entry.get("commutator_of") or ()),
                 computed_from=entry.get("computed_from"),
                 predicts_high_dispersion=bool(entry.get("predicts_high_dispersion", False)),
                 note=entry.get("note"),
@@ -131,6 +139,13 @@ class Ontology:
                 "the axis is not homogeneous by design: expected 5 operators, "
                 f"1 indicator, 1 invariant; got {by_kind}"
             )
+
+        for dyn in dynamics.values():
+            for member in dyn.commutator_of:
+                if member not in dynamics:
+                    raise OntologyError(f"{dyn.id}: commutator_of names unknown object {member!r}")
+                if dynamics[member].kind != "operator":
+                    raise OntologyError(f"{dyn.id}: commutator_of must name operators, {member} is {dynamics[member].kind}")
 
         fw = cp["axis"]["firewall"]["between"]
         return cls(
@@ -173,6 +188,7 @@ class Ontology:
         return "\n".join(lines)
 
     def _render_dynamics(self) -> str:
+        drop = WITHHELD_FIELDS["rme7_objects"]
         lines = ["### RME-7 dynamic objects (a typed set: three kinds, not seven of one kind)", ""]
         for kind in KINDS:
             members = [d for d in self.dynamics.values() if d.kind == kind]
@@ -181,9 +197,9 @@ class Ontology:
                 bits = [f"`{dyn.id}` ({dyn.unicode}) -- {dyn.name}"]
                 if dyn.fail_only:
                     bits.append("fail-only verdict")
-                if dyn.definition:
+                if dyn.definition and "definition" not in drop:
                     bits.append(f"defined as {dyn.definition}")
-                if dyn.computed_from:
+                if dyn.computed_from and "computed_from" not in drop:
                     bits.append(f"computed from {dyn.computed_from}")
                 lines.append("- " + "; ".join(bits))
             lines.append("")

@@ -15,7 +15,7 @@ recurrence wearing a lab coat is still internal recurrence.
 
 from __future__ import annotations
 
-from . import ablation, dispersion, distance, divergence, typing_rules
+from . import ablation, dispersion, distance, divergence, trajectory, typing_rules
 
 REFUSALS = {
     "adequacy_score": (
@@ -46,6 +46,12 @@ REFUSALS = {
         "adjudicated. Bad typing and bad classifier are not separable from "
         "inside the system."
     ),
+    "gamma_from_classification": (
+        "A classifier-emitted gamma is a cell-level observation, never a gamma "
+        "measurement. gamma is a property of two trajectories and their "
+        "ordering; no single classification can carry it. The measurement comes "
+        "from engine/trajectory.py or it does not come."
+    ),
 }
 
 COHERENCE_STAMP = (
@@ -57,7 +63,7 @@ COHERENCE_STAMP = (
 
 def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
            null_samples=(), declared_objects=(), interaction_arms=None,
-           ablation_arms=None, planted_rounds=None) -> dict:
+           ablation_arms=None, planted_rounds=None, trajectory_arms=None) -> dict:
     """Assemble everything that is currently well-founded, and nothing else."""
     validated = bool(ledger and ledger.has_validation())
 
@@ -121,6 +127,24 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
             {k: [divergence.outcome(s) for s in v] for k, v in ablation_arms.get("single", {}).items()},
             {k: [divergence.outcome(s) for s in v] for k, v in ablation_arms.get("pairs", {}).items()} or None,
         )
+
+    cell_gamma = sum(1 for c in observed_cells if tuple(c)[1] == "gamma")
+    if trajectory_arms:
+        measured = trajectory.gamma(trajectory_arms["A"], trajectory_arms["B"], ontology)
+        out["path_level"] = {
+            "measurement": measured,
+            "cross_check": trajectory.cross_check(measured, cell_gamma),
+        }
+    else:
+        out["path_level"] = {
+            "refused": True,
+            "cell_level_gamma_observations": cell_gamma,
+            "reason": (
+                "No trajectory arms. gamma is measured from two orderings of the "
+                "same operator pair; a cell-level gamma observation is not a "
+                "substitute and is not promoted into one."
+            ),
+        }
 
     if planted_rounds is not None:
         from . import planted
@@ -196,6 +220,25 @@ def render(rep: dict) -> str:
         lines.append(f"Interaction: {inter['verdict']}"
                      + (f" (followed pole {inter['followed_pole']})" if inter["followed_pole"] else ""))
         lines.append(f"  {inter['sufficiency_note']}")
+    lines.append("")
+
+    path = rep["path_level"]
+    if path.get("refused"):
+        lines.append(f"Path level: REFUSED -- {path['reason']}")
+        lines.append(f"  cell-level gamma observations: {path['cell_level_gamma_observations']}")
+    else:
+        m = path["measurement"]
+        if m.get("refused"):
+            lines.append(f"Path level: REFUSED -- {m['reason']}")
+        elif not m.get("is_gamma"):
+            lines.append(f"Path level: order dependence measured, NOT gamma -- {m['label_refused_because']}")
+            lines.append(f"  {m['reading']}")
+        else:
+            lines.append(f"Path level: {m['verdict']} ({m['reading']})")
+            if m["excluded"]:
+                lines.append(f"  {m['excluded']} trajectories excluded: order not as declared")
+        cc = path["cross_check"]
+        lines.append(f"Cross-check: {cc['reading']} -- {cc.get('detail','')}")
     lines.append("")
 
     ch2 = rep["channel_2"]
