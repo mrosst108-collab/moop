@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from engine import passage, scoring, validate, yamlish         # noqa: E402
+from engine import claim, passage, scoring, validate, yamlish  # noqa: E402
 from engine.ledger import Ledger, LedgerError                  # noqa: E402
 from engine.ontology import Ontology, TypingRules              # noqa: E402
 from engine.typing_rules import predicted_blocks               # noqa: E402
@@ -143,7 +143,10 @@ def cmd_report(args) -> int:
         planted_rounds=runs.get("planted_rounds"),
         trajectory_arms=runs.get("trajectory_arms"),
     )
-    print(scoring.render(rep) if not args.json else json.dumps(rep, indent=2, default=str))
+    if args.json:
+        print(json.dumps(rep, indent=2, default=claim.json_default))
+    else:
+        print(scoring.render(rep))
     return 0
 
 

@@ -37,6 +37,7 @@ ontology/     cp_layers.yaml, rme7_objects.yaml   -- rendered into prompts
 prompts/      pole_classifier.md (Mode A), bridge_classifier.md (Mode B)
 schemas/      the JSON shape of each mode's output
 engine/       deterministic scoring; no model calls, no dependencies
+              claim.py holds the licensing ladder every headline result carries
 drills/       layer_sweep, dynamic_sweep, order_sweep -- runnable today
 bt.py         the command line
 ```
@@ -46,7 +47,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 109 tests, stdlib only
+./run_tests.sh                 # 123 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -305,6 +306,60 @@ normative and unauthorised. The two must not be merged.
 
 ---
 
+## Claim licensing: computability is not claimability
+
+Every refusal in this tree is an epistemic gate — the quantity cannot be
+produced — with one exception. `COHERENCE_ONLY` was a *label attached to a
+number that stays perfectly quotable once the label is dropped*: result →
+copied → stamp omitted → figure cited as evidence. The engine had constrained
+its own output and could not constrain downstream quotation.
+
+`engine/claim.py` closes that without refusing the calculation, by making
+evidentiary status part of the result's **identity**. A measurement without
+validation provenance is not an empirical result with a disclaimer; it is a
+different type of result, and it is a different type here.
+
+**Four claim levels, as a ladder.** Each names what becomes unavailable, which
+a confidence scalar cannot do — a scalar flattens *cannot be computed* and
+*computed but not externally validated* into one number, and those are not
+degrees of the same thing.
+
+| Level | Licenses |
+|---|---|
+| `computable` | the quantity can be produced at all |
+| `inferential` | a conclusion can be drawn from it |
+| `evidential` | it can be cited as evidence about the architecture |
+| `generalisable` | its absence extends beyond the region examined |
+
+Withholding a level withholds everything above it: nothing is inferred from a
+quantity that was never computed.
+
+**This generalises something already in the tree.** The γ result already
+separated *endpoint change observed under stated conditions* from *supports
+γ ≠ 0 for the tested pair*. That is exactly the computable/inferential rung, and
+the general operator arm is a measurement licensed at the first and withheld at
+the second. The existing refusals map onto the ladder without being restated:
+
+| Failure | Level withheld |
+|---|---|
+| missing null baseline; missing single-pole arms; no order-faithful trajectories | `computable` |
+| operator pair is not the defined commutator | `inferential` |
+| no classifier-validation record | `evidential` |
+| partial passage coverage; unresolved provenance | `generalisable` |
+
+**What makes it a gate rather than a louder warning.** `float()` and `int()` on
+a `Measurement` raise. So does `f"{m:.2f}"` — a format spec is the commonest way
+a value is lifted out of its context and into a sentence, so specs are ignored
+and `str()` always carries the status. The value is reachable only by naming
+what is being claimed: `.computed` for the raw calculation, `.as_evidence()`
+which refuses unless licensed. JSON serialisation carries `licensed` and
+`withheld` rather than a bare number.
+
+It does **not** stop a reader copying a figure out by hand. What it removes is
+the silent path.
+
+---
+
 ## What the engine refuses
 
 Refusals are executable, not documentary — `scoring.report` returns them and
@@ -417,6 +472,8 @@ the first person to build a UI would violate without noticing.
 | Three-valued audit state (CLEAN / FINDINGS / UNEXAMINED) | Enforced; partial coverage cannot reach CLEAN |
 | Required set induced by the record, not by a norm | Enforced |
 | Ledger completeness | **Held.** Would be a normative judgement the audit is not authorised to make |
+| Claim licensing ladder | Implemented; headline results are typed, not numbers with a warning |
+| `COHERENCE_ONLY` as a gate rather than a label | Closed for the silent path; a reader copying a figure by hand is still outside the instrument |
 | `standing_since` resolved by content, not pointer | Enforced — otherwise the field is a backdating primitive |
 | Passage findings vs provenance quality | Reported separately |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |

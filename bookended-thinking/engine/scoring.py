@@ -15,8 +15,9 @@ recurrence wearing a lab coat is still internal recurrence.
 
 from __future__ import annotations
 
-from . import (ablation, dispersion, distance, divergence, passage, trajectory,
-               typing_rules)
+from . import (ablation, claim, dispersion, distance, divergence, passage,
+               trajectory, typing_rules)
+from .claim import Measurement
 
 REFUSALS = {
     "adequacy_score": (
@@ -181,6 +182,8 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
             ),
         }
 
+    out["measurements"] = _typed(out, validated)
+
     if planted_rounds is not None:
         from . import planted
         out["channel_2"] = planted.score(planted_rounds)
@@ -195,6 +198,71 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
         }
 
     return out
+
+
+def _typed(out: dict, validated: bool) -> dict:
+    """The headline quantities as typed results, at the boundary where they leave the engine.
+
+    Constructed here rather than deep in each module because this is where every
+    licensing fact is in scope at once -- and because this boundary is where the
+    promotion path starts.
+    """
+    gate = claim.evidential_gate(validated)
+    typed = {}
+
+    strength = out["constraint_strength"]
+    typed["C"] = (
+        Measurement.refused("C", strength["reason"])
+        if strength.get("refused")
+        else Measurement("C", round(strength["tv"], 4), withheld=dict(gate),
+                         detail=strength["reading"])
+    )
+
+    disp = out["dispersion"]
+    typed["V"] = Measurement(
+        "V", disp.get("normalized_entropy"), withheld=dict(gate),
+        detail=f"{disp.get('verdict')} (predicted {disp.get('predicted')})",
+    ) if disp.get("verdict") not in (None, "undefined") else Measurement.refused(
+        "V", "no samples to disperse over")
+
+    inter = out["interaction"]
+    typed["interaction"] = (
+        Measurement.refused("interaction", inter["reason"])
+        if inter.get("refused")
+        else Measurement("interaction", inter["verdict"], withheld=dict(gate),
+                         detail=inter["sufficiency_note"])
+    )
+
+    path = out["path_level"]
+    if path.get("refused"):
+        typed["gamma"] = Measurement.refused("gamma", path["reason"])
+    else:
+        measured = path["measurement"]
+        withheld = dict(gate)
+        if measured.get("refused"):
+            typed["gamma"] = Measurement.refused("gamma", measured["reason"])
+        else:
+            if not measured.get("is_gamma"):
+                withheld[claim.INFERENTIAL] = measured["inference_refused_because"]
+            typed["gamma"] = Measurement("gamma", measured["observation"],
+                                         withheld=withheld,
+                                         detail=measured.get("inference"))
+
+    psg = out["passage"]
+    if psg.get("refused"):
+        typed["passage"] = Measurement.refused("passage", psg["reason"])
+    else:
+        withheld = dict(gate)
+        cover = psg["coverage"]
+        if cover["coverage_status"] != passage.FULL_COVERAGE:
+            withheld[claim.GENERALISABLE] = (
+                f"{cover['examined_boundaries']}/{cover['required_boundaries']} "
+                "boundaries raised by the record were examined; absence of a "
+                "finding does not extend to the rest"
+            )
+        typed["passage"] = Measurement("passage", psg["state"], withheld=withheld,
+                                       detail=psg["state_meaning"])
+    return typed
 
 
 def _modal_cells(samples):
@@ -291,6 +359,11 @@ def render(rep: dict) -> str:
                      f"false-acceptance={ch2['false_acceptance_rate']} contest-rate={ch2['contest_rate']}")
         for flag in ch2["flags"]:
             lines.append(f"  ! {flag}")
+    lines.append("")
+
+    lines.append("Claim licensing (the status travels with the value):")
+    for key in ("C", "V", "interaction", "gamma", "passage"):
+        lines.append(f"  {rep['measurements'][key]}")
     lines.append("")
 
     lines.append("Not reported, by ruling:")
