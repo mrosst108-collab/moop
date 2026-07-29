@@ -161,43 +161,111 @@ def noncommutation(arm_a, arm_b, threshold=DEFAULT_THRESHOLD, alpha=DEFAULT_ALPH
 
 
 def gamma(arm_a, arm_b, ontology, **kw) -> dict:
-    """Measure gamma -- and refuse the label for any pair that is not the defined one.
+    """Measure the endpoint comparison, and separate observation from inference.
 
-    gamma is defined as a specific commutator. Any other operator pair measures
-    order dependence in general, which may or may not be gamma; treating every
-    noncommutativity result as evidence for one particular commutator is the
-    mistake the arms are separated to avoid.
+    Two things are kept apart on every return path.
+
+    ``observation`` is what was measured: an endpoint change under stated
+    conditions. ``inference`` is what the architecture may conclude from it,
+    and it exists only when the tested pair is the defined commutator. The
+    endpoint comparison is never rendered as though it were already the
+    invariant -- the general arm can establish order dependence, and it cannot
+    establish gamma.
     """
     defined = tuple(ontology.dynamics["gamma"].commutator_of or ())
-    pair_a = _pair_of(arm_a)
-    pair_b = _pair_of(arm_b)
+    pair_a, pair_b = _pair_of(arm_a), _pair_of(arm_b)
 
     result = noncommutation(arm_a, arm_b, **kw)
     result["pair"] = {"arm_a": pair_a, "arm_b": pair_b, "defined_commutator": defined}
+    result["observation"] = _observation(result, pair_a)
+    result["inference"] = None
 
+    refusal = None
     if pair_a is None or pair_b is None:
-        result["is_gamma"] = False
-        result["label_refused_because"] = "an arm declares no operator order"
-        return result
-    if set(pair_a) != set(pair_b):
-        result["is_gamma"] = False
-        result["label_refused_because"] = "the two arms are not the same pair in two orders"
-        return result
-    if set(pair_a) != set(defined):
-        result["is_gamma"] = False
-        result["label_refused_because"] = (
+        refusal = "an arm declares no operator order"
+    elif set(pair_a) != set(pair_b):
+        refusal = "the two arms are not the same pair in two orders"
+    elif set(pair_a) != set(defined):
+        refusal = (
             f"{tuple(sorted(pair_a))} is not the defined commutator {defined}. "
-            "This measures order dependence, not gamma."
+            "This measures order dependence; it cannot establish gamma."
         )
-        return result
-    if pair_a == pair_b:
+    elif pair_a == pair_b:
+        refusal = "both arms declare the same order; nothing is being reversed"
+    elif result.get("refused"):
+        refusal = "no measurement to infer from"
+
+    if refusal is not None:
         result["is_gamma"] = False
-        result["label_refused_because"] = "both arms declare the same order; nothing is being reversed"
+        result["inference_refused_because"] = refusal
         return result
 
     result["is_gamma"] = True
-    result["verdict"] = "gamma != 0" if result.get("noncommutes") else "gamma = 0 under the conditions tested"
+    result["inference"] = _inference(result, pair_a)
     return result
+
+
+def _observation(result, pair_a) -> str:
+    if result.get("refused"):
+        return "no measurement"
+    names = "/".join(sorted(pair_a)) if pair_a else "an unstated pair"
+    return (
+        f"endpoint change observed under the tested {names} conditions"
+        if result.get("noncommutes")
+        else f"no endpoint change observed under the tested {names} conditions"
+    )
+
+
+def _inference(result, pair_a) -> str:
+    names = "/".join(sorted(pair_a))
+    return (
+        f"supports gamma != 0 for the tested pair ({names}) under the conditions tested"
+        if result.get("noncommutes")
+        else f"supports gamma = 0 for the tested pair ({names}) under the conditions tested"
+    )
+
+
+def gamma_labels(arm) -> list:
+    """Per trajectory: did the classifier type any cell as gamma?"""
+    return [
+        any(c[1] == "gamma" for step in steps_of(t) for c in step)
+        for t in arm
+    ]
+
+
+def relocation_profile(arm_a, arm_b, threshold=DEFAULT_THRESHOLD, alpha=DEFAULT_ALPHA,
+                       iterations=DEFAULT_ITERATIONS, seed=DEFAULT_SEED) -> dict:
+    """Do the classifier's cell-level gamma labels covary with the ordering?
+
+    A label that appears at the same rate in both orders is not tracking order
+    -- it is a habit, or ontology leaking in from somewhere. A label that
+    appears preferentially in one order is tracking something real about the
+    composition and assigning it to the wrong level. The two look identical in
+    a raw count, which is why the count alone under-determines the
+    ``classifier_relocated`` reading.
+    """
+    labels_a, labels_b = gamma_labels(arm_a), gamma_labels(arm_b)
+    total = sum(labels_a) + sum(labels_b)
+    profile = {
+        "total": total,
+        "n": (len(labels_a), len(labels_b)),
+        "rate": (
+            (sum(labels_a) / len(labels_a)) if labels_a else None,
+            (sum(labels_b) / len(labels_b)) if labels_b else None,
+        ),
+    }
+    if total == 0:
+        profile["verdict"] = "no_labels"
+        return profile
+    if not labels_a or not labels_b:
+        profile["verdict"] = "undetermined"
+        profile["reason"] = "one arm is empty; symmetry is not assessable"
+        return profile
+
+    comparison = _compare(labels_a, labels_b, threshold, alpha, iterations, seed + 13)
+    profile["comparison"] = comparison
+    profile["verdict"] = "asymmetric" if comparison["moved"] else "symmetric"
+    return profile
 
 
 def _pair_of(arm):
@@ -208,43 +276,86 @@ def _pair_of(arm):
     return only if len(only) == 2 else None
 
 
+#: Endpoint change x how the classifier's cell-level gamma labels are distributed.
+#: A raw label count cannot separate the middle column from the right one, which
+#: is what left the original ``classifier_relocated`` reading under-determined.
 CROSS_CHECK = {
-    (True, False): (
+    (True, "no_labels"): (
         "path_level_supported",
         "Order changes the endpoint and no cell was typed gamma: gamma has a "
-        "referent one level up, which is what the path-level proposal predicts.",
+        "referent one level up. This supports the path-level interpretation and "
+        "leaves the cell ontology unresolved -- absence of a label is not proof "
+        "that the cell is void.",
     ),
-    (False, False): (
+    (False, "no_labels"): (
         "gamma_inert",
         "No order effect and no cell-level gamma. gamma is not merely "
         "unaddressable at cell level -- it is inert under the conditions tested, "
         "and the path-level proposal loses its only current support.",
     ),
-    (True, True): (
+    (True, "asymmetric"): (
         "classifier_relocated",
-        "Order dependence is real, and the classifier also put gamma at cell "
-        "level. That is a typing question about the classifier, not evidence "
-        "for or against the void conjecture.",
+        "Order dependence is real and the classifier's gamma labels covary with "
+        "the ordering: it is tracking the phenomenon and assigning it to the "
+        "wrong level. This is a live ontology question -- gamma may not be "
+        "path-level in the way hypothesised -- not a classifier defect alone.",
     ),
-    (False, True): (
+    (True, "symmetric"): (
+        "label_habit",
+        "Order dependence is real, but the classifier's gamma labels appear at "
+        "the same rate in both orders, so they are not tracking order. Label "
+        "habit or ontology leaking in from somewhere, alongside a genuine "
+        "endpoint effect it is not detecting.",
+    ),
+    (False, "asymmetric"): (
+        "route_sensitive_labelling",
+        "No endpoint effect, yet the gamma labels covary with the ordering. "
+        "Consistent with the classifier tracking the route rather than the "
+        "endpoint -- the conflation the endpoint/route split exists to prevent, "
+        "here visible in the classifier instead of the measure.",
+    ),
+    (False, "symmetric"): (
         "label_without_operation",
-        "Cells typed gamma while no order effect exists. The classifier is "
-        "typing on the name rather than the operation -- the Goodhart signature "
-        "the design exists to detect, here caught in the instrument itself.",
+        "Cells typed gamma while no order effect exists and the labels are "
+        "indifferent to ordering. The classifier is typing on the name rather "
+        "than the operation -- the Goodhart signature the design exists to "
+        "detect, here caught in the instrument itself.",
     ),
 }
 
 
-def cross_check(path_result: dict, cell_level_gamma_count: int) -> dict:
-    """The 2x2 that neither instrument gives alone."""
+def cross_check(path_result: dict, relocation: dict) -> dict:
+    """The cell-level and path-level results read against each other.
+
+    ``relocation`` is a ``relocation_profile``. Passing a bare count is refused:
+    the count cannot distinguish a classifier tracking the ordering from one
+    repeating a label, and those are different findings.
+    """
+    if not isinstance(relocation, dict):
+        raise TypeError(
+            "cross_check needs a relocation_profile, not a count. A raw count "
+            "cannot separate classifier_relocated from label_habit."
+        )
     if path_result.get("refused"):
-        return {"reading": "undetermined", "detail": path_result.get("reason", "")}
-    key = (bool(path_result.get("noncommutes")), cell_level_gamma_count > 0)
-    reading, detail = CROSS_CHECK[key]
+        return {"reading": "undetermined", "detail": path_result.get("reason", ""),
+                "relocation": relocation}
+
+    moved = bool(path_result.get("noncommutes"))
+    verdict = relocation.get("verdict", "no_labels")
+    if verdict == "undetermined":
+        return {
+            "reading": "undetermined",
+            "detail": "cell-level gamma labels present but their distribution is not assessable: "
+                      + relocation.get("reason", ""),
+            "relocation": relocation,
+            "caveat": NOTE_ON_THE_TRADE,
+        }
+
+    reading, detail = CROSS_CHECK[(moved, verdict)]
     return {
         "reading": reading,
         "detail": detail,
-        "noncommutes": key[0],
-        "cell_level_gamma": cell_level_gamma_count,
+        "noncommutes": moved,
+        "relocation": relocation,
         "caveat": NOTE_ON_THE_TRADE,
     }

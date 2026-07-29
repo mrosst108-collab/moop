@@ -130,10 +130,14 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
 
     cell_gamma = sum(1 for c in observed_cells if tuple(c)[1] == "gamma")
     if trajectory_arms:
-        measured = trajectory.gamma(trajectory_arms["A"], trajectory_arms["B"], ontology)
+        arm_a, arm_b = trajectory_arms["A"], trajectory_arms["B"]
+        measured = trajectory.gamma(arm_a, arm_b, ontology)
+        relocation = trajectory.relocation_profile(arm_a, arm_b)
         out["path_level"] = {
             "measurement": measured,
-            "cross_check": trajectory.cross_check(measured, cell_gamma),
+            "relocation": relocation,
+            "cross_check": trajectory.cross_check(measured, relocation),
+            "cell_level_gamma_outside_arms": cell_gamma,
         }
     else:
         out["path_level"] = {
@@ -228,15 +232,15 @@ def render(rep: dict) -> str:
         lines.append(f"  cell-level gamma observations: {path['cell_level_gamma_observations']}")
     else:
         m = path["measurement"]
-        if m.get("refused"):
-            lines.append(f"Path level: REFUSED -- {m['reason']}")
-        elif not m.get("is_gamma"):
-            lines.append(f"Path level: order dependence measured, NOT gamma -- {m['label_refused_because']}")
-            lines.append(f"  {m['reading']}")
+        lines.append(f"Observed:   {m['observation']}")
+        if m.get("excluded"):
+            lines.append(f"  {m['excluded']} trajectories excluded: order not as declared")
+        if m.get("inference"):
+            lines.append(f"Inference:  {m['inference']}")
         else:
-            lines.append(f"Path level: {m['verdict']} ({m['reading']})")
-            if m["excluded"]:
-                lines.append(f"  {m['excluded']} trajectories excluded: order not as declared")
+            lines.append(f"Inference:  REFUSED -- {m.get('inference_refused_because', '')}")
+        rel = path["relocation"]
+        lines.append(f"Relocation: {rel['verdict']} (cell-level gamma labels: {rel['total']}, rates {rel['rate']})")
         cc = path["cross_check"]
         lines.append(f"Cross-check: {cc['reading']} -- {cc.get('detail','')}")
     lines.append("")

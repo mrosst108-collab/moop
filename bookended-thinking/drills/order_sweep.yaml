@@ -60,15 +60,31 @@ cross_check:
     alone. The classifier still sees gamma as a bare label with no definition,
     so a cell-level gamma remains reportable and the void conjecture remains
     falsifiable.
+  label_distribution: |
+    A raw count of cell-level gamma labels under-determines the reading: a
+    classifier tracking the ordering and a classifier repeating a habit produce
+    the same count. The labels are therefore profiled per arm and compared, and
+    the cross-check refuses a bare integer.
   readings:
-    - when: "order effect measured, no cell typed gamma"
-      reading: "path_level_supported -- gamma has a referent one level up"
+    - when: "order effect, no cell typed gamma"
+      reading: "path_level_supported -- gamma has a referent one level up; the cell ontology stays unresolved"
     - when: "no order effect, no cell typed gamma"
       reading: "gamma_inert -- the path-level proposal loses its only support"
-    - when: "order effect measured, cells typed gamma"
-      reading: "classifier_relocated -- a typing question, not a gamma question"
-    - when: "no order effect, cells typed gamma"
-      reading: "label_without_operation -- the classifier is typing on the name"
+    - when: "order effect, gamma labels covary with the ordering"
+      reading: "classifier_relocated -- tracking the phenomenon, assigning it to the wrong level; a live ontology question"
+    - when: "order effect, gamma labels at the same rate in both orders"
+      reading: "label_habit -- labels indifferent to ordering alongside an effect they are not detecting"
+    - when: "no order effect, gamma labels covary with the ordering"
+      reading: "route_sensitive_labelling -- labels track the route while endpoints agree"
+    - when: "no order effect, gamma labels at the same rate in both orders"
+      reading: "label_without_operation -- typing on the name rather than the operation"
+
+reporting: |
+  The engine reports the observation and the inference as separate fields. The
+  observation is an endpoint change under stated conditions; the inference is
+  the gamma statement, and it exists only for the defined commutator. No code
+  path renders a bare "gamma != 0" -- the general arm can establish order
+  dependence and it cannot establish gamma.
 
 general_arm:
   premise: "Order dependence beyond the defined commutator. Positive here is NOT a gamma result."

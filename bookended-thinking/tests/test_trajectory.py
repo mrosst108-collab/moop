@@ -99,38 +99,102 @@ class TestGammaLabel(unittest.TestCase):
         b = arm(["G_sharp", "J_sharp"], "G_sharp", "J_sharp")
         result = trajectory.gamma(a, b, self.ont, **FAST)
         self.assertFalse(result["is_gamma"])
-        self.assertIn("not the defined commutator", result["label_refused_because"])
+        self.assertIn("not the defined commutator", result["inference_refused_because"])
+        self.assertIsNone(result["inference"])
+        self.assertIn("endpoint change observed", result["observation"])
         self.assertIn("refused", result)
 
     def test_two_arms_of_the_same_order_reverse_nothing(self):
         a = arm(["G_sharp", "G_tilde_sharp"], "G_sharp", "G_tilde_sharp")
         result = trajectory.gamma(a, list(a), self.ont, **FAST)
         self.assertFalse(result["is_gamma"])
-        self.assertIn("nothing is being reversed", result["label_refused_because"])
+        self.assertIn("nothing is being reversed", result["inference_refused_because"])
 
     def test_gamma_zero_is_a_result_not_a_failure(self):
         a, b = commuting_arms()
         result = trajectory.gamma(a, b, self.ont, **FAST)
         self.assertTrue(result["is_gamma"])
-        self.assertEqual(result["verdict"], "gamma = 0 under the conditions tested")
+        self.assertIn("no endpoint change observed under the tested", result["observation"])
+        self.assertIn("supports gamma = 0 for the tested pair", result["inference"])
         self.assertEqual(result["reading"], "order changed nothing observable")
 
 
+def with_gamma(arm, count, layer="L4"):
+    """Mark the first ``count`` trajectories with a cell-level gamma label."""
+    out = []
+    for i, t in enumerate(arm):
+        t = {"declared_order": list(t["declared_order"]),
+             "steps": [list(step) for step in t["steps"]]}
+        if i < count:
+            t["steps"][0] = t["steps"][0] + [(layer, "gamma", PW)]
+        out.append(t)
+    return out
+
+
+class TestRelocationProfile(unittest.TestCase):
+    def test_no_labels(self):
+        a, b = commuting_arms()
+        self.assertEqual(trajectory.relocation_profile(a, b, **FAST)["verdict"], "no_labels")
+
+    def test_labels_at_the_same_rate_in_both_orders_are_symmetric(self):
+        a, b = commuting_arms()
+        profile = trajectory.relocation_profile(with_gamma(a, 8), with_gamma(b, 8), **FAST)
+        self.assertEqual(profile["verdict"], "symmetric")
+        self.assertEqual(profile["rate"], (0.5, 0.5))
+        self.assertEqual(profile["total"], 16)
+
+    def test_labels_that_covary_with_order_are_asymmetric(self):
+        a, b = commuting_arms()
+        profile = trajectory.relocation_profile(with_gamma(a, 16), with_gamma(b, 0), **FAST)
+        self.assertEqual(profile["verdict"], "asymmetric")
+        self.assertEqual(profile["rate"], (1.0, 0.0))
+
+    def test_marking_a_trajectory_does_not_break_its_order_fidelity(self):
+        a, _ = commuting_arms()
+        self.assertTrue(trajectory.order_fidelity(with_gamma(a, 1)[0])["faithful"])
+
+
 class TestCrossCheck(unittest.TestCase):
-    def test_the_four_readings(self):
-        moved = {"refused": False, "noncommutes": True}
-        still = {"refused": False, "noncommutes": False}
-        self.assertEqual(trajectory.cross_check(moved, 0)["reading"], "path_level_supported")
-        self.assertEqual(trajectory.cross_check(still, 0)["reading"], "gamma_inert")
-        self.assertEqual(trajectory.cross_check(moved, 3)["reading"], "classifier_relocated")
-        self.assertEqual(trajectory.cross_check(still, 2)["reading"], "label_without_operation")
+    def setUp(self):
+        self.moved = {"refused": False, "noncommutes": True}
+        self.still = {"refused": False, "noncommutes": False}
+        a, b = commuting_arms()
+        self.none = trajectory.relocation_profile(a, b, **FAST)
+        self.sym = trajectory.relocation_profile(with_gamma(a, 8), with_gamma(b, 8), **FAST)
+        self.asym = trajectory.relocation_profile(with_gamma(a, 16), with_gamma(b, 0), **FAST)
+
+    def test_the_six_readings(self):
+        cases = [
+            (self.moved, self.none, "path_level_supported"),
+            (self.still, self.none, "gamma_inert"),
+            (self.moved, self.asym, "classifier_relocated"),
+            (self.moved, self.sym, "label_habit"),
+            (self.still, self.asym, "route_sensitive_labelling"),
+            (self.still, self.sym, "label_without_operation"),
+        ]
+        for path_result, relocation, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(trajectory.cross_check(path_result, relocation)["reading"], expected)
+
+    def test_a_raw_count_is_refused_because_it_under_determines_the_reading(self):
+        with self.assertRaises(TypeError) as ctx:
+            trajectory.cross_check(self.moved, 3)
+        self.assertIn("cannot separate classifier_relocated from label_habit", str(ctx.exception))
+
+    def test_path_level_supported_leaves_the_cell_ontology_unresolved(self):
+        cc = trajectory.cross_check(self.moved, self.none)
+        self.assertIn("leaves the cell ontology unresolved", cc["detail"])
+
+    def test_relocation_is_a_live_ontology_question_not_only_a_classifier_defect(self):
+        cc = trajectory.cross_check(self.moved, self.asym)
+        self.assertIn("may not be path-level in the way hypothesised", cc["detail"])
 
     def test_the_trade_is_carried_with_every_reading(self):
-        cc = trajectory.cross_check({"refused": False, "noncommutes": True}, 0)
+        cc = trajectory.cross_check(self.moved, self.none)
         self.assertIn("trades one bias for another", cc["caveat"])
 
     def test_a_refused_measurement_does_not_produce_a_reading(self):
-        cc = trajectory.cross_check({"refused": True, "reason": "no faithful arms"}, 0)
+        cc = trajectory.cross_check({"refused": True, "reason": "no faithful arms"}, self.none)
         self.assertEqual(cc["reading"], "undetermined")
 
 
@@ -173,7 +237,10 @@ class TestWithholding(unittest.TestCase):
         )
         self.assertTrue(rep["path_level"]["measurement"]["is_gamma"])
         self.assertEqual(rep["path_level"]["cross_check"]["reading"], "path_level_supported")
-        self.assertIn("Path level:", scoring.render(rep))
+        rendered = scoring.render(rep)
+        self.assertIn("Observed:   endpoint change observed under the tested", rendered)
+        self.assertIn("Inference:  supports gamma != 0 for the tested pair", rendered)
+        self.assertNotIn("Path level: gamma != 0", rendered)
 
 
 if __name__ == "__main__":

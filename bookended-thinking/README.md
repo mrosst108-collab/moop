@@ -46,7 +46,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 70 tests, stdlib only
+./run_tests.sh                 # 77 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -137,15 +137,33 @@ noncommutation would find order dependence everywhere.
 classified the other way round did not perform the order it declared. Those
 trajectories are excluded and counted, never averaged in.
 
-**The two levels now cross-check each other.** γ stays in the classifier's
-vocabulary as a bare label, so a cell-level γ remains reportable and the void
-conjecture remains falsifiable. Combined with the path-level measurement that
-gives four readings, none of which either instrument yields alone:
+**Observation and inference are separate fields.** The endpoint comparison is
+never rendered as though it were already the invariant. `observation` says
+*endpoint change observed under the tested G♯/G̃♯ conditions*; `inference` says
+*supports γ ≠ 0 for the tested pair under the conditions tested*, and exists
+only when the pair is the defined commutator. The general arm can establish
+order dependence; it cannot establish γ, and with the qualifier dropped a
+positive there reads as a γ result.
 
-| | no cell-level γ | cell-level γ reported |
-|---|---|---|
-| **order effect** | `path_level_supported` — γ has a referent one level up | `classifier_relocated` — a typing question, not a γ question |
-| **no order effect** | `gamma_inert` — the path-level proposal loses its only support | `label_without_operation` — the classifier is typing on the name |
+**The two levels cross-check each other.** γ stays in the classifier's
+vocabulary as a bare label, so a cell-level γ remains reportable and the void
+conjecture remains falsifiable. A raw count of those labels under-determines
+the reading, though — a classifier tracking the ordering and a classifier
+repeating a habit produce the same count — so the labels are profiled by arm
+and `cross_check` refuses a bare integer:
+
+| | no cell-level γ | γ labels symmetric across orders | γ labels covary with order |
+|---|---|---|---|
+| **order effect** | `path_level_supported` — γ has a referent one level up; cell ontology left unresolved | `label_habit` — labels indifferent to ordering, alongside an endpoint effect they are not detecting | `classifier_relocated` — tracking the phenomenon, assigning it to the wrong level; a live ontology question |
+| **no order effect** | `gamma_inert` — the path-level proposal loses its only support | `label_without_operation` — typing on the name rather than the operation | `route_sensitive_labelling` — labels track the route while endpoints agree |
+
+The right-hand column is the refinement: `classifier_relocated` is not only a
+classifier defect. If the labels covary with ordering while the engine finds a
+genuine endpoint effect, γ may not be path-level in the way hypothesised, and
+the architecture should be able to discover that. The bottom-right cell fell
+out of the endpoint/route split rather than being anticipated — labels tracking
+the route while endpoints agree is the same conflation the split exists to
+prevent, showing up in the classifier instead of the measure.
 
 **This is not a clean win, and the code says so.** Removing the definition
 trades one bias for another: with it present the classifier was told most of
@@ -160,6 +178,64 @@ cannot separate G♯ from G̃♯ in prose — they differ by a property of the f
 by what the sentence describes — then the fidelity check passes or fails
 arbitrarily and the arms are not what they claim. Excluded-trajectory counts
 are the first thing to read, before any endpoint comparison.
+
+---
+
+## Specified, not implemented: the passage audit
+
+The instrument measures composition along the dynamic axis. It does not measure
+passage along the epistemic one — whether satisfaction of Cᵢ was illicitly
+promoted into authorisation of O₍ᵢ₊₁₎. A run can classify every output's layer
+correctly and still treat a successful L4 derivation as warrant for an L5
+standard. The instrument sees *where the process went*, not *what authority it
+claimed to acquire by getting there*.
+
+The specification below is settled; nothing implements it, and it is recorded
+here so the design is not lost and the gap is not mistaken for coverage.
+
+**Two candidate tests, both rejected.**
+
+*Citation.* Ask whether the justification for O₍ᵢ₊₁₎ cites Cᵢ as its warrant.
+Rejected: silent promotion is the characteristic form. An audit that fires on
+citation catches the honest violations and misses the ones the firewall exists
+for.
+
+*Content dependence.* Substitute a different Cᵢ and see whether O₍ᵢ₊₁₎ shifts.
+Rejected: Cᵢ can legitimately inform what is declared next — it is the same
+inquiry — and the constraint is about authority, not relevance. A divergence
+test cannot tell the two apart, so this over-fires.
+
+**Retained: a provenance query.** The passage constraint is not a semantic
+property of the resulting opening. It is a property of the opening's *custody*,
+and custody is an ordering fact the hash chain already records. The audit is a
+typed query over commitments, not a classifier and not a new measurement
+channel:
+
+| Case | Condition | Verdict |
+|---|---|---|
+| 1 | O₍ᵢ₊₁₎ sealed before Cᵢ, or already standing in force | standing-protected |
+| 2 | The record shows the opening existed but cannot place it relative to Cᵢ | record-protected, temporally ambiguous |
+| 3 | O₍ᵢ₊₁₎ first sealed after Cᵢ | unprotected by the record |
+
+Only case 3 is a positive forensic finding. **Case 2 must remain unresolved** —
+the forensic layer establishes what the record shows, and near-zero admissible
+width there means the instrument may not interpolate the difference. And case 3
+is *unprotected*, not *violated*: a late-sealed opening might have been held all
+along and merely written down late.
+
+The verdict must be forensic, never scored. *"O₄ was sealed after C₃ in three
+of seven runs"* is a record. *"Your passage discipline is 6/10"* supplies a
+criterion, which is Layer 5, and hands custody of Cᵢ to the instrument.
+
+**The missing plumbing is small and specific.** `Ledger.commit()` seals a flat
+declarations blob, so the chain knows *when* a commitment was sealed but not
+*which layer's opening* it contained. The payload needs to become
+layer-addressable — commitment → layer → opening → custody status → seal time —
+with the chain retaining the temporal relation to recorded closures. The
+standing-custody exception has to be encodable or the audit fires on every
+legitimate run: custody may be standing rather than continuously exercised, and
+an audit demanding fresh re-declaration at every layer makes the human a
+bottleneck by construction.
 
 ---
 
@@ -179,8 +255,9 @@ Refusals are executable, not documentary — `scoring.report` returns them and
 | C without a null baseline | C *is* divergence from P(Y│∅). Without the null run, any number would be the model's default behaviour reported as the student's contribution. |
 | interaction without single-pole arms | Without them a bridge cannot be told from the model following one pole — and following one pole is exactly what produces a large displacement. |
 | a classifier-emitted γ as a γ measurement | γ is a property of two trajectories and their ordering. A cell-level γ is an observation; it is never promoted. |
-| the γ label for a non-defined operator pair | γ *is* [G♯, G̃♯]. Any other pair measures order dependence, and treating every noncommutativity result as evidence for one particular commutator is the mistake the arms are separated to avoid. |
+| the γ *inference* for a non-defined operator pair | γ *is* [G♯, G̃♯]. Any other pair measures order dependence, and treating every noncommutativity result as evidence for one particular commutator is the mistake the arms are separated to avoid. The observation is still reported; only the inference is withheld. |
 | γ from arms with no order-faithful trajectories | A run that did not perform the order it declared cannot measure the effect of that order. |
+| a cross-check from a bare γ label count | The count cannot separate a classifier tracking the ordering from one repeating a label, and those are different findings. `cross_check` raises on an integer. |
 
 Two further guards sit in the ledger. An outcome record must name an external
 source: if the student decides which retained bridges failed, the loop
@@ -241,10 +318,8 @@ and are refused.
 
 **Only one of the two path structures is measured.** A cell-level classifier is
 blind to both passage along the epistemic axis and composition along the
-dynamic one. `engine/trajectory.py` now measures the second. Nothing here
-touches the first: no instrument checks whether a closure was treated as
-authorising the next opening, which is the passage constraint and the failure
-mode the non-promotion firewall exists to catch.
+dynamic one. `engine/trajectory.py` measures the second; the first is specified
+above and unbuilt.
 
 **Any visualisation of this space must be graph-based, not a heatmap.** Δ is
 partially ordered, not metric, and a heatmap irresistibly suggests Euclidean
@@ -269,8 +344,9 @@ the first person to build a UI would violate without noticing.
 | Channel 2 planted errors | Implemented engine-side; contest rate reported alongside accuracy |
 | γ composed by the engine from operator labels | Implemented; commutator withheld from the prompt |
 | Order fidelity per trajectory | Enforced; unfaithful runs excluded and counted |
-| Cell/path cross-check | Implemented; carries the bias caveat with every reading |
-| Passage constraint (the other path structure) | **Unmeasured.** No instrument here sees it |
+| Observation / inference kept apart in the γ result | Enforced; no code path renders a bare "γ ≠ 0" |
+| Cell/path cross-check, 2×3 with relocation profiling | Implemented; carries the bias caveat with every reading; refuses a bare count |
+| Passage audit | **Specified, not implemented.** Provenance query over typed commitments; three cases, only the third a positive finding |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |
 | Middle-width gradient | Withheld and unreported |
 | Grid count (28 vs 42) | Still blocked. Nothing here needs it: the blocks are reported separately and never summed |
