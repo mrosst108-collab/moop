@@ -44,10 +44,15 @@ bt.py         the command line
 
 The ontology is versioned independently of the classifier, so a corpus can be
 re-scored under a revised subgraph without touching the student responses
-underneath it.
+underneath it. That guarantee depends on knowing which subgraph each
+classification was produced under, so `ingest` refuses a record whose
+`ontology_version` differs from the loaded ontology, and refuses one that
+carries no version at all. `validate()` takes `ontology_version` as a
+keyword-only required argument: an artifact cannot be admitted without its
+provenance being checked, and an optional argument is one a caller can forget.
 
 ```sh
-./run_tests.sh                 # 136 tests, stdlib only
+./run_tests.sh                 # 139 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -438,6 +443,7 @@ Refusals are executable, not documentary — `scoring.report` returns them and
 | γ from arms with no order-faithful trajectories | A run that did not perform the order it declared cannot measure the effect of that order. |
 | a cross-check from a bare γ label count | The count cannot separate a classifier tracking the ordering from one repeating a label, and those are different findings. `cross_check` raises on an integer. |
 | a clean passage reading from partial coverage | A forensic audit cannot certify the absence of a finding in a region it did not examine. |
+| ingesting a classification produced under another ontology version | A version string is a declaration about history, not history; it cannot make an earlier classification belong to the current ontology. Hard refusal at ingest — reclassify or exclude, never relabel. The stored record keeps the version it claimed. |
 
 Two further guards sit in the ledger. An outcome record must name an external
 source: if the student decides which retained bridges failed, the loop

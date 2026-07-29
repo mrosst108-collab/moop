@@ -4,7 +4,17 @@ The schemas in ``schemas/`` are the single source of truth; this is a small
 reader for the subset of JSON Schema they use, so the shape is never specified
 in two places that can drift apart.
 
-The evidence check is the part that does real work. A classification whose
+Two checks do real work here. The first is the ontology-version check: a
+classification carries the version it was produced under, and that field is a
+*declaration about history*, not history. It cannot make an earlier
+classification belong to the current ontology. The engine cannot verify the
+classifier's internal process from a version string, but it can establish
+whether the record is admissible to *this* scoring run, and a mismatch means it
+is not -- which is a fact about admissibility, not evidence that the classifier
+was wrong. The stored record keeps whatever version it claimed; an artifact is
+reclassified or excluded, never silently relabelled.
+
+The second is the evidence check. A classification whose
 quoted evidence does not occur in the source it claims to be quoting is
 downgraded to ``uncertain`` and the downgrade is recorded. This is cheap and it
 catches the failure mode a rubric cannot: an instrument that produces
@@ -101,6 +111,22 @@ def check(instance, schema: dict, root: dict | None = None, path: str = "$") -> 
     return errors
 
 
+def check_ontology_version(instance: dict, ontology_version: str) -> list:
+    """Hard refusal on mismatch or absence. Not a warning, and not a rescore."""
+    claimed = instance.get("ontology_version")
+    if not claimed:
+        return ["$.ontology_version: absent -- an artifact that does not say "
+                "which ontology it was produced under cannot be placed in a corpus"]
+    if claimed != ontology_version:
+        return [
+            f"$.ontology_version: produced under {claimed!r}, engine holds "
+            f"{ontology_version!r}. Refused: a version string cannot make an "
+            "earlier classification belong to the current ontology. Reclassify "
+            "the artifact or exclude it; do not relabel it."
+        ]
+    return []
+
+
 def load_schema(name: str, root: str = ROOT) -> dict:
     with open(os.path.join(root, "schemas", name), "r", encoding="utf-8") as handle:
         return json.load(handle)
@@ -150,12 +176,16 @@ def check_evidence(instance: dict, source_text: str) -> list:
     return downgrades
 
 
-def validate(instance: dict, mode: str, source_text: str, root: str = ROOT) -> dict:
+def validate(instance: dict, mode: str, source_text: str, root: str = ROOT, *,
+             ontology_version: str) -> dict:
+    """``ontology_version`` is keyword-only and required: an artifact cannot be
+    admitted without its provenance being checked, and an optional argument is
+    one a caller can forget."""
     schema_name = {
         "pole_typing": "pole_classification.json",
         "bridge_typing": "bridge_classification.json",
     }[mode]
     schema = load_schema(schema_name, root)
-    errors = check(instance, schema)
+    errors = check(instance, schema) + check_ontology_version(instance, ontology_version)
     downgrades = check_evidence(instance, source_text) if not errors else []
     return {"mode": mode, "schema": schema_name, "errors": errors, "downgrades": downgrades}

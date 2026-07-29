@@ -16,6 +16,7 @@ SOURCE = (
     "The surviving record does not settle the question. What it establishes is "
     "narrower than what has been claimed from it, and the gap is not mine to fill."
 )
+VERSION = Ontology.load(ROOT).version
 
 
 def pole_instance(**over):
@@ -76,7 +77,8 @@ def bridge_instance(commitment_ref):
 
 class TestValidation(unittest.TestCase):
     def test_valid_instance_passes(self):
-        result = validate.validate(pole_instance(), "pole_typing", SOURCE, ROOT)
+        result = validate.validate(pole_instance(), "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)
         self.assertEqual(result["errors"], [])
         self.assertEqual(result["downgrades"], [])
 
@@ -84,20 +86,23 @@ class TestValidation(unittest.TestCase):
         bad = pole_instance()
         bad["declarations"][0]["layer"] = "L7"
         bad["surprise"] = 1
-        errors = validate.validate(bad, "pole_typing", SOURCE, ROOT)["errors"]
+        errors = validate.validate(bad, "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)["errors"]
         self.assertTrue(any("L7" in e for e in errors))
         self.assertTrue(any("unexpected field 'surprise'" in e for e in errors))
 
     def test_numeric_confidence_is_refused_by_the_schema(self):
         bad = pole_instance()
         bad["declarations"][0]["support"] = 0.87
-        errors = validate.validate(bad, "pole_typing", SOURCE, ROOT)["errors"]
+        errors = validate.validate(bad, "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)["errors"]
         self.assertTrue(errors)
 
     def test_evidence_not_in_the_source_downgrades_the_claim(self):
         bad = pole_instance()
         bad["declarations"][0]["evidence"] = ["a sentence the source never contained"]
-        result = validate.validate(bad, "pole_typing", SOURCE, ROOT)
+        result = validate.validate(bad, "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)
         self.assertEqual(result["errors"], [])
         self.assertEqual(bad["declarations"][0]["support"], "uncertain")
         self.assertTrue(any(d["reason"] == "evidence span not found in source"
@@ -106,12 +111,37 @@ class TestValidation(unittest.TestCase):
     def test_no_evidence_downgrades_too(self):
         bad = pole_instance()
         bad["dynamics"][0]["evidence"] = []
-        validate.validate(bad, "pole_typing", SOURCE, ROOT)
+        validate.validate(bad, "pole_typing", SOURCE, ROOT, ontology_version=VERSION)
         self.assertEqual(bad["dynamics"][0]["support"], "uncertain")
+
+    def test_a_record_from_another_ontology_is_refused_not_relabelled(self):
+        """A version string cannot make an earlier classification belong to this ontology."""
+        stale = pole_instance(ontology_version="0.6.1")
+        errors = validate.validate(stale, "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)["errors"]
+        self.assertTrue(any("do not relabel it" in e for e in errors))
+        self.assertEqual(stale["ontology_version"], "0.6.1")   # never rewritten
+
+    def test_an_artifact_with_no_version_is_refused(self):
+        anonymous = pole_instance()
+        del anonymous["ontology_version"]
+        errors = validate.validate(anonymous, "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)["errors"]
+        self.assertTrue(any("cannot be placed in a corpus" in e for e in errors))
+
+    def test_a_version_mismatch_short_circuits_the_evidence_pass(self):
+        """An inadmissible artifact is not partially processed."""
+        stale = pole_instance(ontology_version="0.6.1")
+        stale["declarations"][0]["evidence"] = ["not in the source at all"]
+        result = validate.validate(stale, "pole_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)
+        self.assertEqual(result["downgrades"], [])
+        self.assertEqual(stale["declarations"][0]["support"], "clear")
 
     def test_bridge_schema_requires_a_sealed_commitment_reference(self):
         inst = bridge_instance("not-a-hash")
-        errors = validate.validate(inst, "bridge_typing", SOURCE, ROOT)["errors"]
+        errors = validate.validate(inst, "bridge_typing", SOURCE, ROOT,
+                                   ontology_version=VERSION)["errors"]
         self.assertTrue(any("commitment_ref" in e for e in errors))
 
 

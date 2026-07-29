@@ -88,7 +88,8 @@ def cmd_ingest(args) -> int:
     with open(args.classification, "r", encoding="utf-8") as handle:
         classification = json.load(handle)
 
-    result = validate.validate(classification, MODES[args.mode], response_text, HERE)
+    result = validate.validate(classification, MODES[args.mode], response_text, HERE,
+                               ontology_version=ont.version)
     if result["errors"]:
         for err in result["errors"]:
             print(f"schema: {err}", file=sys.stderr)
