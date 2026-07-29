@@ -15,8 +15,8 @@ recurrence wearing a lab coat is still internal recurrence.
 
 from __future__ import annotations
 
-from . import (ablation, claim, dispersion, distance, divergence, passage,
-               trajectory, typing_rules)
+from . import (ablation, anchor, claim, dispersion, distance, divergence,
+               passage, trajectory, typing_rules)
 from .claim import Measurement
 
 REFUSALS = {
@@ -47,6 +47,18 @@ REFUSALS = {
         "A cell landing where the subgraph predicts void is recorded, not "
         "adjudicated. Bad typing and bad classifier are not separable from "
         "inside the system."
+    ),
+    "global_validation_as_a_licence": (
+        "One validation record cannot license seven quantities. Only four are "
+        "built on classified cells; the passage audit is a provenance query over "
+        "the student's own commitments and the Channel 2 rates come from "
+        "engine-side plants. Each quantity's evidential claim resolves against "
+        "the anchor it actually depends on."
+    ),
+    "discharging_an_undecided_anchor": (
+        "An anchor the architecture has not ruled on cannot be discharged by a "
+        "record. Nothing has settled what would count, so accepting one would "
+        "answer an open architectural question by bookkeeping."
     ),
     "clean_passage_from_partial_coverage": (
         "A forensic audit cannot certify the absence of a finding in a region it "
@@ -96,7 +108,9 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
            null_samples=(), declared_objects=(), interaction_arms=None,
            ablation_arms=None, planted_rounds=None, trajectory_arms=None) -> dict:
     """Assemble everything that is currently well-founded, and nothing else."""
-    validated = bool(ledger and ledger.has_validation())
+    # The banner speaks about the classifier specifically, so it keys on the
+    # classifier anchor rather than on "has anything been validated".
+    validated = bool(ledger and ledger.validations_for("classifier"))
 
     samples = [divergence.outcome(s) for s in output_samples]
     nulls = [divergence.outcome(s) for s in null_samples]
@@ -213,80 +227,88 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
                   ("constraint_strength", "dispersion", "interaction", "path_level",
                    "passage", "channel_2")}
     out["raw_note"] = RAW_NOTE
-    out["measurements"] = _typed(out["raw"], validated)
+    out["measurements"] = _typed(out["raw"], ledger)
+    out["anchors"] = anchor.summary(ledger)
     return out
 
 
-def _typed(out: dict, validated: bool) -> dict:
+def _typed(out: dict, ledger) -> dict:
     """The headline quantities as typed results, at the boundary where they leave the engine.
 
     Constructed here rather than deep in each module because this is where every
     licensing fact is in scope at once -- and because this boundary is where the
     promotion path starts.
     """
-    gate = claim.evidential_gate(validated)
+    def gate(*anchors):
+        """Per-quantity: is *this* quantity's dependency discharged?"""
+        return anchor.withholding(anchors, ledger)
+
+    CLS, PROV, PLANT = (anchor.CLASSIFIER, anchor.PROVENANCE_INTEGRITY,
+                        anchor.PLANT_CONTEST_INTEGRITY)
     typed = {}
 
     strength = out["constraint_strength"]
     typed["C"] = (
-        Measurement.refused("C", strength["reason"])
+        Measurement.refused("C", strength["reason"], requires=(CLS,))
         if strength.get("refused")
-        else Measurement("C", round(strength["tv"], 4), withheld=dict(gate),
-                         detail=strength["reading"])
+        else Measurement("C", round(strength["tv"], 4), withheld=gate(CLS),
+                         requires=(CLS,), detail=strength["reading"])
     )
 
     disp = out["dispersion"]
     typed["V"] = Measurement(
-        "V", disp.get("normalized_entropy"), withheld=dict(gate),
+        "V", disp.get("normalized_entropy"), withheld=gate(CLS), requires=(CLS,),
         detail=f"{disp.get('verdict')} (predicted {disp.get('predicted')})",
     ) if disp.get("verdict") not in (None, "undefined") else Measurement.refused(
-        "V", "no samples to disperse over")
+        "V", "no samples to disperse over", requires=(CLS,))
 
     inter = out["interaction"]
     typed["interaction"] = (
-        Measurement.refused("interaction", inter["reason"])
+        Measurement.refused("interaction", inter["reason"], requires=(CLS,))
         if inter.get("refused")
-        else Measurement("interaction", inter["verdict"], withheld=dict(gate),
-                         detail=inter["sufficiency_note"])
+        else Measurement("interaction", inter["verdict"], withheld=gate(CLS),
+                         requires=(CLS,), detail=inter["sufficiency_note"])
     )
 
     path = out["path_level"]
     if path.get("refused"):
-        typed["gamma"] = Measurement.refused("gamma", path["reason"])
+        typed["gamma"] = Measurement.refused("gamma", path["reason"], requires=(CLS,))
     else:
         measured = path["measurement"]
-        withheld = dict(gate)
+        withheld = gate(CLS)
         if measured.get("refused"):
-            typed["gamma"] = Measurement.refused("gamma", measured["reason"])
+            typed["gamma"] = Measurement.refused("gamma", measured["reason"], requires=(CLS,))
         else:
             if not measured.get("is_gamma"):
                 withheld[claim.INFERENTIAL] = measured["inference_refused_because"]
             typed["gamma"] = Measurement("gamma", measured["observation"],
-                                         withheld=withheld,
+                                         withheld=withheld, requires=(CLS,),
                                          detail=measured.get("inference"))
 
     ch2 = out["channel_2"]
     if ch2.get("refused"):
-        typed["recognition"] = Measurement.refused("recognition", ch2["reason"])
-        typed["contest_rate"] = Measurement.refused("contest_rate", ch2["reason"])
+        typed["recognition"] = Measurement.refused("recognition", ch2["reason"], requires=(PLANT,))
+        typed["contest_rate"] = Measurement.refused("contest_rate", ch2["reason"], requires=(PLANT,))
     else:
         typed["recognition"] = (
             Measurement.refused(
                 "recognition",
-                "no plants in this session; recognition is unmeasured rather than perfect")
+                "no plants in this session; recognition is unmeasured rather than perfect",
+                requires=(PLANT,))
             if ch2["recognition_accuracy"] is None
-            else Measurement("recognition", ch2["recognition_accuracy"], withheld=dict(gate))
+            else Measurement("recognition", ch2["recognition_accuracy"],
+                             withheld=gate(PLANT), requires=(PLANT,))
         )
         typed["contest_rate"] = Measurement(
-            "contest_rate", ch2["contest_rate"], withheld=dict(gate),
+            "contest_rate", ch2["contest_rate"], withheld=gate(PLANT), requires=(PLANT,),
             detail="; ".join(ch2["flags"]) or None,
         )
 
     psg = out["passage"]
     if psg.get("refused"):
-        typed["passage"] = Measurement.refused("passage", psg["reason"])
+        typed["passage"] = Measurement.refused("passage", psg["reason"], requires=(PROV,))
     else:
-        withheld = dict(gate)
+        withheld = gate(PROV)
         cover = psg["coverage"]
         if cover["coverage_status"] != passage.FULL_COVERAGE:
             withheld[claim.GENERALISABLE] = (
@@ -295,7 +317,7 @@ def _typed(out: dict, validated: bool) -> dict:
                 "finding does not extend to the rest"
             )
         typed["passage"] = Measurement("passage", psg["state"], withheld=withheld,
-                                       detail=psg["state_meaning"])
+                                       requires=(PROV,), detail=psg["state_meaning"])
     return typed
 
 
@@ -393,6 +415,11 @@ def render(rep: dict) -> str:
                      f"false-acceptance={ch2['false_acceptance_rate']} contest-rate={ch2['contest_rate']}")
         for flag in ch2["flags"]:
             lines.append(f"  ! {flag}")
+    lines.append("")
+
+    lines.append("Validation anchors:")
+    for name, info in rep["anchors"].items():
+        lines.append(f"  {name:26s} {info['state']:12s} {info['depends_on']}")
     lines.append("")
 
     lines.append("Claim licensing (the status travels with the value):")

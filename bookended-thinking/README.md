@@ -47,7 +47,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 126 tests, stdlib only
+./run_tests.sh                 # 136 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -366,6 +366,41 @@ explicit an act as `.computed`. `typing_audit`, `edge`, `ablation` and
 `predicted_blocks` stay at the top level: they are structured diagnostics, and
 there is no single number in them to promote.
 
+**Claim level and validation dependency are orthogonal.** A single `validated`
+boolean collapsed a dependency graph into one bit: only four of the seven
+quantities are built on classified cells, so gating all seven on one switch was
+wrong in both directions — it withheld from three for a reason that does not
+apply to them, and the moment a free-sorting rater study landed it would have
+licensed a passage claim on the strength of evidence about whether naive raters
+can separate L4 from L5. Each quantity now declares the anchor it depends on,
+and the gate asks whether *that* anchor is discharged.
+
+| Quantity | Produced from | Anchor |
+|---|---|---|
+| C, V, interaction, γ | classified cells | `classifier` |
+| passage | ledger provenance | `provenance_integrity` |
+| recognition, contest rate | engine-side plants | `plant_contest_integrity` |
+
+**Anchors are three-valued, and the third state is the point.** `satisfied` — a
+record discharging it exists. `unsatisfied` — no such record, and it is settled
+what one would be. `undecided` — the architecture has not ruled on what would
+discharge it. The third is a missing *criterion*, not a missing record, so
+`Ledger.validation()` refuses a record naming an undecided anchor: accepting one
+would answer an open architectural question by bookkeeping. Validation records
+therefore carry both `anchor` (the external source) and `validates` (the
+dependency discharged); without the second the record is semantically
+incomplete.
+
+Two anchors are currently undecided, and both open questions are held in
+`engine/anchor.py` rather than defaulted. For passage: *the record contains X
+and the chain establishes X preceded Y* may be settled by an internally
+verifiable chain, while *this shows the passage constraint is correctly
+implemented and meaningful* is a larger claim, and nothing has ruled on whether
+the first is sufficient for the second. For Channel 2: the rates are exactly
+computable from the engine's own plant records, but whether a synthetic
+substitution elicits the same adjudicative act a real misclassification would is
+a separate question.
+
 It does **not** stop a reader copying a figure out by hand. What it removes is
 the silent path.
 
@@ -486,6 +521,10 @@ the first person to build a UI would violate without noticing.
 | Claim licensing ladder | Implemented; headline results are typed, not numbers with a warning |
 | `COHERENCE_ONLY` as a gate rather than a label | Closed for the silent path; a reader copying a figure by hand is still outside the instrument |
 | Every headline quantity typed; raw computations namespaced | Enforced — no quotable number sits outside the ladder |
+| Validation dependency is quantity-specific | Enforced; global validation status rejected as a licensing mechanism |
+| Validation records name what they discharge | Enforced; `validates` is required |
+| Is internally verifiable provenance enough for `passage` to reach `evidential`? | **Open.** Held as an undecided anchor; no record can close it |
+| Does a synthetic plant elicit the adjudicative act a real misclassification would? | **Open.** Held as an undecided anchor |
 | `standing_since` resolved by content, not pointer | Enforced — otherwise the field is a backdating primitive |
 | Passage findings vs provenance quality | Reported separately |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |

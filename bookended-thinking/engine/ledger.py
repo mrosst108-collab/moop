@@ -213,11 +213,36 @@ class Ledger:
         return self._append("outcome", payload, refs)
 
     def validation(self, payload: dict) -> str:
-        """A classifier-validation record against an anchor external to the architecture."""
-        for key in ("anchor", "method", "agreement"):
+        """A validation record, naming which dependency it discharges.
+
+        ``anchor`` is the external source (naive raters, held-out data);
+        ``validates`` names the architecture-side dependency being discharged.
+        Without the second the record is semantically incomplete: one untyped
+        record and one boolean cannot express a dependency graph, and a rater
+        study about layer carving would otherwise license a provenance claim it
+        says nothing about.
+
+        A record naming an *undecided* anchor is refused. Nothing has ruled on
+        what would discharge it, so there is no criterion for the record to
+        meet, and accepting one would settle an open architectural question by
+        bookkeeping.
+        """
+        from . import anchor as anchor_module
+
+        for key in ("anchor", "method", "agreement", "validates"):
             if key not in payload:
                 raise LedgerError(f"validation record requires {key!r}")
+        target = anchor_module.get(payload["validates"])
+        if not target.decided:
+            raise LedgerError(
+                f"anchor {target.id!r} is undecided -- nothing has ruled on what "
+                f"would discharge it, so no record can. {target.open_question}"
+            )
         return self._append("validation", payload)
+
+    def validations_for(self, target: str) -> list:
+        return [r for r in self.of_type("validation")
+                if r["payload"].get("validates") == target]
 
     # -- reading -----------------------------------------------------------
 

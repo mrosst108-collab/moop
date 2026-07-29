@@ -70,9 +70,10 @@ class Measurement:
     withheld is licensed, and withholding a level cascades upward.
     """
 
-    __slots__ = ("quantity", "_value", "_withheld", "_licensed", "detail")
+    __slots__ = ("quantity", "_value", "_withheld", "_licensed", "detail", "requires")
 
-    def __init__(self, quantity: str, value=None, *, withheld=None, detail=None):
+    def __init__(self, quantity: str, value=None, *, withheld=None, detail=None,
+                 requires=()):
         held = dict(withheld or {})
         for key in held:
             if key not in CLAIMS:
@@ -86,6 +87,7 @@ class Measurement:
         self._withheld = held
         self._licensed = tuple(c for c in CLAIMS if c not in held)
         self.detail = detail
+        self.requires = tuple(requires)
 
     # -- constructors ------------------------------------------------------
 
@@ -184,13 +186,9 @@ class Measurement:
             "value": self._value if self.licenses(COMPUTABLE) else None,
             "licensed": list(self._licensed),
             "withheld": self.withheld,
+            "requires": list(self.requires),
             "detail": self.detail,
         }
-
-
-def evidential_gate(validated: bool) -> dict:
-    """The standing withholding for an unvalidated classifier."""
-    return {} if validated else {EVIDENTIAL: UNVALIDATED_CLASSIFIER}
 
 
 def json_default(obj):

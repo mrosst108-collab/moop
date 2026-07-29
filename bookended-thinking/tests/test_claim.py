@@ -8,7 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from engine import claim, passage, scoring                      # noqa: E402
+from engine import anchor, claim, passage, scoring              # noqa: E402
 from engine.claim import ClaimNotLicensed, Measurement          # noqa: E402
 from engine.ledger import Ledger                                # noqa: E402
 from engine.ontology import ROOT, Ontology, TypingRules         # noqa: E402
@@ -96,7 +96,8 @@ class TestReportIntegration(unittest.TestCase):
     def test_a_validation_record_licenses_the_computable_ones(self):
         path = os.path.join(tempfile.mkdtemp(), "s.jsonl")
         ledger = Ledger(path)
-        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4})
+        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4,
+                            "validates": "classifier"})
         rep = self._report(ledger)
         self.assertTrue(rep["measurements"]["V"].licenses(claim.EVIDENTIAL))
         self.assertEqual(rep["measurements"]["V"].as_evidence(),
@@ -105,7 +106,8 @@ class TestReportIntegration(unittest.TestCase):
     def test_uncomputable_quantities_stay_refused_even_when_validated(self):
         path = os.path.join(tempfile.mkdtemp(), "s.jsonl")
         ledger = Ledger(path)
-        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4})
+        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4,
+                            "validates": "classifier"})
         rep = self._report(ledger)
         self.assertFalse(rep["measurements"]["C"].licenses(claim.COMPUTABLE))
         self.assertIn("null run", rep["measurements"]["C"].withheld[claim.COMPUTABLE])
@@ -127,13 +129,20 @@ class TestReportIntegration(unittest.TestCase):
     def test_partial_passage_coverage_withholds_generalisation_specifically(self):
         path = os.path.join(tempfile.mkdtemp(), "s.jsonl")
         ledger = Ledger(path)
-        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4})
+        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4,
+                            "validates": "classifier"})
         ledger.commit({"openings": [{"opening_id": "o", "layer": "L4",
                                      "custody_mode": "run_specific"}]})
         ledger.closure("L3", {"statement": "x"})
         ledger.closure("L5", {"statement": "y"})
         m = self._report(ledger)["measurements"]["passage"]
-        self.assertTrue(m.licenses(claim.EVIDENTIAL))
+        # A classifier rater study says nothing about a provenance query, so it
+        # does not license one -- the anchor passage depends on is undecided.
+        self.assertFalse(m.licenses(claim.EVIDENTIAL))
+        self.assertIn("undecided", m.withheld[claim.EVIDENTIAL])
+        self.assertEqual(m.requires, (anchor.PROVENANCE_INTEGRITY,))
+        # and the coverage reason survives underneath rather than being
+        # overwritten by the inherited one
         self.assertFalse(m.licenses(claim.GENERALISABLE))
         self.assertIn("does not extend to the rest", m.withheld[claim.GENERALISABLE])
         self.assertEqual(m.computed, passage.UNEXAMINED)

@@ -166,7 +166,7 @@ class TestLedger(unittest.TestCase):
         with self.assertRaises(LedgerError):
             self.ledger.validation({"anchor": "naive raters"})
         self.ledger.validation({"anchor": "naive raters", "method": "free sorting",
-                                "agreement": 0.41})
+                                "agreement": 0.41, "validates": "classifier"})
         self.assertTrue(self.ledger.has_validation())
 
 
@@ -193,7 +193,8 @@ class TestReport(unittest.TestCase):
     def test_a_validation_record_lifts_the_stamp(self):
         path = os.path.join(tempfile.mkdtemp(), "s.jsonl")
         ledger = Ledger(path)
-        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4})
+        ledger.validation({"anchor": "naive raters", "method": "free sorting", "agreement": 0.4,
+                            "validates": "classifier"})
         rep = self._report(ledger)
         self.assertTrue(rep["validated"])
         self.assertIsNone(rep["stamp"])
