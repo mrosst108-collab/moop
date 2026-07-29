@@ -37,6 +37,7 @@ UNSATISFIED = "unsatisfied"
 UNDECIDED = "undecided"
 
 CLASSIFIER = "classifier"
+CLASSIFIER_TARGET_GRANULARITY = "classifier_target_granularity"
 PROVENANCE_INTEGRITY = "provenance_integrity"
 PLANT_CONTEST_INTEGRITY = "plant_contest_integrity"
 
@@ -60,6 +61,27 @@ ANCHORS = {
             "agreement with judges naive to the architecture, or performance on "
             "held-out data typed independently, including adversarial examples "
             "built to expose keyword and stylistic shortcuts"
+        ),
+    ),
+    CLASSIFIER_TARGET_GRANULARITY: Anchor(
+        id=CLASSIFIER_TARGET_GRANULARITY,
+        depends_on="gamma, which needs ordered operator trajectories classified faithfully",
+        decided=False,
+        open_question=(
+            "This anchor's own existence is the question. C, V and interaction "
+            "need cell-level classification to be valid. gamma needs something "
+            "more: a classifier could be excellent at typing L4 against L5 and "
+            "G# against G~# as independent labels while being poor at "
+            "'G# then G~#' against 'G~# then G#' as a sequence. Order fidelity "
+            "already shows the distinction matters operationally -- unfaithful "
+            "trajectories are excluded and counted -- but that does not "
+            "establish it is a separate *validation target*. If the question "
+            "resolves one way this anchor merges back into 'classifier'; if the "
+            "other, it acquires its own discharge criterion. Until then gamma "
+            "requires it, so a cell-level rater study cannot license gamma by "
+            "inheritance. Leaving gamma on 'classifier' alone would have "
+            "answered the question in the affirmative by structure -- the "
+            "conservative reading is the only one that decides nothing."
         ),
     ),
     PROVENANCE_INTEGRITY: Anchor(

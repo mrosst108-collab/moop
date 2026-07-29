@@ -377,7 +377,8 @@ and the gate asks whether *that* anchor is discharged.
 
 | Quantity | Produced from | Anchor |
 |---|---|---|
-| C, V, interaction, γ | classified cells | `classifier` |
+| C, V, interaction | classified cells | `classifier` |
+| γ | classified cells **and ordered trajectories** | `classifier` + `classifier_target_granularity` |
 | passage | ledger provenance | `provenance_integrity` |
 | recognition, contest rate | engine-side plants | `plant_contest_integrity` |
 
@@ -391,7 +392,18 @@ therefore carry both `anchor` (the external source) and `validates` (the
 dependency discharged); without the second the record is semantically
 incomplete.
 
-Two anchors are currently undecided, and both open questions are held in
+**γ's second anchor is an anchor whose own existence is the question.** A
+classifier could be excellent at typing L4 against L5 and G♯ against G̃♯ as
+independent labels while being poor at *G♯ then G̃♯* against *G̃♯ then G♯* as a
+sequence. Order fidelity already shows the distinction matters operationally,
+but that does not establish it is a separate *validation target*. Leaving γ on
+`classifier` alone would have answered that in the affirmative by structure — a
+cell-level rater study would have licensed γ by inheritance. Requiring an
+undecided anchor decides nothing and keeps the question live; if it resolves one
+way the anchor merges back into `classifier`, if the other it acquires its own
+criterion.
+
+Three anchors are currently undecided, and every open question is held in
 `engine/anchor.py` rather than defaulted. For passage: *the record contains X
 and the chain establishes X preceded Y* may be settled by an internally
 verifiable chain, while *this shows the passage constraint is correctly
@@ -525,6 +537,7 @@ the first person to build a UI would violate without noticing.
 | Validation records name what they discharge | Enforced; `validates` is required |
 | Is internally verifiable provenance enough for `passage` to reach `evidential`? | **Open.** Held as an undecided anchor; no record can close it |
 | Does a synthetic plant elicit the adjudicative act a real misclassification would? | **Open.** Held as an undecided anchor |
+| Is sequence-faithful classification a second validation target, or the same one? | **Open.** Held as an undecided anchor; γ requires it, so no cell-level study licenses γ by inheritance |
 | `standing_since` resolved by content, not pointer | Enforced — otherwise the field is a backdating primitive |
 | Passage findings vs provenance quality | Reported separately |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |

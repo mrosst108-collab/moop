@@ -17,6 +17,20 @@ from engine.ledger import Ledger, LedgerError                   # noqa: E402
 from engine.ontology import ROOT, Ontology, TypingRules         # noqa: E402
 
 PW = "performed_within"
+
+
+def commutator_arms(n=16):
+    """Two orderings of the defined pair, so gamma is computable."""
+    return {
+        "A": [dict(declared_order=["G_sharp", "G_tilde_sharp"],
+                   steps=[[("L3", "G_sharp", PW)], [("L4", "G_tilde_sharp", PW)]])
+              for _ in range(n)],
+        "B": [dict(declared_order=["G_tilde_sharp", "G_sharp"],
+                   steps=[[("L5", "G_tilde_sharp", PW)], [("L2", "G_sharp", PW)]])
+              for _ in range(n)],
+    }
+
+
 CLASSIFIER_RECORD = {"anchor": "naive raters", "method": "free sorting",
                      "agreement": 0.41, "validates": "classifier"}
 
@@ -30,7 +44,8 @@ class TestAnchorStates(unittest.TestCase):
         self.assertEqual(anchor.status(anchor.CLASSIFIER, self.ledger)[0], anchor.UNSATISFIED)
         self.ledger.validation(dict(CLASSIFIER_RECORD))
         self.assertEqual(anchor.status(anchor.CLASSIFIER, self.ledger)[0], anchor.SATISFIED)
-        for undecided in (anchor.PROVENANCE_INTEGRITY, anchor.PLANT_CONTEST_INTEGRITY):
+        for undecided in (anchor.PROVENANCE_INTEGRITY, anchor.PLANT_CONTEST_INTEGRITY,
+                          anchor.CLASSIFIER_TARGET_GRANULARITY):
             self.assertEqual(anchor.status(undecided, self.ledger)[0], anchor.UNDECIDED)
 
     def test_undecided_is_a_missing_criterion_not_a_missing_record(self):
@@ -77,22 +92,29 @@ class TestDependencyRouting(unittest.TestCase):
     def test_each_quantity_declares_the_anchor_it_depends_on(self):
         measurements = self._report()["measurements"]
         expected = {
-            "C": anchor.CLASSIFIER, "V": anchor.CLASSIFIER,
-            "interaction": anchor.CLASSIFIER, "gamma": anchor.CLASSIFIER,
-            "passage": anchor.PROVENANCE_INTEGRITY,
-            "recognition": anchor.PLANT_CONTEST_INTEGRITY,
-            "contest_rate": anchor.PLANT_CONTEST_INTEGRITY,
+            "C": (anchor.CLASSIFIER,), "V": (anchor.CLASSIFIER,),
+            "interaction": (anchor.CLASSIFIER,),
+            "gamma": (anchor.CLASSIFIER, anchor.CLASSIFIER_TARGET_GRANULARITY),
+            "passage": (anchor.PROVENANCE_INTEGRITY,),
+            "recognition": (anchor.PLANT_CONTEST_INTEGRITY,),
+            "contest_rate": (anchor.PLANT_CONTEST_INTEGRITY,),
         }
-        for name, expected_anchor in expected.items():
+        for name, expected_anchors in expected.items():
             with self.subTest(name=name):
-                self.assertEqual(measurements[name].requires, (expected_anchor,))
+                self.assertEqual(measurements[name].requires, expected_anchors)
 
     def test_a_classifier_study_licenses_classifier_quantities_only(self):
         """The absurd case the global switch permitted."""
         self.ledger.validation(dict(CLASSIFIER_RECORD))
-        measurements = self._report()["measurements"]
+        measurements = self._report(trajectory_arms=commutator_arms())["measurements"]
         self.assertTrue(measurements["C"].licenses(claim.EVIDENTIAL))
         self.assertTrue(measurements["V"].licenses(claim.EVIDENTIAL))
+        # gamma is sequence-dependent; a cell-level study does not reach it,
+        # and leaving it on the classifier anchor alone would have said it did.
+        self.assertTrue(measurements["gamma"].licenses(claim.INFERENTIAL))
+        self.assertFalse(measurements["gamma"].licenses(claim.EVIDENTIAL))
+        self.assertIn("own existence is the question",
+                      measurements["gamma"].withheld[claim.EVIDENTIAL])
         for unrelated in ("passage", "recognition", "contest_rate"):
             with self.subTest(unrelated=unrelated):
                 self.assertFalse(measurements[unrelated].licenses(claim.EVIDENTIAL))

@@ -245,6 +245,10 @@ def _typed(out: dict, ledger) -> dict:
 
     CLS, PROV, PLANT = (anchor.CLASSIFIER, anchor.PROVENANCE_INTEGRITY,
                         anchor.PLANT_CONTEST_INTEGRITY)
+    # gamma is sequence-dependent, and whether that is a second validation
+    # target is unruled. Leaving it on CLS alone would answer that by structure:
+    # a cell-level rater study would license gamma by inheritance.
+    GAMMA_ANCHORS = (CLS, anchor.CLASSIFIER_TARGET_GRANULARITY)
     typed = {}
 
     strength = out["constraint_strength"]
@@ -272,17 +276,17 @@ def _typed(out: dict, ledger) -> dict:
 
     path = out["path_level"]
     if path.get("refused"):
-        typed["gamma"] = Measurement.refused("gamma", path["reason"], requires=(CLS,))
+        typed["gamma"] = Measurement.refused("gamma", path["reason"], requires=GAMMA_ANCHORS)
     else:
         measured = path["measurement"]
-        withheld = gate(CLS)
+        withheld = gate(*GAMMA_ANCHORS)
         if measured.get("refused"):
-            typed["gamma"] = Measurement.refused("gamma", measured["reason"], requires=(CLS,))
+            typed["gamma"] = Measurement.refused("gamma", measured["reason"], requires=GAMMA_ANCHORS)
         else:
             if not measured.get("is_gamma"):
                 withheld[claim.INFERENTIAL] = measured["inference_refused_because"]
             typed["gamma"] = Measurement("gamma", measured["observation"],
-                                         withheld=withheld, requires=(CLS,),
+                                         withheld=withheld, requires=GAMMA_ANCHORS,
                                          detail=measured.get("inference"))
 
     ch2 = out["channel_2"]
@@ -419,7 +423,7 @@ def render(rep: dict) -> str:
 
     lines.append("Validation anchors:")
     for name, info in rep["anchors"].items():
-        lines.append(f"  {name:26s} {info['state']:12s} {info['depends_on']}")
+        lines.append(f"  {name:30s} {info['state']:12s} {info['depends_on']}")
     lines.append("")
 
     lines.append("Claim licensing (the status travels with the value):")
