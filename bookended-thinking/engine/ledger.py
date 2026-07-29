@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 
 RECORD_TYPES = (
     "commitment",      # sealed declarations, before any generation
+    "closure",         # a closure reached at a layer
     "response",        # a generated response, referencing a commitment
     "classification",  # a classifier output over a response
     "plant",           # ground truth for a planted misclassification
@@ -36,6 +37,8 @@ RECORD_TYPES = (
     "validation",      # classifier validation against an external anchor
     "note",
 )
+
+CUSTODY_MODES = ("run_specific", "standing")
 
 
 class LedgerError(ValueError):
@@ -99,8 +102,64 @@ class Ledger:
     # -- typed appends -----------------------------------------------------
 
     def commit(self, declarations: dict) -> str:
-        """Seal the student's declarations. Nothing may be added to them later."""
+        """Seal the student's declarations. Nothing may be added to them later.
+
+        A payload may carry a layer-addressable ``openings`` list, which is what
+        the passage audit reads. Each entry needs an ``opening_id``, a
+        ``layer``, and a ``custody_mode``; a standing opening may name the
+        commitment it has been standing since. That anchor must already exist in
+        this chain -- a forward-pointing anchor is malformed, not a finding.
+
+        Whether the anchor actually *contains* the opening is deliberately not
+        checked here. Refusing it at write time would make the retroactive
+        custody claim unrecordable, and the audit exists to report such claims,
+        not to be spared them.
+        """
+        for opening in declarations.get("openings") or []:
+            self._validate_opening(opening)
         return self._append("commitment", declarations)
+
+    def _validate_opening(self, opening: dict) -> None:
+        from .ontology import LAYER_IDS
+
+        for key in ("opening_id", "layer", "custody_mode"):
+            if key not in opening:
+                raise LedgerError(f"opening requires {key!r}")
+        if opening["layer"] not in LAYER_IDS:
+            raise LedgerError(f"unknown layer {opening['layer']!r}")
+        if opening["custody_mode"] not in CUSTODY_MODES:
+            raise LedgerError(f"custody_mode must be one of {CUSTODY_MODES}")
+        anchor = opening.get("standing_since")
+        if anchor is not None and not str(anchor).startswith("external"):
+            target = self._find(anchor)
+            if target is None:
+                raise LedgerError(
+                    "standing_since names a commitment that is not already in "
+                    "this chain. Standing custody must have been established "
+                    "earlier; an anchor pointing forward is malformed."
+                )
+            if target["type"] != "commitment":
+                raise LedgerError("standing_since must name a commitment")
+        if opening["custody_mode"] == "run_specific" and anchor is not None:
+            raise LedgerError("a run-specific opening cannot claim a standing anchor")
+
+    def closure(self, layer: str, payload: dict) -> str:
+        """Record a closure reached at a layer -- what the passage audit compares against."""
+        from .ontology import LAYER_IDS
+
+        if layer not in LAYER_IDS:
+            raise LedgerError(f"unknown layer {layer!r}")
+        return self._append("closure", dict(payload, layer=layer))
+
+    def openings(self) -> list:
+        """Every sealed opening, with the record that sealed it."""
+        found = []
+        for rec in self.records:
+            if rec["type"] != "commitment":
+                continue
+            for opening in rec["payload"].get("openings") or []:
+                found.append({"seq": rec["seq"], "commitment": rec["hash"], "opening": opening})
+        return found
 
     def response(self, commitment_hash: str, payload: dict) -> str:
         target = self._find(commitment_hash)

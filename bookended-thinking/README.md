@@ -46,7 +46,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 77 tests, stdlib only
+./run_tests.sh                 # 96 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -54,6 +54,7 @@ python3 bt.py seal LEDGER poles.json
 python3 bt.py ingest LEDGER --mode bridge --commitment HASH \
         --response r.txt --classification c.json --responder A --classifier B
 python3 bt.py verify LEDGER
+python3 bt.py passage LEDGER   # provenance query over sealed commitments
 python3 bt.py report runs.json --ledger LEDGER
 ```
 
@@ -181,17 +182,14 @@ are the first thing to read, before any endpoint comparison.
 
 ---
 
-## Specified, not implemented: the passage audit
+## The passage audit
 
-The instrument measures composition along the dynamic axis. It does not measure
-passage along the epistemic one — whether satisfaction of Cᵢ was illicitly
-promoted into authorisation of O₍ᵢ₊₁₎. A run can classify every output's layer
-correctly and still treat a successful L4 derivation as warrant for an L5
-standard. The instrument sees *where the process went*, not *what authority it
-claimed to acquire by getting there*.
-
-The specification below is settled; nothing implements it, and it is recorded
-here so the design is not lost and the gap is not mistaken for coverage.
+Composition along the dynamic axis is measured by `trajectory.py`. Passage along
+the epistemic one — whether satisfaction of Cᵢ was illicitly promoted into
+authorisation of O₍ᵢ₊₁₎ — is measured by `passage.py`. A run can classify every
+output's layer correctly and still treat a successful L4 derivation as warrant
+for an L5 standard. Trajectory analysis sees *where the process went*; this sees
+*what authority it claimed to acquire by getting there*.
 
 **Two candidate tests, both rejected.**
 
@@ -207,35 +205,59 @@ test cannot tell the two apart, so this over-fires.
 
 **Retained: a provenance query.** The passage constraint is not a semantic
 property of the resulting opening. It is a property of the opening's *custody*,
-and custody is an ordering fact the hash chain already records. The audit is a
-typed query over commitments, not a classifier and not a new measurement
-channel:
+and custody is an ordering fact the hash chain already records. So this is not a
+classifier and not a new measurement channel — it is a typed read over records
+that already exist. `Ledger.commit()` now accepts a layer-addressable `openings`
+list (`opening_id`, `layer`, `custody_mode`, `standing_since`,
+`triggered_reopen`), and `Ledger.closure()` records what the audit compares
+against.
 
-| Case | Condition | Verdict |
+| State | Condition | Positive finding |
 |---|---|---|
-| 1 | O₍ᵢ₊₁₎ sealed before Cᵢ, or already standing in force | standing-protected |
-| 2 | The record shows the opening existed but cannot place it relative to Cᵢ | record-protected, temporally ambiguous |
-| 3 | O₍ᵢ₊₁₎ first sealed after Cᵢ | unprotected by the record |
+| `protected` | first recorded custody precedes the closure | — |
+| `standing_protected` | standing since an earlier commitment that predates the closure **and contains this opening** | — |
+| `standing_claimed_unsupported` | the named anchor does not contain this opening | **yes — L2** |
+| `unprotected_by_record` | first recorded custody follows the closure | **yes — L1** |
+| `unresolved` | custody claimed from an origin outside this record | — |
 
-Only case 3 is a positive forensic finding. **Case 2 must remain unresolved** —
-the forensic layer establishes what the record shows, and near-zero admissible
-width there means the instrument may not interpolate the difference. And case 3
-is *unprotected*, not *violated*: a late-sealed opening might have been held all
-along and merely written down late.
+**The hole the specification had.** `standing_since` is a field whose entire
+function is to claim earlier custody. Checking only that the anchor exists and
+predates the closure makes it a backdating primitive: any opening can name any
+earlier commitment and inherit its protection. The anchor is therefore resolved
+**by content** — the audit reads the referenced commitment's payload and
+confirms the opening is actually in it. A pointer to a real commitment that
+lacks the opening is not `unprotected`; it is a distinct and more serious
+finding, a claim of earlier custody the record itself contradicts. That is a
+Layer 2 failure (a commitment misrepresented), not a Layer 1 one, and the
+four-state table had no slot for it.
 
-The verdict must be forensic, never scored. *"O₄ was sealed after C₃ in three
-of seven runs"* is a record. *"Your passage discipline is 6/10"* supplies a
-criterion, which is Layer 5, and hands custody of Cᵢ to the instrument.
+Whether the anchor contains the opening is deliberately *not* checked at commit
+time. Refusing it at write time would make the retroactive claim unrecordable,
+and the audit exists to report such claims rather than to be spared them. A
+forward-pointing anchor is refused, because that is malformed rather than false.
 
-**The missing plumbing is small and specific.** `Ledger.commit()` seals a flat
-declarations blob, so the chain knows *when* a commitment was sealed but not
-*which layer's opening* it contained. The payload needs to become
-layer-addressable — commitment → layer → opening → custody status → seal time —
-with the chain retaining the temporal relation to recorded closures. The
-standing-custody exception has to be encodable or the audit fires on every
-legitimate run: custody may be standing rather than continuously exercised, and
-an audit demanding fresh re-declaration at every layer makes the human a
-bottleneck by construction.
+**`triggered_reopen` voids inherited protection.** A reopened opening is a fresh
+declaration and is judged on its own seal time; otherwise "standing" would
+license every later re-declaration.
+
+**Only an origin outside the record is `unresolved`.** The first declaration of
+a standing opening *is* its origin, so it is judged on its own seal time like
+any other. An earlier draft marked it unresolved, which left every standing
+opening permanently stuck — the failure mode where the audit's commonest output
+is "cannot say." `unresolved` now means specifically that the provenance needed
+to distinguish legitimate standing custody from a retrospective claim was not
+preserved, which makes it a diagnostic of the ledger rather than noise.
+
+**Two reports, never mixed.** Findings are about the run; provenance quality is
+about the ledger's bookkeeping. An `unresolved` rate reported in the same column
+as an `unprotected` rate invites the first to be read as the second.
+
+**No state is a finding of promotion.** `unprotected_by_record` means the record
+does not protect the opening, not that the opening was promoted — it may have
+been held all along and written down late. And the verdict is forensic, never
+scored: *"O₄ was sealed after C₃ in three of seven runs"* is a record, while
+*"your passage discipline is 6/10"* supplies a criterion, which is Layer 5, and
+hands custody of Cᵢ to the instrument.
 
 ---
 
@@ -316,10 +338,10 @@ grid's virtue there is that it does *not* reproduce the model's ambient
 ontology, which an embedding metric would. Width claims are a different matter
 and are refused.
 
-**Only one of the two path structures is measured.** A cell-level classifier is
-blind to both passage along the epistemic axis and composition along the
-dynamic one. `engine/trajectory.py` measures the second; the first is specified
-above and unbuilt.
+**Both path structures are now measured, neither is anchored.** `trajectory.py`
+takes composition along the dynamic axis and `passage.py` takes passage along
+the epistemic one. Neither has an external anchor, and the passage audit's
+verdicts are only as good as the discipline of the ledger it reads.
 
 **Any visualisation of this space must be graph-based, not a heatmap.** Δ is
 partially ordered, not metric, and a heatmap irresistibly suggests Euclidean
@@ -346,7 +368,9 @@ the first person to build a UI would violate without noticing.
 | Order fidelity per trajectory | Enforced; unfaithful runs excluded and counted |
 | Observation / inference kept apart in the γ result | Enforced; no code path renders a bare "γ ≠ 0" |
 | Cell/path cross-check, 2×3 with relocation profiling | Implemented; carries the bias caveat with every reading; refuses a bare count |
-| Passage audit | **Specified, not implemented.** Provenance query over typed commitments; three cases, only the third a positive finding |
+| Passage audit | Implemented; five states, two of them positive findings at different layers |
+| `standing_since` resolved by content, not pointer | Enforced — otherwise the field is a backdating primitive |
+| Passage findings vs provenance quality | Reported separately |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |
 | Middle-width gradient | Withheld and unreported |
 | Grid count (28 vs 42) | Still blocked. Nothing here needs it: the blocks are reported separately and never summed |

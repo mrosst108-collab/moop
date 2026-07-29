@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from engine import scoring, validate, yamlish                  # noqa: E402
+from engine import passage, scoring, validate, yamlish         # noqa: E402
 from engine.ledger import Ledger, LedgerError                  # noqa: E402
 from engine.ontology import Ontology, TypingRules              # noqa: E402
 from engine.typing_rules import predicted_blocks               # noqa: E402
@@ -119,6 +119,12 @@ def cmd_verify(args) -> int:
     return 0 if result["intact"] else 1
 
 
+def cmd_passage(args) -> int:
+    result = passage.audit(Ledger(args.ledger))
+    print(json.dumps(result, indent=2) if args.json else passage.render(result))
+    return 0
+
+
 def cmd_report(args) -> int:
     ont, rules = _load()
     with open(args.runs, "r", encoding="utf-8") as handle:
@@ -173,6 +179,11 @@ def main(argv=None) -> int:
     p = sub.add_parser("verify", help="walk the hash chain")
     p.add_argument("ledger")
     p.set_defaults(func=cmd_verify)
+
+    p = sub.add_parser("passage", help="provenance query: was a closure promoted into authority?")
+    p.add_argument("ledger")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_passage)
 
     p = sub.add_parser("report", help="compute what is currently well-founded")
     p.add_argument("runs")

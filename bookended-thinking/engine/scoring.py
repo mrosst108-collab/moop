@@ -15,7 +15,8 @@ recurrence wearing a lab coat is still internal recurrence.
 
 from __future__ import annotations
 
-from . import ablation, dispersion, distance, divergence, trajectory, typing_rules
+from . import (ablation, dispersion, distance, divergence, passage, trajectory,
+               typing_rules)
 
 REFUSALS = {
     "adequacy_score": (
@@ -45,6 +46,18 @@ REFUSALS = {
         "A cell landing where the subgraph predicts void is recorded, not "
         "adjudicated. Bad typing and bad classifier are not separable from "
         "inside the system."
+    ),
+    "passage_discipline_score": (
+        "The passage audit reports the record and never grades it. A count of "
+        "unprotected openings is Layer 1; a discipline score supplies a warrant "
+        "standard, which is Layer 5, and hands custody of the closure criterion "
+        "to the instrument."
+    ),
+    "promotion_from_missing_provenance": (
+        "'Unprotected by the record' and 'unresolved' are not findings of "
+        "promotion. A late-sealed opening may have been held all along and "
+        "written down late; turning missing provenance into a violation "
+        "interpolates what the record does not establish."
     ),
     "gamma_from_classification": (
         "A classifier-emitted gamma is a cell-level observation, never a gamma "
@@ -150,6 +163,18 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
             ),
         }
 
+    if ledger is not None:
+        out["passage"] = passage.audit(ledger)
+    else:
+        out["passage"] = {
+            "refused": True,
+            "reason": (
+                "The passage audit is a provenance query over sealed "
+                "commitments and closures. Without a ledger there is no record "
+                "to query, and passage is unexamined rather than clean."
+            ),
+        }
+
     if planted_rounds is not None:
         from . import planted
         out["channel_2"] = planted.score(planted_rounds)
@@ -243,6 +268,13 @@ def render(rep: dict) -> str:
         lines.append(f"Relocation: {rel['verdict']} (cell-level gamma labels: {rel['total']}, rates {rel['rate']})")
         cc = path["cross_check"]
         lines.append(f"Cross-check: {cc['reading']} -- {cc.get('detail','')}")
+    lines.append("")
+
+    psg = rep["passage"]
+    if psg.get("refused"):
+        lines.append(f"Passage:    REFUSED -- {psg['reason']}")
+    else:
+        lines.append(passage.render(psg))
     lines.append("")
 
     ch2 = rep["channel_2"]
