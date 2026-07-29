@@ -224,8 +224,8 @@ class TestWithholding(unittest.TestCase):
             output_samples=[[("L5", "gamma", PW)]] * 4,
             declared_objects=["J_sharp"],
         )
-        self.assertTrue(rep["path_level"]["refused"])
-        self.assertEqual(rep["path_level"]["cell_level_gamma_observations"], 4)
+        self.assertTrue(rep["raw"]["path_level"]["refused"])
+        self.assertEqual(rep["raw"]["path_level"]["cell_level_gamma_observations"], 4)
         self.assertIn("gamma_from_classification", rep["refusals"])
 
     def test_report_composes_gamma_when_arms_are_present(self):
@@ -235,8 +235,8 @@ class TestWithholding(unittest.TestCase):
             declared_objects=["J_sharp"],
             trajectory_arms=dict(zip(("A", "B"), commuting_arms(end_a="L4", end_b="L2"))),
         )
-        self.assertTrue(rep["path_level"]["measurement"]["is_gamma"])
-        self.assertEqual(rep["path_level"]["cross_check"]["reading"], "path_level_supported")
+        self.assertTrue(rep["raw"]["path_level"]["measurement"]["is_gamma"])
+        self.assertEqual(rep["raw"]["path_level"]["cross_check"]["reading"], "path_level_supported")
         rendered = scoring.render(rep)
         self.assertIn("Observed:   endpoint change observed under the tested", rendered)
         self.assertIn("Inference:  supports gamma != 0 for the tested pair", rendered)

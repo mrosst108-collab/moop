@@ -121,7 +121,7 @@ class TestSemantics(CoverageCase):
         rep = scoring.report(ontology=Ontology.load(ROOT), rules=TypingRules.load(ROOT),
                              ledger=self.ledger, output_samples=[[("L4", "F", "performed_within")]])
         self.assertIn("clean_passage_from_partial_coverage", rep["refusals"])
-        self.assertEqual(rep["passage"]["state"], passage.UNEXAMINED)
+        self.assertEqual(rep["raw"]["passage"]["state"], passage.UNEXAMINED)
 
 
 if __name__ == "__main__":

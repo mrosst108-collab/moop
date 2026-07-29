@@ -47,7 +47,7 @@ re-scored under a revised subgraph without touching the student responses
 underneath it.
 
 ```sh
-./run_tests.sh                 # 123 tests, stdlib only
+./run_tests.sh                 # 126 tests, stdlib only
 python3 bt.py check            # ontology loads; prompts leak no predictions
 python3 bt.py render bridge    # the prompt, with the ontology interpolated
 python3 bt.py drill layer_sweep
@@ -355,6 +355,17 @@ what is being claimed: `.computed` for the raw calculation, `.as_evidence()`
 which refuses unless licensed. JSON serialisation carries `licensed` and
 `withheld` rather than a bare number.
 
+**The typed surface is the whole surface.** Seven headline quantities — C, V,
+interaction, γ, passage, recognition, contest rate — are `Measurement` objects,
+and the underlying computations live under `report()["raw"]` rather than beside
+them. A parallel untyped view would have left the ladder optional: anything
+reading `rep["dispersion"]["normalized_entropy"]` would get a bare float without
+doing anything unusual. `raw` stays reachable, because the ladder types what a
+result licenses rather than hiding the arithmetic, but reaching for it is now as
+explicit an act as `.computed`. `typing_audit`, `edge`, `ablation` and
+`predicted_blocks` stay at the top level: they are structured diagnostics, and
+there is no single number in them to promote.
+
 It does **not** stop a reader copying a figure out by hand. What it removes is
 the silent path.
 
@@ -474,6 +485,7 @@ the first person to build a UI would violate without noticing.
 | Ledger completeness | **Held.** Would be a normative judgement the audit is not authorised to make |
 | Claim licensing ladder | Implemented; headline results are typed, not numbers with a warning |
 | `COHERENCE_ONLY` as a gate rather than a label | Closed for the silent path; a reader copying a figure by hand is still outside the instrument |
+| Every headline quantity typed; raw computations namespaced | Enforced — no quotable number sits outside the ladder |
 | `standing_since` resolved by content, not pointer | Enforced — otherwise the field is a backdating primitive |
 | Passage findings vs provenance quality | Reported separately |
 | Classifier validation | **Absent.** Every report is stamped `COHERENCE_ONLY`. |

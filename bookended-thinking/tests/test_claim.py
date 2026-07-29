@@ -100,7 +100,7 @@ class TestReportIntegration(unittest.TestCase):
         rep = self._report(ledger)
         self.assertTrue(rep["measurements"]["V"].licenses(claim.EVIDENTIAL))
         self.assertEqual(rep["measurements"]["V"].as_evidence(),
-                         rep["dispersion"]["normalized_entropy"])
+                         rep["raw"]["dispersion"]["normalized_entropy"])
 
     def test_uncomputable_quantities_stay_refused_even_when_validated(self):
         path = os.path.join(tempfile.mkdtemp(), "s.jsonl")
@@ -137,6 +137,31 @@ class TestReportIntegration(unittest.TestCase):
         self.assertFalse(m.licenses(claim.GENERALISABLE))
         self.assertIn("does not extend to the rest", m.withheld[claim.GENERALISABLE])
         self.assertEqual(m.computed, passage.UNEXAMINED)
+
+    def test_every_headline_quantity_is_typed(self):
+        """The invariant: no quotable number sits outside the ladder."""
+        rep = self._report()
+        self.assertEqual(sorted(rep["measurements"]),
+                         ["C", "V", "contest_rate", "gamma", "interaction",
+                          "passage", "recognition"])
+        for key, value in rep["measurements"].items():
+            with self.subTest(key=key):
+                self.assertIsInstance(value, Measurement)
+
+    def test_raw_is_reachable_but_named(self):
+        rep = self._report()
+        self.assertIn("raw", rep)
+        for key in ("constraint_strength", "dispersion", "interaction",
+                    "path_level", "passage", "channel_2"):
+            self.assertIn(key, rep["raw"])
+            self.assertNotIn(key, rep)
+        self.assertIn("bypasses it", rep["raw_note"])
+
+    def test_unmeasured_recognition_is_refused_not_zero(self):
+        rep = self._report()
+        recognition = rep["measurements"]["recognition"]
+        self.assertFalse(recognition.licenses(claim.COMPUTABLE))
+        self.assertIn("Channel 2", recognition.withheld[claim.COMPUTABLE])
 
     def test_render_prints_the_licensing_block(self):
         text = scoring.render(self._report())

@@ -200,10 +200,10 @@ class TestReport(unittest.TestCase):
 
     def test_interaction_and_channel_two_refuse_rather_than_default(self):
         rep = self._report()
-        self.assertTrue(rep["interaction"]["refused"])
-        self.assertIn("following one pole", rep["interaction"]["reason"])
-        self.assertTrue(rep["channel_2"]["refused"])
-        self.assertTrue(rep["constraint_strength"]["refused"])
+        self.assertTrue(rep["raw"]["interaction"]["refused"])
+        self.assertIn("following one pole", rep["raw"]["interaction"]["reason"])
+        self.assertTrue(rep["raw"]["channel_2"]["refused"])
+        self.assertTrue(rep["raw"]["constraint_strength"]["refused"])
 
     def test_refusals_are_reported_not_omitted(self):
         rep = self._report()

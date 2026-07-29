@@ -74,6 +74,17 @@ REFUSALS = {
     ),
 }
 
+RAW_NOTE = (
+    "`raw` holds the underlying computations, unlicensed. They stay reachable "
+    "for composition and debugging -- the ladder types what a result licenses, "
+    "it does not hide the arithmetic -- but the licensed surface is "
+    "`measurements`, and reaching into `raw` bypasses it. That bypass is named "
+    "rather than incidental, which is the whole of what a type can do here. "
+    "typing_audit, edge, ablation and predicted_blocks stay at the top level: "
+    "they are structured diagnostics rather than quantities, and there is no "
+    "single number in them to promote."
+)
+
 COHERENCE_STAMP = (
     "COHERENCE_ONLY -- no classifier-validation record in this ledger. These "
     "figures describe what this classifier did. They are not evidence about "
@@ -182,8 +193,6 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
             ),
         }
 
-    out["measurements"] = _typed(out, validated)
-
     if planted_rounds is not None:
         from . import planted
         out["channel_2"] = planted.score(planted_rounds)
@@ -197,6 +206,14 @@ def report(*, ontology, rules, ledger=None, input_cells=(), output_samples=(),
             ),
         }
 
+    # Everything carrying a quotable quantity moves under `raw`. The typed
+    # surface is `measurements`; `raw` stays reachable for composition and
+    # debugging, but reaching for it is now as explicit an act as `.computed`.
+    out["raw"] = {key: out.pop(key) for key in
+                  ("constraint_strength", "dispersion", "interaction", "path_level",
+                   "passage", "channel_2")}
+    out["raw_note"] = RAW_NOTE
+    out["measurements"] = _typed(out["raw"], validated)
     return out
 
 
@@ -247,6 +264,23 @@ def _typed(out: dict, validated: bool) -> dict:
             typed["gamma"] = Measurement("gamma", measured["observation"],
                                          withheld=withheld,
                                          detail=measured.get("inference"))
+
+    ch2 = out["channel_2"]
+    if ch2.get("refused"):
+        typed["recognition"] = Measurement.refused("recognition", ch2["reason"])
+        typed["contest_rate"] = Measurement.refused("contest_rate", ch2["reason"])
+    else:
+        typed["recognition"] = (
+            Measurement.refused(
+                "recognition",
+                "no plants in this session; recognition is unmeasured rather than perfect")
+            if ch2["recognition_accuracy"] is None
+            else Measurement("recognition", ch2["recognition_accuracy"], withheld=dict(gate))
+        )
+        typed["contest_rate"] = Measurement(
+            "contest_rate", ch2["contest_rate"], withheld=dict(gate),
+            detail="; ".join(ch2["flags"]) or None,
+        )
 
     psg = out["passage"]
     if psg.get("refused"):
@@ -304,19 +338,19 @@ def render(rep: dict) -> str:
         lines.append(f"  {rep['edge']['caveat']}")
         lines.append("")
 
-    c = rep["constraint_strength"]
+    c = rep["raw"]["constraint_strength"]
     if c.get("refused"):
         lines.append(f"C:          REFUSED -- {c['reason']}")
     else:
         lines.append(f"C:          tv={c['tv']:.3f} p={c['p']:.4f} -- {c['reading']}")
 
-    disp = rep["dispersion"]
+    disp = rep["raw"]["dispersion"]
     lines.append(f"Dispersion: {disp.get('verdict')} (band {disp.get('band')}, predicted {disp.get('predicted')})")
     if "quadrant" in rep:
         lines.append(f"Quadrant:   {rep['quadrant']['cell']} -- {rep['quadrant'].get('gloss','')}")
     lines.append("")
 
-    inter = rep["interaction"]
+    inter = rep["raw"]["interaction"]
     if inter.get("refused"):
         lines.append(f"Interaction: REFUSED -- {inter['reason']}")
     else:
@@ -325,7 +359,7 @@ def render(rep: dict) -> str:
         lines.append(f"  {inter['sufficiency_note']}")
     lines.append("")
 
-    path = rep["path_level"]
+    path = rep["raw"]["path_level"]
     if path.get("refused"):
         lines.append(f"Path level: REFUSED -- {path['reason']}")
         lines.append(f"  cell-level gamma observations: {path['cell_level_gamma_observations']}")
@@ -344,14 +378,14 @@ def render(rep: dict) -> str:
         lines.append(f"Cross-check: {cc['reading']} -- {cc.get('detail','')}")
     lines.append("")
 
-    psg = rep["passage"]
+    psg = rep["raw"]["passage"]
     if psg.get("refused"):
         lines.append(f"Passage:    REFUSED -- {psg['reason']}")
     else:
         lines.append(passage.render(psg))
     lines.append("")
 
-    ch2 = rep["channel_2"]
+    ch2 = rep["raw"]["channel_2"]
     if ch2.get("refused"):
         lines.append(f"Channel 2:  REFUSED -- {ch2['reason']}")
     else:
@@ -362,7 +396,7 @@ def render(rep: dict) -> str:
     lines.append("")
 
     lines.append("Claim licensing (the status travels with the value):")
-    for key in ("C", "V", "interaction", "gamma", "passage"):
+    for key in ("C", "V", "interaction", "gamma", "passage", "recognition", "contest_rate"):
         lines.append(f"  {rep['measurements'][key]}")
     lines.append("")
 
