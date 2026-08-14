@@ -2,6 +2,16 @@
 #include "gates.h"
 #include "tapeloop.h"
 
+static size_t gcd(size_t x, size_t y)
+{
+    while (y != 0) {
+        size_t t = x % y;
+        x = y;
+        y = t;
+    }
+    return x;
+}
+
 void moop_core_init(MoopCore *core,
                     bool *cells_a, bool *marks_a, size_t len_a,
                     bool *cells_b, bool *marks_b, size_t len_b)
@@ -10,6 +20,12 @@ void moop_core_init(MoopCore *core,
      * and a cell that controls its own flip is not self-inverse —
      * reversibility breaks. */
     assert(len_a >= 2 && len_b >= 2);
+    /* Lengths must be coprime: counter-rotation then visits every (A, B)
+     * cell pairing once per epoch, which is what the prune semantics
+     * assume. Shared factors would partition the pairings into alignment
+     * classes that never meet — a different machine, refused rather than
+     * silently selected. */
+    assert(gcd(len_a, len_b) == 1);
     core->a = (MoopLoop){ .cells = cells_a, .marks = marks_a, .len = len_a };
     core->b = (MoopLoop){ .cells = cells_b, .marks = marks_b, .len = len_b };
     core->ticks = 0;
@@ -57,20 +73,14 @@ void moop_core_step(MoopCore *core)
 
 void moop_core_step_back(MoopCore *core)
 {
+    /* The round-trip guarantee holds between prunes, never across them:
+     * stepping back past the epoch start would walk into state a prune
+     * already destroyed. Refuse loudly instead of inverting wrongly. */
+    assert(core->ticks > 0);
     core->a.head = (core->a.head + core->a.len - 1) % core->a.len;
     core->b.head = (core->b.head + 1) % core->b.len;
     fire(core);
-    core->ticks--; /* meaningful within the current epoch only */
-}
-
-static size_t gcd(size_t x, size_t y)
-{
-    while (y != 0) {
-        size_t t = x % y;
-        x = y;
-        y = t;
-    }
-    return x;
+    core->ticks--;
 }
 
 size_t moop_core_epoch(const MoopCore *core)

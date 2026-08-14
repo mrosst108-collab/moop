@@ -28,7 +28,14 @@ Implemented in `src/tapeloop.{h,c}`:
 
 Counter-rotation means the pair of aligned cells shifts by (+1, −1) each
 tick: with coprime loop lengths, every cell of A meets every cell of B once
-per `lcm(len_a, len_b)` ticks.
+per `lcm(len_a, len_b)` ticks. Coprimality is asserted at init, not merely
+recommended: loop lengths select semantics, not just capacity. With a
+shared factor, the pairings split into `gcd(len_a, len_b)` alignment
+classes that never meet — a cell could then be pruned not because it is
+causally dead but because the geometry can never consult its would-be
+partners, and "one epoch = every pairing consulted once" (which the prune
+semantics lean on below) would silently stop holding. A non-coprime core
+is a different machine; we refuse it rather than select it by accident.
 
 ## Reversible + homoiconic: causal closure
 
@@ -78,8 +85,10 @@ is discarded.
   loses information *except* here, explicitly — prunes are the system
   layer's analogue of Bennett-style uncomputation checkpoints. The
   step/step_back round-trip guarantee holds between prunes, not across
-  them. A prune resets marks and starts a fresh epoch, so causal status
-  must be re-earned each epoch.
+  them — and `moop_core_step_back()` asserts `ticks > 0`, so walking back
+  into a pruned past fails loudly instead of inverting wrongly. A prune
+  resets marks and starts a fresh epoch, so causal status must be
+  re-earned each epoch.
 
 Honest caveats of this initial design: an inert cell pruned today might
 have fired in a *future* epoch (its alignments repeat, but A's contents
