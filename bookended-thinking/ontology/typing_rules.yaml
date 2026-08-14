@@ -1,0 +1,120 @@
+# The typed subgraph -- PREDICTIONS.
+#
+# ============================================================================
+# WITHHELD FROM THE CLASSIFIER. This file is never rendered into a prompt.
+# ============================================================================
+#
+# Rationale, and it is the load-bearing design decision in this tree:
+#
+#   If the classifier is told which pairings are admissible, it cannot emit an
+#   inadmissible one, and the empty-cell test becomes a test that cannot fail.
+#   That is the exact defect for which the sentence test was rejected in
+#   v0.6 s12b -- twenty-four successes out of twenty-four attempts is the
+#   signature of a test that cannot fail. Encoding the subgraph as a prompt
+#   constraint reproduces it at the instrument layer, where it would be
+#   invisible.
+#
+#   The classifier is therefore given the ontology and the relation vocabulary
+#   ONLY. These rules are applied afterwards, deterministically, by
+#   engine/typing_rules.py. A violation is RECORDED AS A DATUM, never
+#   prevented. When an output lands in a typed-out cell the two hypotheses --
+#   bad typing, bad classifier -- are not separable from inside the system, so
+#   the engine records the collision and does not adjudicate it.
+#
+# Versioned independently of the classifier so a corpus can be re-scored under
+# a revised subgraph without touching the student responses underneath it.
+
+version: "0.6.2-a"
+withheld_from_classifier: true
+supersedes: none
+
+relations:
+  performed_within: "An operator acting under the conditions of a layer."
+  evaluated_under: "kappa returning a verdict about what a layer admits."
+  path_level: "An object whose referent is a trajectory, ordering or composition rather than a location."
+
+# Two path structures, neither visible in any cell. Recorded here because a
+# cell-level classifier cannot see either, and a report that omits them will
+# look complete when it is not.
+path_structures:
+  - id: passage
+    axis: epistemic
+    governed_by: "C_i does not entail O_i+1"
+  - id: composition
+    axis: dynamic
+    governed_by: "gamma != 0"
+
+predictions:
+  - id: OP-30
+    status: draft
+    applies_to_kind: operator
+    relation: performed_within
+    layers: all
+    expect: well_typed
+    note: "The 30-cell operator block: five operators under six layers."
+
+  - id: KAPPA-EVAL
+    status: draft
+    applies_to_id: kappa
+    relation: evaluated_under
+    layers: all
+    expect: well_typed_distinct_kind
+    note: |
+      Six entries, but not cells of the same kind as the operator block.
+      Evaluated-under is a different relation from performed-within and the
+      two must not be summed.
+
+  - id: KAPPA-NOT-PERFORMED
+    status: conjecture
+    applies_to_id: kappa
+    relation: performed_within
+    layers: all
+    expect: ill_typed
+    note: |
+      kappa is a function of O_i and C_i rather than an operation in M_i,
+      which places it on the bookend rather than in the bounded middle.
+      NOTE: that consequence is internal recurrence -- the architecture
+      agreeing with itself about which slots the human keeps is coherence,
+      not corroboration, and may not be cited as evidence the typing is right.
+
+  - id: GAMMA-VOID
+    status: conjecture
+    applies_to_id: gamma
+    relation: [performed_within, evaluated_under]
+    layers: all
+    expect: ill_typed
+    note: "The void conjecture. gamma is measured, not applied; it does not act at a layer."
+
+  - id: GAMMA-PATH
+    status: proposal
+    applies_to_id: gamma
+    relation: path_level
+    layers: none
+    expect: well_typed_no_address
+    note: |
+      Positive restatement of the void conjecture: gamma has a referent one
+      level up. It measures how badly the single-application slice fails to
+      determine the composition monoid. Derived from two sealed items (the
+      operator concession and cell/edge/bridge), not new content.
+
+# Three kinds of zero. These are not degrees of absence.
+zeros:
+  - id: forensic_zero
+    scope: "L1"
+    meaning: "Prohibition on synthesis. Interpolating a record fabricates it."
+  - id: ontological_zero
+    scope: "L6"
+    meaning: "Limit on derivation. Vocabulary is inhabited, not generated."
+  - id: typing_zero
+    scope: cell
+    meaning: "Absence of a valid object. The pairing is ill-formed -- not low activity."
+
+# Empty cells are easier to falsify than wide ones, so the subgraph is tested
+# before the gradient. Empty-cell tests are NOT anchor-free: naive-rater
+# validation is required for them as much as for the width test.
+empirical_order:
+  - typing_audit
+  - classifier_validation
+  - empty_cell_tests
+  - interaction_measurement
+  - width_test

@@ -1,0 +1,94 @@
+# RME-7 -- the seven dynamic objects.
+#
+# Retrieved content, not invented. Any set of generic cognitive verbs
+# (decomposition, integration, iteration, transformation) is NOT this list and
+# a typing exercise conducted over invented content tests nothing.
+#
+# This file DESCRIBES the objects. It carries no predictions about which
+# object may pair with which layer. Those live in typing_rules.yaml.
+
+version: "0.6.2"
+status: retrieved
+axis:
+  name: dynamic
+  kind: typed_set
+  note: |
+    Unordered, and NOT homogeneous: three kinds of object, not seven instances
+    of one kind. This is the second reason "7x6" misdescribes the object --
+    a product requires two sets of like elements joined by one relation.
+
+kinds:
+  operator: "Appears as an additive term in the equations; produces tangent vectors."
+  indicator: "Appears as a multiplicative gate; fail-only verdict."
+  invariant: "Appears in no equation; computed from trajectories."
+
+objects:
+  - id: J_sharp
+    display: "J#"
+    unicode: "J♯"
+    name: "conservative transport"
+    kind: operator
+
+  - id: G_sharp
+    display: "G#"
+    unicode: "G♯"
+    name: "dissipative descent"
+    kind: operator
+    note: "Convergent gradient flow. Distinguished from G~# by a property of the flow, not by what the text describes."
+
+  - id: G_tilde_sharp
+    display: "G~#"
+    unicode: "G̃♯"
+    name: "teleological confinement"
+    kind: operator
+    note: "Non-convergent confinement. In prose this and G# both read as narrowing -- see the free-sorting resolution limit."
+
+  - id: Sigma
+    display: "Sigma"
+    unicode: "Σ"
+    name: "stochastic injection / typed coupling"
+    kind: operator
+    predicts_high_dispersion: true
+    note: |
+      The slot through which genuinely new information enters. When Sigma is
+      legitimately active, high response variance is correct behaviour and not
+      weak bookending. The dispersion module requires the predicted level as
+      an input and will not score against an absolute floor.
+
+  - id: F
+    display: "F"
+    unicode: "F"
+    name: "autopoietic feedback"
+    kind: operator
+
+  - id: kappa
+    display: "kappa"
+    unicode: "κ"
+    name: "structural admissibility"
+    kind: indicator
+    fail_only: true
+    note: "A gate, not a term. Its natural sentences come out as rejection verdicts."
+
+  - id: gamma
+    display: "gamma"
+    unicode: "γ"
+    name: "path dependence"
+    kind: invariant
+    definition: "[G#, G~#]"
+    commutator_of: [G_sharp, G_tilde_sharp]
+    computed_from: trajectories
+    note: |
+      A commutator is not an element of the space it is computed over; it is
+      the obstruction to that space being commutative. Measured, not applied.
+
+      definition, commutator_of and computed_from are WITHHELD from the
+      rendered prompt. gamma is observationally historical -- a property of two
+      trajectories and their ordering -- so no single classification can carry
+      it, and a classifier that had the commutator would be told most of what
+      the void conjecture predicts. The engine composes gamma from the
+      constituent operator labels instead (engine/trajectory.py).
+
+      The classifier still sees the bare label, so a cell-level gamma remains
+      reportable and the void conjecture remains falsifiable. That test is now
+      weak in the opposite direction and is treated as a cross-check, not as
+      the gamma measurement.

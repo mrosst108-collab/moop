@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bookended-thinking/schemas/bridge_classification.json",
+  "title": "Bridge classification (Mode B, post-run)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["text_id", "mode", "ontology_version", "commitment_ref", "observed", "pole_dependence", "bridge"],
+  "properties": {
+    "text_id": {"type": "string", "minLength": 1},
+    "mode": {"const": "bridge_typing"},
+    "ontology_version": {"type": "string", "minLength": 1},
+    "commitment_ref": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the sealed commitment record. The ledger refuses a bridge classification whose referent is not already sealed in the chain."
+    },
+    "observed": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["layer", "object", "relation", "support", "evidence"],
+        "properties": {
+          "layer": {"$ref": "#/$defs/layer"},
+          "object": {"$ref": "#/$defs/object"},
+          "relation": {"$ref": "#/$defs/relation"},
+          "support": {"$ref": "#/$defs/support"},
+          "evidence": {"$ref": "#/$defs/evidence"}
+        }
+      }
+    },
+    "pole_dependence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["poles_used", "single_pole_sufficient", "support", "evidence"],
+      "description": "Synthesis has occurred when the output depends on the joint presence of poles that are individually insufficient. If one pole alone suffices, the response followed a pole rather than bridging two, however large the displacement.",
+      "properties": {
+        "poles_used": {"type": "array", "items": {"type": "string"}},
+        "single_pole_sufficient": {"type": "boolean"},
+        "which_pole": {"type": ["string", "null"]},
+        "support": {"$ref": "#/$defs/support"},
+        "evidence": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "bridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "description", "support"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "description": {"type": ["string", "null"]},
+        "support": {"$ref": "#/$defs/support"},
+        "evidence": {"$ref": "#/$defs/evidence"}
+      }
+    },
+    "self_classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimed"],
+      "description": "The responder's account of its own operation, recorded so it can be checked rather than believed.",
+      "properties": {
+        "claimed": {"type": "boolean"},
+        "claim": {"type": ["string", "null"]},
+        "agrees": {"type": ["boolean", "null"]}
+      }
+    }
+  },
+  "$defs": {
+    "layer": {"enum": ["L1", "L2", "L3", "L4", "L5", "L6"]},
+    "object": {"enum": ["J_sharp", "G_sharp", "G_tilde_sharp", "Sigma", "F", "kappa", "gamma", "none", "uncertain"]},
+    "relation": {"enum": ["performed_within", "evaluated_under", "path_level", "none", "uncertain"]},
+    "support": {"enum": ["clear", "contested", "uncertain"]},
+    "evidence": {"type": "array", "items": {"type": "string"}}
+  }
+}
