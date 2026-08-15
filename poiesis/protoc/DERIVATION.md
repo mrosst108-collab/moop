@@ -40,6 +40,33 @@ Recorded rather than resolved by consulting the other implementation.
 | **the port vocabulary** | No S-statement fixes a port set. ProtoC's schema is data; a fixed vocabulary is equally faithful. A differing vocabulary is **UNDECIDABLE**. |
 | **whether compatibility is symmetric** | Not stated. ProtoC makes it an explicit flag rather than assuming. |
 
+## identity/ — structural decisions
+
+| decision | forced by | derivation |
+|---|---|---|
+| **identity is a VALUE** `(slot, serial)`, not a reference | **S5** | S5 forbids a released identity ever becoming valid for a later object. It does **not** name a mechanism. Comparing two *values* means a recycled slot cannot resurrect a released identity, so **slots may be reused freely**. A substrate handing out *pointers into slots* cannot do this — the stale handle and the reused slot are the same address, so any generation stamped in the slot reads through the stale handle as current — and must forbid reuse instead. Both satisfy S5. |
+| serial `0` never issued | **S5, S8** | A zero-filled identity must be dead, not name slot 0. |
+| the boundary returns an **identity**, not a flag or wrapper | **S9, S10** | Validity is nonhereditary and non-transferable. Returning a *value that names a registry entry* means there is no transferable "validated" property for `child = parent` to move: copying the value aliases the same object (P16). S9/S10 fall out of the representation instead of being defended by a rule. |
+| the boundary takes **only** a surface | **S9, S10** | No actor, capability, parent or provenance is relevant to the answer, so there is no parameter through which to offer one. |
+
+## declaration/ and composition/ — structural decisions
+
+| decision | forced by | derivation |
+|---|---|---|
+| declaration is an **act in a registry**, not a flag on the set | **S1** | A flag would sit inside the object admissibility receives, one dereference from every endpoint check. As a separate registry, the connection set has no such field and `admissibility/` does not include `pc_declare.h` — `Admissible ⇏ Declared` is enforced by reachability. |
+| `pc_declare()` does **not** evaluate admissibility | **S1** | They are different stages. Checking here would make `Declared ⇒ Admissible`, which S1 licenses in neither direction (P20). |
+| **no execution operation exists** | **S1** | S1 places Executed outside the substrate. `Executed ⇒ Declared` holds vacuously and cannot be violated by an operation that is absent. |
+| declaration binds to its **participants** | **S1** | A declaration for (A,B) is not one for (C,D); binding by argument position would make declaration positional rather than relational (P19). |
+| composition reports `declared` and `admissibility` **separately** | **S1** | Fusing them into one boolean makes "which stage failed" unanswerable, the same defect shape as S2's independent enforcement. |
+
+## realization/ — a distinction NOT manufactured
+
+Per the symmetric-distinction rule: ProtoC implements **one** boundary, not a validation predicate
+*and* a conformance predicate. S1–S11 name one boundary and one set of requirements on it. AWV has
+two — and this session showed them disagreeing about a single record (its R1 defect). ProtoC does
+not reproduce the split merely because AWV has it; if the two substrates differ in consequence
+there, that is something to compare, not a structure to imitate.
+
 ## Test derivations
 
 `P1–P13` in `tests/pc_test.c`; each names its S-statement inline. No expected value was taken from
@@ -50,14 +77,14 @@ symmetric guard from a one-sided one — the defect D1 caught in AWV.
 ## Status
 
 ```
-types/           implemented, 13 ProtoC-derived tests pass
-admissibility/   implemented, same suite
-declaration/     NOT STARTED
-realization/     NOT STARTED
-identity/        NOT STARTED
-graph/           NOT STARTED  (no classifier -- see SEMANTICS.md)
-composition/     NOT STARTED
-differential/    NOT STARTED
+types/           implemented   P1-P6, P13
+admissibility/   implemented   P7-P12
+identity/        implemented   P14-P16
+realization/     implemented   P17
+declaration/     implemented   P18-P20
+composition/     implemented   P18, P20
+graph/           NOT STARTED   (projection/cycles only -- NO classifier, see SEMANTICS.md)
+differential/    NOT STARTED   -- written LAST, after ProtoC has had the chance to surprise
 ```
 
 **These 13 tests are not evidence about AWV, and AWV's 94 are not evidence about ProtoC.** The

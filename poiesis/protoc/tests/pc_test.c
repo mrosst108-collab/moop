@@ -8,7 +8,8 @@
  */
 #include <stdio.h>
 
-#include "../admissibility/pc_admit.h"
+#include "../composition/pc_compose.h"
+#include "../realization/pc_admit_boundary.h"
 
 static int passed, failed;
 static void check(bool cond, const char *id, const char *what)
@@ -210,6 +211,133 @@ int main(void)
         PcPort ports[4]; PcSurface s = mk("S", ports);
         check(s.ports[0].realization == &r_state && s.ports[2].vestigial_form == &v_couple,
               "P13", "realizations are client-owned addresses, held not copied (S6)");
+    }
+
+    /* ---- identity/ (S5).  The invariant is that a released identity never
+     * becomes valid for a later object.  ProtoC reaches it by making
+     * identity a VALUE, which lets slots be RECYCLED safely -- a substrate
+     * handing out pointers into slots cannot do this and must forbid reuse
+     * instead.  Same invariant, different mechanism. */
+    {
+        PcSurface *store[2]; uint64_t serials[2];
+        PcRegistry reg; pc_registry_init(&reg, store, serials, 2);
+
+        PcPort pa[4], pb[4];
+        PcSurface A = mk("A", pa), B = mk("B", pb);
+
+        PcIdentity first = pc_identity_mint(&reg, &A);
+        bool first_live = pc_identity_live(&reg, first);
+        pc_identity_release(&reg, first);
+
+        PcIdentity second = pc_identity_mint(&reg, &B);   /* SAME SLOT reused */
+        bool slot_reused = second.slot == first.slot;
+
+        check(first_live && slot_reused
+              && !pc_identity_live(&reg, first)
+              && pc_identity_surface(&reg, first) == nullptr
+              && pc_identity_live(&reg, second)
+              && pc_identity_surface(&reg, second) == &B,
+              "P14", "a released identity stays dead even when its SLOT is reused (S5)");
+    }
+
+    /* ---- P15 (S5): a zero-filled identity is dead.  Serial 0 is never
+     * issued, so an uninitialised value cannot name anything. */
+    {
+        PcSurface *store[2]; uint64_t serials[2];
+        PcRegistry reg; pc_registry_init(&reg, store, serials, 2);
+        PcPort pa[4]; PcSurface A = mk("A", pa);
+        (void)pc_identity_mint(&reg, &A);
+        PcIdentity zero = { 0, 0 };
+        check(!pc_identity_live(&reg, zero) && !pc_identity_release(&reg, zero),
+              "P15", "a zero-filled identity is dead and cannot be released (S5)");
+    }
+
+    /* ---- P16 (S9/S10): copying an identity aliases the SAME object; it
+     * cannot transfer checked status to a different one.  There is no
+     * "validated" value to assign, because checked status is a registry
+     * fact named by a value, not a property either surface holds. */
+    {
+        PcSurface *store[2]; uint64_t serials[2];
+        PcRegistry reg; pc_registry_init(&reg, store, serials, 2);
+        PcPort pa[4], pb[4];
+        PcSurface parent = mk("parent", pa), child = mk("child", pb);
+        pb[2].status = PC_STATUS_UNSET;                    /* the child is malformed */
+
+        PcAdmission p = pc_admit_surface(&reg, &parent);
+        PcAdmission c = pc_admit_surface(&reg, &child);
+
+        PcIdentity stolen = p.identity;                    /* the tempting move */
+        check(p.identity.serial != 0 && c.identity.serial == 0
+              && c.verdict.reason == PC_REFUSED_STATUS_UNSET
+              && pc_identity_surface(&reg, stolen) == &parent,   /* still the parent */
+              "P16", "copying an identity aliases the same object, never transfers status (S9/S10)");
+    }
+
+    /* ---- P17 (S2): the boundary enforces the status/realization closure,
+     * not merely structural well-formedness. */
+    {
+        PcSurface *store[2]; uint64_t serials[2];
+        PcRegistry reg; pc_registry_init(&reg, store, serials, 2);
+        PcPort pa[4]; PcSurface A = mk("A", pa);
+        pa[0].realization = &v_state;              /* ACTIVE names the vestigial form */
+        PcAdmission a = pc_admit_surface(&reg, &A);
+        check(a.identity.serial == 0
+              && a.verdict.reason == PC_REFUSED_ACTIVE_IS_VESTIGIAL_FORM,
+              "P17", "the boundary refuses an ACTIVE port naming its vestigial form (S2)");
+    }
+
+    /* ---- P18 (S1): admissible while UNDECLARED.  Admissibility is
+     * computed by code that never receives the declaration log. */
+    {
+        PcDeclaration entries[4]; PcDeclarationLog log;
+        pc_declaration_init(&log, entries, 4);
+
+        PcPort pa[4], pb[4];
+        PcSurface A = mk("A", pa), B = mk("B", pb);
+        const PcConnection e[] = { { 1, 2 } };
+        PcConnectionSet set = { e, 1 };
+
+        PcComposition before = pc_compose(&log, &A, &B, &set, &COMPAT);
+        bool admissible_undeclared = !before.declared
+                                  && before.admissibility == PC_ADMIT_OK
+                                  && !before.composed;
+
+        pc_declare(&log, &A, &B, &set);
+        PcComposition after = pc_compose(&log, &A, &B, &set, &COMPAT);
+
+        check(admissible_undeclared && after.declared && after.composed,
+              "P18", "admissible while undeclared; declaring it changes neither surface (S1)");
+    }
+
+    /* ---- P19 (S1): declaration is bound to its PARTICIPANTS.  A
+     * declaration for (A,B) is not a declaration for (C,D). */
+    {
+        PcDeclaration entries[4]; PcDeclarationLog log;
+        pc_declaration_init(&log, entries, 4);
+        PcPort pa[4], pb[4], pc2[4], pd[4];
+        PcSurface A = mk("A", pa), B = mk("B", pb), C = mk("C", pc2), D = mk("D", pd);
+        const PcConnection e[] = { { 1, 2 } };
+        PcConnectionSet set = { e, 1 };
+        pc_declare(&log, &A, &B, &set);
+        check(pc_is_declared(&log, &A, &B, &set) && !pc_is_declared(&log, &C, &D, &set),
+              "P19", "declaration binds to its participants, not to argument position (S1)");
+    }
+
+    /* ---- P20 (S1): declaring does NOT make something admissible.  The two
+     * stages are computed by code that cannot see the other's input. */
+    {
+        PcDeclaration entries[4]; PcDeclarationLog log;
+        pc_declaration_init(&log, entries, 4);
+        PcPort pa[4], pb[4];
+        PcSurface A = mk("A", pa), B = mk("B", pb);
+        pa[1].status = PC_VESTIGIAL; pa[1].realization = &v_step;
+        const PcConnection e[] = { { 1, 2 } };
+        PcConnectionSet set = { e, 1 };
+        bool declared = pc_declare(&log, &A, &B, &set);
+        PcComposition c = pc_compose(&log, &A, &B, &set, &COMPAT);
+        check(declared && c.declared
+              && c.admissibility == PC_ADMIT_ENDPOINT_NOT_ACTIVE && !c.composed,
+              "P20", "declaring an inadmissible set records the act and composes nothing (S1)");
     }
 
     printf("\nProtoC: %d passed, %d failed\n", passed, failed);

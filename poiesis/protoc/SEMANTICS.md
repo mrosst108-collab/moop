@@ -182,6 +182,46 @@ comparison is as vacuous as the subset check was.
 Disagreement is adjudicated against `SPEC.md` and this file, never against whichever code is older.
 If neither resolves it, the cell is `UNDECIDABLE` and the specification is underspecified there.
 
+## The symmetric distinction rule
+
+> **If a distinction is not required by S1–S11, ProtoC must not manufacture it merely because AWV
+> has one. Conversely, ProtoC must not remove a distinction merely because AWV lacks one.**
+
+The test is **semantic consequence, not structural correspondence.** Mirroring AWV's distinctions is
+transcription; inverting them to look different is theatre. Both make the eventual comparison less
+informative, and only the first is usually noticed.
+
+## Meta-test: an UNDECIDABLE cell reported as DISAGREE is an ORACLE DEFECT
+
+The three cells below are undetermined by S1–S11 (see `DERIVATION.md`):
+
+| question | ProtoC | AWV | required verdict |
+|---|---|---|---|
+| which endpoint pairs are compatible | client-supplied parameter | fixed table | **UNDECIDABLE** |
+| the port vocabulary | unconstrained descriptor table | fixed vocabulary | **UNDECIDABLE** |
+| whether compatibility is symmetric | explicit flag | fixed choice | **UNDECIDABLE** |
+
+If the differential oracle ever reports one of these as **DISAGREE**, the fault is in the ORACLE,
+not in either substrate: it has promoted an implementation choice into a semantic requirement. That
+is itself a finding, and it is filed against `SEMANTICS.md`.
+
+This is the counterpart to the escape-hatch risk. `UNDECIDABLE` used too freely hides real
+disagreements; `DISAGREE` used on an undetermined cell invents requirements. Both are oracle
+defects, in opposite directions.
+
+## Invariants are compared, not mechanisms
+
+Where a requirement names an **invariant**, the oracle compares the invariant and not the machinery
+that achieves it.
+
+- **S5** requires that a released identity never become valid for a later object. It does **not**
+  require monotonic allocation. AWV reached it that way because its handle is a *pointer into the
+  slot*; a substrate whose identity is a *value* may recycle slots safely and satisfy S5 exactly.
+  Both are conformant.
+- **S6** bounds ownership at the record. It does **not** require any particular ownership
+  architecture. ProtoC need not deep-copy client realization machinery to imitate AWV; reaching the
+  same semantic boundary by different means is a **successful divergence**, not a discrepancy.
+
 ## Clean-room prohibitions, enumerated
 
 The constraint reduces to: **ProtoC may know the frozen semantic specification; it may not know how
