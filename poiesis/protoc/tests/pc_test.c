@@ -10,6 +10,7 @@
 
 #include "../composition/pc_compose.h"
 #include "../realization/pc_admit_boundary.h"
+#include "../graph/pc_graph.h"
 
 static int passed, failed;
 static void check(bool cond, const char *id, const char *what)
@@ -338,6 +339,101 @@ int main(void)
         check(declared && c.declared
               && c.admissibility == PC_ADMIT_ENDPOINT_NOT_ACTIVE && !c.composed,
               "P20", "declaring an inadmissible set records the act and composes nothing (S1)");
+    }
+
+    /* ---- graph/ (S4).  Reciprocity is a directed cycle ENTIRELY among
+     * governed nodes.  A one-way dependency is not one. */
+    {
+        uint64_t rows[4], gov[1], scratch[4];
+        PcDepGraph g;
+        pc_graph_init(&g, 4, rows, gov, 1);
+        pc_graph_mark_governed(&g, 0); pc_graph_mark_governed(&g, 1);
+        pc_graph_declare_dependency(&g, 0, 1);          /* one way only */
+        bool cyc = true, ok1 = pc_graph_has_cycle(&g, gov, scratch, &cyc);
+        bool oneway = ok1 && !cyc;
+
+        pc_graph_declare_dependency(&g, 1, 0);          /* now reciprocal */
+        bool cyc2 = false, ok2 = pc_graph_has_cycle(&g, gov, scratch, &cyc2);
+        check(oneway && ok2 && cyc2,
+              "P21", "one-way governed dependency is not a cycle; reciprocal is (S4)");
+    }
+
+    /* ---- P22 (S4): a governed SELF-EDGE is a directed cycle -- and under
+     * reachability it needs no special case at all, being already a path of
+     * length 1 from x to x.  A substrate testing cycles by SCC cardinality
+     * must add an explicit self-loop check; the rule is free here. */
+    {
+        uint64_t rows[2], gov[1], scratch[2];
+        PcDepGraph g;
+        pc_graph_init(&g, 2, rows, gov, 1);
+        pc_graph_mark_governed(&g, 0);
+        pc_graph_declare_dependency(&g, 0, 0);
+        bool cyc = false;
+        check(pc_graph_has_cycle(&g, gov, scratch, &cyc) && cyc,
+              "P22", "a governed self-edge is a directed cycle, with no special case (S4)");
+    }
+
+    /* ---- P23 (S4): the distinction the self-edge rule exists to draw.
+     * A node with NO declared dependency is not cyclic however its body
+     * behaves -- the graph cannot see execution, so execution self-recursion
+     * cannot promote anything. */
+    {
+        uint64_t rows[2], gov[1], scratch[2];
+        PcDepGraph g;
+        pc_graph_init(&g, 2, rows, gov, 1);
+        pc_graph_mark_governed(&g, 0);
+        /* no declared dependency at all; imagine the body recursing */
+        bool cyc = true;
+        check(pc_graph_has_cycle(&g, gov, scratch, &cyc) && !cyc,
+              "P23", "declared dependency, not execution structure, decides (S4)");
+    }
+
+    /* ---- P24 (S4): a cycle that leaves the governed set does NOT satisfy
+     * the criterion, though it is a genuine cycle over all nodes.  One
+     * marking is the whole difference. */
+    {
+        uint64_t rows[3], gov[1], scratch[3];
+        PcDepGraph g;
+        pc_graph_init(&g, 3, rows, gov, 1);
+        pc_graph_mark_governed(&g, 0); pc_graph_mark_governed(&g, 2);
+        /* 0 -> 1 -> 2 -> 0, with node 1 NOT governed */
+        pc_graph_declare_dependency(&g, 0, 1);
+        pc_graph_declare_dependency(&g, 1, 2);
+        pc_graph_declare_dependency(&g, 2, 0);
+
+        bool governed_cyc = true, all_cyc = false;
+        bool a = pc_graph_has_cycle(&g, gov, scratch, &governed_cyc);
+        bool b = pc_graph_has_cycle(&g, nullptr, scratch, &all_cyc);
+        check(a && b && !governed_cyc && all_cyc,
+              "P24", "a cycle through a non-governed node fails the governed criterion (S4)");
+    }
+
+    /* ---- P25 (S8): a dependency naming a node that does not exist is
+     * REFUSED, not dropped.  Dropping it would answer confidently from an
+     * incomplete relation. */
+    {
+        uint64_t rows[2], gov[1], scratch[2];
+        PcDepGraph g;
+        pc_graph_init(&g, 2, rows, gov, 1);
+        bool refused = !pc_graph_declare_dependency(&g, 0, 9)
+                    && !pc_graph_declare_dependency(&g, 9, 0)
+                    && !pc_graph_mark_governed(&g, 9);
+        bool cyc = true;
+        check(refused && pc_graph_has_cycle(&g, gov, scratch, &cyc) && !cyc,
+              "P25", "an out-of-range dependency is refused, never silently dropped (S8)");
+    }
+
+    /* ---- P26 (S8): with no scratch there is no answer, and the refusal is
+     * distinguishable from "acyclic". */
+    {
+        uint64_t rows[2], gov[1];
+        PcDepGraph g;
+        pc_graph_init(&g, 2, rows, gov, 1);
+        pc_graph_mark_governed(&g, 0);
+        pc_graph_declare_dependency(&g, 0, 0);
+        bool cyc = false;
+        check(!pc_graph_has_cycle(&g, gov, nullptr, &cyc),
+              "P26", "no computable answer is refused, never reported as acyclic (S8)");
     }
 
     printf("\nProtoC: %d passed, %d failed\n", passed, failed);

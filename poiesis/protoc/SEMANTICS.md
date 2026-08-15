@@ -218,6 +218,11 @@ that achieves it.
   require monotonic allocation. AWV reached it that way because its handle is a *pointer into the
   slot*; a substrate whose identity is a *value* may recycle slots safely and satisfy S5 exactly.
   Both are conformant.
+- **S4** requires a directed cycle among governed nodes. It does **not** require SCC decomposition,
+  an edge list, a materialized projection, or a self-edge special case. A substrate using
+  reachability gets the self-edge rule for free; one using SCC cardinality must add a check. Both
+  are conformant, and a differing edge-direction convention is not a disagreement at all, since
+  cycle existence is invariant under reversal.
 - **S6** bounds ownership at the record. It does **not** require any particular ownership
   architecture. ProtoC need not deep-copy client realization machinery to imitate AWV; reaching the
   same semantic boundary by different means is a **successful divergence**, not a discrepancy.

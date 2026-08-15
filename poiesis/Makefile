@@ -95,7 +95,8 @@ layering:
 # fact, not a promise.
 PC_SRC := $(wildcard protoc/types/*.c) $(wildcard protoc/admissibility/*.c) \
           $(wildcard protoc/declaration/*.c) $(wildcard protoc/realization/*.c) \
-          $(wildcard protoc/identity/*.c) $(wildcard protoc/composition/*.c)
+          $(wildcard protoc/identity/*.c) $(wildcard protoc/composition/*.c) \
+          $(wildcard protoc/graph/*.c)
 
 protoc:
 	@mkdir -p $(BUILD)

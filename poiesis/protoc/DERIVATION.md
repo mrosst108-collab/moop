@@ -67,6 +67,23 @@ two — and this session showed them disagreeing about a single record (its R1 d
 not reproduce the split merely because AWV has it; if the two substrates differ in consequence
 there, that is something to compare, not a structure to imitate.
 
+## graph/ — structural decisions
+
+**What S4 constrains:** that a governed/non-governed distinction exists; that the criterion is a
+*directed cycle*; that the cycle lies *entirely* among governed nodes; that a self-edge qualifies
+and execution self-recursion does not.
+
+**What S4 leaves slack:** representation, algorithm, edge direction.
+
+| decision | forced by | derivation |
+|---|---|---|
+| dependencies are **bitset rows**, not an edge list | slack | S4 fixes no representation. Chosen for distance from an edge array. |
+| the governed restriction is a **mask applied during the computation** | **S8** + slack | No projected structure is ever materialized, so there is nothing that can be truncated or fall out of step with the original. AWV's projection-into-an-array is equally faithful — and it *was* the site of a silent-truncation defect, which is a fact about that mechanism, not about S4. |
+| cycles by **transitive-closure reachability**, not SCC | slack | S4 asks for a directed cycle, not for components. |
+| **no self-edge special case** | consequence | Under reachability, `x reaches x` is true exactly when a path of length ≥ 1 returns to `x` — which already includes a self-edge. A substrate testing cycles by *SCC cardinality* must add an explicit self-loop check, because a self-loop is a one-member component. **S4's self-edge rule is free here and requires machinery there.** Same invariant, different mechanism: the S5 pattern again. |
+| edge direction is a **convention** | — | Cycle existence is invariant under reversing every edge, so nothing in S4 depends on which way the arrow is read. Recorded so a differing convention is never mistaken for a disagreement. |
+| **no classifier** | `SEMANTICS.md` | ProtoC realizes the object; an external observer classifies it. A classifier here would make the substrates validate one another circularly. This module answers a graph question and says nothing about RME levels. |
+
 ## Test derivations
 
 `P1–P13` in `tests/pc_test.c`; each names its S-statement inline. No expected value was taken from
@@ -83,7 +100,7 @@ identity/        implemented   P14-P16
 realization/     implemented   P17
 declaration/     implemented   P18-P20
 composition/     implemented   P18, P20
-graph/           NOT STARTED   (projection/cycles only -- NO classifier, see SEMANTICS.md)
+graph/           implemented   P21-P26  (cycles only -- NO classifier, see SEMANTICS.md)
 differential/    NOT STARTED   -- written LAST, after ProtoC has had the chance to surprise
 ```
 
