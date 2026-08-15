@@ -10,8 +10,16 @@ size_t rme_project(const RmeSystem *s, bool governed_only,
 
     for (size_t t = 0; t < s->transition_count; t++) {
         const RmeTransitionDecl *d = &s->transitions[t];
+        /* An index outside the declared slot table is a MALFORMED system,
+         * not an edge to skip.  Dropping it silently would hand back a
+         * truncated projection that classifies confidently and wrongly --
+         * the same silent-wrong-answer shape already removed from
+         * rme_classify (capacity) and rme_graph_has_cycle (allocation). */
         if (d->target >= s->slot_count) {
-            continue;
+            return SIZE_MAX;
+        }
+        if (d->read_count > 0 && d->reads == nullptr) {
+            return SIZE_MAX;
         }
         /* The target must be a state slot of the projection.  In G_GS that
          * means governed; an environmental target contributes no edge. */
@@ -21,7 +29,7 @@ size_t rme_project(const RmeSystem *s, bool governed_only,
         for (size_t r = 0; r < d->read_count; r++) {
             size_t src = d->reads[r];
             if (src >= s->slot_count) {
-                continue;
+                return SIZE_MAX;
             }
             if (governed_only && !s->slots[src].governed) {
                 continue;
@@ -64,6 +72,17 @@ bool rme_graph_scc(size_t n, const RmeEdge *e, size_t m,
 {
     if (comp == nullptr || component_count == nullptr) {
         return false;
+    }
+    if (m > 0 && e == nullptr) {
+        return false;
+    }
+    /* Endpoints outside [0,n) would index the CSR arrays out of bounds.
+     * Refuse rather than corrupt the heap: the caller supplies n and e
+     * independently, so nothing else makes them consistent. */
+    for (size_t i = 0; i < m; i++) {
+        if (e[i].from >= n || e[i].to >= n) {
+            return false;
+        }
     }
     if (n == 0) {
         *component_count = 0;
@@ -170,6 +189,14 @@ bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m, bool *out)
     if (n == 0) {
         *out = false;
         return true;
+    }
+    if (m > 0 && e == nullptr) {
+        return false;
+    }
+    for (size_t i = 0; i < m; i++) {
+        if (e[i].from >= n || e[i].to >= n) {
+            return false;   /* malformed: no verdict */
+        }
     }
     /* FROZEN self-loop rule: a self-edge is a directed cycle.  Tarjan would
      * report it as a one-member SCC, which cardinality alone would miss. */

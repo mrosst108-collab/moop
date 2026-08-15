@@ -227,9 +227,15 @@ void rme_test_classify(void)
         static const RmeTransitionDecl tr[] = { { "T_X", 0, rx, 1 }, { "T_Y", 1, ry, 1 } };
         RmeSystem s = { slots, 2, tr, 2, false };
 
-        RmeConformance c = rme7_conforms(&p);
-        rme_check(classifies(&s, RME_CLASS_RME7) && !c.ok,
-                  "C17", "system classifies RME-7 while its prototype stays non-conformant");
+        /* Order matters: conformance is sampled AFTER the classifier has
+         * run, or the test shows only that conformance was already false
+         * and says nothing about classification's inability to change it. */
+        RmeConformance before = rme7_conforms(&p);
+        bool seven = classifies(&s, RME_CLASS_RME7);
+        RmeConformance after = rme7_conforms(&p);
+        rme_check(seven && !before.ok && !after.ok
+                      && before.port == after.port,
+                  "C17", "classifying RME-7 leaves the prototype non-conformant, verdict unchanged");
     }
 
     /* ---- A refused verdict is not a classification: a system too large to

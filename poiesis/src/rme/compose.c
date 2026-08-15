@@ -11,6 +11,13 @@ static bool endpoints_valid(const RmePrototype *P, const RmePrototype *Q,
         if (why) *why = "composition needs two prototypes";
         return false;
     }
+    /* A relation claiming edges it does not have is malformed, not empty.
+     * Reading R->edges on the strength of R->count alone segfaults. */
+    if (R->count > 0 && R->edges == nullptr) {
+        if (bad) *bad = 0;
+        if (why) *why = "relation declares connections but supplies no edge array";
+        return false;
+    }
     for (size_t i = 0; i < R->count; i++) {
         RmeConnection e = R->edges[i];
         if (e.p < 0 || e.p >= RME_PORT_COUNT || e.q < 0 || e.q >= RME_PORT_COUNT) {

@@ -16,6 +16,7 @@ void rme_test_schedule(void);
 void rme_test_awv(void);
 void rme_test_sufficiency(void);
 void rme_test_latent(void);
+void rme_test_regress(void);
 
 int rme_test_passed;
 int rme_test_failed;
@@ -215,6 +216,7 @@ int main(void)
     rme_test_awv();
     rme_test_sufficiency();
     rme_test_latent();
+    rme_test_regress();
 
     printf("\n%d passed, %d failed\n", rme_test_passed, rme_test_failed);
     if (rme_test_failed == 0) {
