@@ -750,20 +750,40 @@ Implementation friction must never become accidental redesign.
 |---|---|
 | Per-port vestigial contracts | **OPEN** — provisional contracts must carry a `provisional` flag and a build-time report |
 | Exact port vocabulary | **PROVISIONAL** — one-line X-macro change |
-| Prototype-level sufficiency for reconstructing `E_GS` | **OPEN until Gate 3** |
+| Prototype-level sufficiency for reconstructing `E_GS` | **ANSWERED — NO** (see below); the architectural follow-on is a decision, not a proof obligation |
 | Self-loop semantics | **FROZEN** — governed self-edge is a directed cycle (§11) |
 | C23 compiler/toolchain status | implementation/bootstrap fact, not semantic authority |
 
-**Gate 3 question.** `rme_classify()` currently consumes a separately declared `RmeSystem`; it does
-not reconstruct `E_GS` from `RmePrototype`. The implementation therefore demonstrates
-classifier/interface independence, satisfied by **dependency injection**, not by preservation. Do not
-report the classifier-extension theorem as demonstrated at prototype level until this is answered.
-Two audit questions that must never be merged:
+**Gate 3 question — SETTLED, negatively.** The two audit questions, which must never be merged:
 
 - *Classifier extensibility* — can an observer be added when its representation is supplied through
-  an already-declared interface? **Yes**, witnessed by `RmeSystem`.
+  an already-declared interface? **Yes**, witnessed by `RmeSystem`. This is **dependency injection**,
+  and it must never be reported as preservation.
 - *Prototype-level observational sufficiency* — does the retained prototype representation itself
-  expose all relation-bearing distinctions required to reconstruct `E_GS`? **OPEN.**
+  expose all relation-bearing distinctions required to reconstruct `E_GS`? **No — and impossibly so.**
+
+`tests/test_sufficiency.c` settles it by discrimination rather than by inspection:
+
+```
+E1  two systems classify RME-6B and RME-7          (control: the verdicts really differ)
+E2  their prototype representations are identical  (field-by-field, not memcmp)
+E3  therefore NO function of the prototypes alone can reproduce the verdict
+```
+
+A single counterexample refutes a universal sufficiency claim, and this one is not contrived: it is
+K8b — flipping the governed marking on **one slot** promotes AWV from 6B to 7 while touching no
+prototype at all. The distinguishing data (the governed marking, the transition read-sets) live on
+`RmeSystem` and have **no field on `RmePrototype` in which they could be recorded.**
+
+The result is decisive, not provisional: it does not say the reconstruction has yet to be written,
+it says no such reconstruction exists to be written under the frozen schema.
+
+**What it does not show.** It does not show the substrate invariant is violated. §5 already declares
+`governed` "a marking on state slots, not a port", and a slot marking is a property of a *system's
+dynamics* rather than of a *prototype's boundary*. Whether that is the right home for it is an
+architectural decision — extend the schema so prototypes carry their own governed state and
+read-sets, or accept system-level injection as correct — and this test settles only that the two
+cannot both be answered from the prototype. **That decision is not made here.**
 
 ---
 
