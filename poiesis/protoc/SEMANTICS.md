@@ -1,9 +1,32 @@
 # ProtoC — frozen semantic oracle
 
-**ProtoC is a CLEAN-ROOM RECONSTRUCTION.** This file and `../SPEC.md` are the authority. The
-existing `../src/` implementation is **not** an input: it is the thing ProtoC exists to disagree
-with. Reading it to resolve an ambiguity defeats the experiment, because agreement reached by
-copying is not evidence.
+> **STATUS: FROZEN.** No S-statement changes while ProtoC is being implemented. A discovery made
+> during implementation does **not** feed back into this file — it is raised as a discrepancy,
+> classified, and only then may the oracle change. An oracle edited to match the code under
+> construction is not an oracle.
+
+**ProtoC is a CLEAN-ROOM RECONSTRUCTION.** This file and `../SPEC.md` are the authority.
+
+### The independence constraint
+
+Stronger than "do not `#include` `src/rme/`", which would be trivially satisfiable while defeating
+the experiment:
+
+> **ProtoC must not derive its semantics, its types, its admissibility decisions, or its expected
+> classifications from AWV/RME implementation artifacts.**
+
+It may of course implement the same *abstract requirements* — that is precisely what makes agreement
+meaningful. What it must not do is recover a decision by consulting how the existing code decides
+it. Reading `src/` to resolve an ambiguity converts the experiment into transcription.
+
+**And the corresponding prohibition on this file:**
+
+> **No S-statement may be justified by the current behaviour of AWV, by `rme_classify()`, or by an
+> existing AWV test.**
+
+Each S-statement below traces to `SPEC.md` or to a stated requirement, never to observed behaviour.
+Without this rule the clean-room oracle silently becomes a disguised transcription of the
+implementation, and the whole exercise proves only that a program agrees with itself.
 
 ## The question ProtoC answers
 
@@ -102,13 +125,39 @@ D1    P-side ACTIVE guard (mutation-proven) D3    malformed relation refused, no
 D4    out-of-range projection refused       C17   conformance sampled before AND after
 ```
 
-## Differential testing
+## ProtoC does NOT contain a classifier
 
-After ProtoC passes the suite, cross-validate the two substrates on identical valid and invalid
-records:
+The two roles are distinct, and keeping them distinct is what preserves the firewall:
 
 ```
-ProtoA(record) == ProtoC(record)   for
+ProtoC          independently implements the semantic OBJECT and its operations
+AWV/RME         classifies the resulting object
+the oracle      compares the observable CONSEQUENCES, classification included
+```
+
+ProtoC must **not** reproduce `rme_classify()`. Were it to carry its own classifier, the two systems
+would validate one another circularly and agreement would mean only that two classifiers written by
+the same author agree. Classification enters the comparison as a consequence applied *to* ProtoC's
+object by the existing observer — which is exactly the Axis-C position that classification is
+observational and its input is a declared system.
+
+## Differential testing — THREE outcomes
+
+```
+AGREE        both substrates produce the same observable consequence
+DISAGREE     they differ, and the specification decides which is right
+UNDECIDABLE  the specification does not determine the case
+```
+
+`UNDECIDABLE` is not a convenience. Without it, a clean-room implementation meeting an
+underspecified case is **forced into a false disagreement** merely to complete the matrix, and the
+matrix then reports a specification defect as an implementation defect. An `UNDECIDABLE` cell is a
+finding in its own right: it names a point the specification does not determine.
+
+Cross-validate on identical valid and invalid records:
+
+```
+ProtoA(record) ⋈ ProtoC(record)   for
     validation · admissibility · declaration · composition
     projection · SCC/cycle detection · classification · dispatch · lifetime
 ```
@@ -116,5 +165,21 @@ ProtoA(record) == ProtoC(record)   for
 Then **mutate one implementation** and confirm the differential test detects it — otherwise the
 comparison is as vacuous as the subset check was.
 
-Disagreement is adjudicated against `SPEC.md` and this file. If neither resolves it, the
-specification is underspecified at that point, and that is the finding.
+Disagreement is adjudicated against `SPEC.md` and this file, never against whichever code is older.
+If neither resolves it, the cell is `UNDECIDABLE` and the specification is underspecified there.
+
+## What counts as success
+
+**Not** "ProtoC passes." The regression suite going green is useful regression information and is
+**not evidence for ProtoC** — the entire epistemic value of this exercise is that ProtoC is
+*allowed to disagree*.
+
+```
+strongest outcome        ProtoC independently reaches the same boundary behaviour DESPITE a
+                         deliberately different decomposition
+strongest INTERESTING    a disagreement that survives reproduction -- that is where the frozen
+outcome                  specification gets its next real test
+```
+
+A run in which ProtoC agreed everywhere because it was written by consulting `src/` produces
+neither.
