@@ -19,7 +19,7 @@ TBIN := $(BUILD)/test_rme
 
 NEG := $(wildcard tests/negative/*.c)
 
-.PHONY: all test clean std negative layering
+.PHONY: all test clean std negative layering protoc
 
 all: $(TBIN)
 
@@ -89,6 +89,18 @@ layering:
 	  echo "ok   - src/rme/ is free of AWV vocabulary (AWV -> poiesis holds)"; \
 	fi; \
 	exit $$fail
+
+# ProtoC builds and runs SEPARATELY.  It shares no headers, no objects and
+# no test harness with src/rme/ -- the independence constraint is a build
+# fact, not a promise.
+PC_SRC := $(wildcard protoc/types/*.c) $(wildcard protoc/admissibility/*.c) \
+          $(wildcard protoc/declaration/*.c) $(wildcard protoc/realization/*.c) \
+          $(wildcard protoc/identity/*.c) $(wildcard protoc/composition/*.c)
+
+protoc:
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/pc_test protoc/tests/pc_test.c $(PC_SRC)
+	@./$(BUILD)/pc_test
 
 clean:
 	rm -rf $(BUILD)

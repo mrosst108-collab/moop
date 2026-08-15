@@ -149,6 +149,20 @@ DISAGREE     they differ, and the specification decides which is right
 UNDECIDABLE  the specification does not determine the case
 ```
 
+**Classification is ORDERED, and the order is what keeps `UNDECIDABLE` honest:**
+
+```
+1. AGREE        both consequences are permitted by the frozen semantics
+2. DISAGREE     the frozen semantics DETERMINE a consequence and one implementation violates it
+3. UNDECIDABLE  the frozen semantics genuinely permit MULTIPLE consequences
+```
+
+Try them in that order. `UNDECIDABLE` is reachable only after establishing that S1–S11 do not
+determine the case — it means *"the frozen material does not fix which consequence is correct,"*
+never *"the two implementations differ and I would rather not adjudicate."* Used as an escape hatch
+it destroys the experiment, because every real disagreement would be relabelled as a specification
+gap.
+
 `UNDECIDABLE` is not a convenience. Without it, a clean-room implementation meeting an
 underspecified case is **forced into a false disagreement** merely to complete the matrix, and the
 matrix then reports a specification defect as an implementation defect. An `UNDECIDABLE` cell is a
@@ -167,6 +181,23 @@ comparison is as vacuous as the subset check was.
 
 Disagreement is adjudicated against `SPEC.md` and this file, never against whichever code is older.
 If neither resolves it, the cell is `UNDECIDABLE` and the specification is underspecified there.
+
+## Clean-room prohibitions, enumerated
+
+The constraint reduces to: **ProtoC may know the frozen semantic specification; it may not know how
+AWV realizes it.** Concretely, ProtoC must not —
+
+- copy AWV data structures under different names;
+- consult `rme_classify()`, or any AWV code, to decide ProtoC behaviour;
+- derive ProtoC's expected outputs from AWV fixtures;
+- import an AWV test as a ProtoC test without independently deriving its expected result from
+  S1–S11;
+- amend S1–S11 because ProtoC exposed an inconvenient case.
+
+**Derivation record.** Every expected oracle consequence is derived in `DERIVATION.md` from S1–S11
+*before* either implementation is consulted, and the derivation is recorded. A consequence with no
+recorded derivation is not an oracle expectation — it is a transcription of whatever the code
+happens to do.
 
 ## What counts as success
 
