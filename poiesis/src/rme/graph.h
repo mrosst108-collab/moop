@@ -60,4 +60,13 @@ typedef struct {
 size_t rme_project(const RmeSystem *s, bool governed_only,
                    RmeEdge *out, size_t cap);
 
+/* Directed-cycle predicate over an edge set, exposed so that acyclicity can
+ * be asserted directly rather than inferred from a classification (K1).
+ *
+ * FROZEN self-loop rule: a self-edge X -> X counts as a directed cycle.
+ * Tarjan reports it as a single-member SCC, so cardinality alone would miss
+ * it; the check is explicit.  See classify.h for why the rule is semantic
+ * rather than algorithmic. */
+bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m);
+
 #endif /* RME_GRAPH_H */

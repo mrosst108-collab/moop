@@ -17,7 +17,9 @@ OBJ  := $(patsubst %.c,$(BUILD)/%.o,$(SRC))
 TSRC := $(wildcard tests/*.c)
 TBIN := $(BUILD)/test_rme
 
-.PHONY: all test clean std
+NEG := $(wildcard tests/negative/*.c)
+
+.PHONY: all test clean std negative
 
 all: $(TBIN)
 
@@ -34,6 +36,25 @@ $(TBIN): $(OBJ) $(TSRC)
 
 test: $(TBIN)
 	@./$(TBIN)
+
+# Negative-compilation tests.  Each file encodes a way of manufacturing a
+# validated prototype without crossing the validation boundary, and each
+# MUST FAIL to compile.  A file that compiles is the failure signal: it
+# means F7/F8 rest on convention rather than on the type system.
+negative:
+	@fail=0; \
+	for f in $(NEG); do \
+	  if $(CC) $(CFLAGS) -fsyntax-only $$f >/dev/null 2>&1; then \
+	    echo "FAIL - $$f COMPILED; the invariant it attacks is unenforced"; \
+	    fail=1; \
+	  else \
+	    echo "ok   - $$f rejected by the compiler"; \
+	  fi; \
+	done; \
+	if [ $$fail -eq 0 ]; then \
+	  echo ""; echo "all negative tests correctly refused"; \
+	fi; \
+	exit $$fail
 
 clean:
 	rm -rf $(BUILD)
