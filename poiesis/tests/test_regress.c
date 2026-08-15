@@ -176,11 +176,19 @@ void rme_test_regress(void)
      * silently began denoting a different prototype -- laundering arriving
      * by lifetime rather than by inheritance.
      *
+     * The invariant, stated at full strength:
+     *
+     *     A RELEASED IDENTITY MUST NEVER BECOME A VALID IDENTITY FOR A
+     *     LATER OBJECT.
+     *
      * The first attempt at this fix FAILED THIS TEST: stamping a generation
      * into the slot does nothing while slots are recycled, because the
      * reused slot receives the CURRENT generation and the old handle shares
-     * its address.  Allocation had to become monotonic.  The test is
-     * recorded here in the form that caught it. */
+     * its address -- (slot address, current generation) does not identify an
+     * object across reuse.  Allocation had to become monotonic.  This test
+     * is kept permanently, in the form that caught it, because it documents
+     * WHY non-reuse was chosen rather than merely that it is done: the
+     * tempting "just add a generation field" repair does not work. */
     {
         rme_validation_reset();
         RmePrototype first = mk("FIRST");

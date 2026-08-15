@@ -731,19 +731,27 @@ invariant:
 11. Can an undeclared transition dependency enter without changing `ArgType`?
 12. Can the classifier obtain information the declared interface does not expose?
 
-**Non-vacuity requirement on the AUDIT HARNESS itself.** An audit run whose agents fail must report
-an INCOMPLETE audit, never an empty finding set:
+**Non-vacuity requirement on the AUDIT HARNESS itself.**
+
+> **An incomplete audit is not a negative audit result.**
 
 ```
-agent failure  ≠  no finding
-agent failure  =  audit failure
+successful verification  →  finding may be confirmed or refuted
+verification failure     →  UNRESOLVED  (never "refuted", never dropped)
+agent failure            →  AUDIT FAILURE
+missing result           →  AUDIT FAILURE
+empty result             →  meaningful ONLY if every required stage completed
 ```
 
-A `null`, exception, timeout, missing result or dropped verification stage must make the run
-incomplete. This is not housekeeping: a harness that converts agent failure into `confirmed: []`
-violates exactly the non-vacuity principle the substrate exists to enforce, and it did — the first
-audit run returned `confirmed: []` because its verification stage crashed, which would have read as
-a clean bill of health. The apparatus is held to the same standard as the thing it audits.
+A harness that converts agent failure into `confirmed: []` violates exactly the non-vacuity
+principle the substrate exists to enforce — and it did: the first audit run returned `confirmed: []`
+because its verification stage had crashed, which would have read as a clean bill of health. The
+apparatus is held to the same standard as the thing it audits.
+
+The corrected harness is `audit/conformance-audit.js`. It returns `status` first, and `confirmed` is
+**present only on a complete run**, so an incomplete audit cannot be misread as a clean one even by
+a caller who inspects nothing else. **No audit verdict may be reported until that harness is the one
+that produced it.**
 
 **Discovery discipline for the audit:**
 
@@ -764,6 +772,7 @@ Implementation friction must never become accidental redesign.
 |---|---|
 | Per-port vestigial contracts | **OPEN** — provisional contracts must carry a `provisional` flag and a build-time report |
 | Exact port vocabulary | **PROVISIONAL** — one-line X-macro change |
+| The 62 raw audit findings | **8 classified** (5 defects fixed, 1 inadequate-repair caught, 1 overstated claim narrowed, 1 vacuous check recorded); **54 UNCLASSIFIED OBSERVATIONS** — not "technical debt". Some will be defects, some false positives, some specification misunderstandings, some claim corrections. None is a finding until individually reproduced |
 | Prototype-level sufficiency for reconstructing `E_GS` | **ANSWERED — NO** (see below); the architectural follow-on is a decision, not a proof obligation |
 | Self-loop semantics | **FROZEN** — governed self-edge is a directed cycle (§11) |
 | C23 compiler/toolchain status | implementation/bootstrap fact, not semantic authority |

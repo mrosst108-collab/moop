@@ -22,7 +22,10 @@ static unsigned            arena_epoch = 1u;
  * longer designates what it validated is exactly the laundering F7/F8
  * forbid, arriving by lifetime rather than by inheritance.  Bumping the
  * epoch makes every prior handle inert instead. */
-/* Allocation is MONOTONIC across resets, and that is load-bearing rather
+/* THE INVARIANT: a released identity must never become a valid identity for
+ * a later object.
+ *
+ * Allocation is MONOTONIC across resets, and that is load-bearing rather
  * than lazy.  A handle is a pointer INTO a slot, so if reset rewound the
  * cursor the next validation would overwrite that slot -- stamping it with
  * the CURRENT epoch and bringing the old handle back to life denoting a
