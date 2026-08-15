@@ -1,0 +1,120 @@
+# ProtoC — frozen semantic oracle
+
+**ProtoC is a CLEAN-ROOM RECONSTRUCTION.** This file and `../SPEC.md` are the authority. The
+existing `../src/` implementation is **not** an input: it is the thing ProtoC exists to disagree
+with. Reading it to resolve an ambiguity defeats the experiment, because agreement reached by
+copying is not evidence.
+
+## The question ProtoC answers
+
+> Does the specification determine the implementation closely enough that two **independently
+> structured** substrates converge on the same observable semantics?
+
+- **Converge** → the specification is determinate; that is a real result about the spec.
+- **Diverge** → the disagreement localizes exactly where the specification is still underspecified.
+
+Neither implementation gets to declare itself correct on disagreement. A divergence is an
+**adjudication item**, resolved against the specification, never against whichever code is older.
+
+## Why this is worth the cost
+
+Three defects this session were of a kind a single implementation cannot surface:
+
+| | what it was | why one implementation misses it |
+|---|---|---|
+| **C18a** | the spec required a state the API could not represent | the test suite was written against the API, so the missing state was invisible |
+| **R1** | `rme_validate()` and `rme7_conforms()` disagreed about one record | both were "right" by their own code; only the spec says which |
+| **R3** | a documentation claim that was false | nothing executable contradicted it |
+
+A second implementation built from the spec cannot inherit those, because it does not inherit the
+first implementation's reading.
+
+## Frozen semantic requirements
+
+These are the observable semantics ProtoC must reproduce. Each is stated so it can be tested
+without reference to any particular decomposition.
+
+| # | requirement |
+|---|---|
+| **S1** | `Admissible ≠ Declared ≠ Executed`, and `Admissible ⇏ Declared`. A relation may be admissible while undeclared; evaluating admissibility declares nothing and mutates nothing. |
+| **S2** | Port status and realization validity are **independently enforced**, and both are enforced **at the validation boundary**. An ACTIVE port aimed at the declared vestigial realization must not reach validated state. |
+| **S3** | Vestigial means **retained, typed and reachable — not wireable**. `Participates(p,R_C) ⇒ Status(p) = ACTIVE`, unconditional, on **both** endpoints. |
+| **S4** | RME-7 requires **reciprocal governed coupling**, not mere composition: a directed cycle entirely within `G_GS`. A governed self-edge is such a cycle; execution self-recursion is not. |
+| **S5** | A **released identity must never become a valid identity for a later object.** |
+| **S6** | Substrate ownership stops at the **record** boundary. Client realization objects remain client-owned; the substrate must not claim otherwise. |
+| **S7** | `E_dispatch ⊆ E_envelope` is **construction-guaranteed**, not a load-bearing runtime test. Elision removes from dispatch, never from the envelope. |
+| **S8** | A **malformed input is refused, never silently normalized** into a plausible verdict. Capacity, allocation failure, out-of-range indices and malformed relations all refuse. |
+| **S9** | Validity, conformance, classification, port status and identity are **nonhereditary** (F7/F8). Authority may be inherited; validity must be earned. |
+| **S10** | Authority and validity are independent **in both directions** (F9): capability establishes no validity, validation grants no authority. |
+| **S11** | Classification is **observational**. It cannot establish or mutate conformance, and conformance sampled before and after classifying must be unchanged. |
+
+### Deliberately NOT in this list
+
+Two requirements offered for inclusion belong to **AWV, not to poiesis**:
+
+- `Dδ ≠ D`
+- batch boundaries do not themselves establish temporal semantics
+
+Both are AWV's temporal and measurement semantics (v0.15). Placing them in the substrate's oracle
+would invert the dependency `AWV → poiesis` that `make layering` enforces mechanically, and ProtoC
+would then be built against a spec that already knows about AWV. They belong in an AWV-side oracle
+if AWV is reconstructed.
+
+Likewise **AWV constitutional permission stays outside `rme/`** — that is a layering rule, and it is
+already checked by `make layering`; ProtoC inherits the check, not a copy of the constitution.
+
+## Required decomposition — deliberately different
+
+If ProtoC has the same module structure as `src/rme/`, agreement is weak evidence: the two would
+likely make the same mistakes in the same places. ProtoC is therefore organized by **concern**
+rather than by artifact:
+
+```
+protoc/
+  types/          representation and its invariants
+  admissibility/  the compatibility predicate  (S1, S3)
+  declaration/    relational configuration     (S1)
+  realization/    status/contract enforcement  (S2, S7)
+  identity/       lifetime and released identities (S5, S6)
+  graph/          projection, cycles, classification (S4, S8, S11)
+  composition/    the relational operations
+```
+
+Note what this splits that `src/rme/` fuses: **admissibility and declaration are separate
+directories**, because their conflation was a real defect (C18a). And what it fuses that `src/rme/`
+splits: `conform`/`contract`/`validate` all land in `realization/` and `identity/`, because the
+boundary between them was where R1 hid.
+
+## Oracle discipline
+
+The 94-test suite is the **external oracle, not the design document.** ProtoC is written against
+this file; the suite is run against it afterwards. A test that fails is first checked against the
+specification — it may be the test that is wrong, as C17 was.
+
+Tests that must be preserved verbatim in intent, because each caught a real defect:
+
+```
+C18a  admissible-but-undeclared            C18d  retained but non-admissible vestigial
+V4    ACTIVE -> vestigial realization refused at the boundary
+V6    a released identity cannot resurrect  V7    record ownership vs realization ownership
+K8    AWV classifies 6B                     K10   governed self-edge is a cycle
+D1    P-side ACTIVE guard (mutation-proven) D3    malformed relation refused, not dereferenced
+D4    out-of-range projection refused       C17   conformance sampled before AND after
+```
+
+## Differential testing
+
+After ProtoC passes the suite, cross-validate the two substrates on identical valid and invalid
+records:
+
+```
+ProtoA(record) == ProtoC(record)   for
+    validation · admissibility · declaration · composition
+    projection · SCC/cycle detection · classification · dispatch · lifetime
+```
+
+Then **mutate one implementation** and confirm the differential test detects it — otherwise the
+comparison is as vacuous as the subset check was.
+
+Disagreement is adjudicated against `SPEC.md` and this file. If neither resolves it, the
+specification is underspecified at that point, and that is the finding.
