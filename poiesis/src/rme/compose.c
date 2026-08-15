@@ -22,9 +22,9 @@ static bool endpoints_valid(const RmePrototype *P, const RmePrototype *Q,
     return true;
 }
 
-RmeComposition rme_compose_valid(const RmePrototype *P,
-                                 const RmePrototype *Q,
-                                 const RmeRelation  *R)
+RmeComposition rme_admissible(const RmePrototype *P,
+                              const RmePrototype *Q,
+                              const RmeRelation  *R)
 {
     RmeComposition r = { false, 0, 0, "unevaluated" };
 
@@ -35,13 +35,10 @@ RmeComposition rme_compose_valid(const RmePrototype *P,
     r.obligations = R->count;   /* exactly |R| — never the count of compatible pairs */
     r.edge = R->count;
 
-    /* Declared(R).  An undeclared relation is not a composition, however
-     * compatible the participants' ports happen to be. */
-    if (!R->declared) {
-        r.why = "connection relation is not declared";
-        return r;
-    }
-
+    /* R->declared is DELIBERATELY NOT READ here.  Admissibility is a
+     * compatibility predicate over endpoints; declaration is a relational
+     * configuration.  A proposed future relation is admissible or not on
+     * exactly the same terms as an existing one. */
     if (!endpoints_valid(P, Q, R, &r.edge, &r.why)) {
         return r;
     }
@@ -74,6 +71,34 @@ RmeComposition rme_compose_valid(const RmePrototype *P,
      * relation, not an event. */
     r.ok = true;
     r.edge = R->count;
-    r.why = "composition valid";
+    r.why = "admissible";
+    return r;
+}
+
+RmeComposition rme_compose_valid(const RmePrototype *P,
+                                 const RmePrototype *Q,
+                                 const RmeRelation  *R)
+{
+    RmeComposition r = { false, 0, 0, "unevaluated" };
+
+    if (R == nullptr) {
+        r.why = "no connection relation supplied";
+        return r;
+    }
+    r.obligations = R->count;
+    r.edge = R->count;
+
+    /* Declared(R).  An undeclared relation is not a composition, however
+     * compatible the participants' ports happen to be -- and however
+     * ADMISSIBLE it is.  Admissible =/=> Declared. */
+    if (!R->declared) {
+        r.why = "connection relation is not declared";
+        return r;
+    }
+
+    r = rme_admissible(P, Q, R);
+    if (r.ok) {
+        r.why = "composition valid";
+    }
     return r;
 }

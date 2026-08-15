@@ -42,6 +42,32 @@ typedef struct {
     const char *why;
 } RmeComposition;
 
+/* Admissible(R, P, Q): every endpoint required by R exists in the declared
+ * schemas, has the required identity and type, has Status = ACTIVE, and
+ * satisfies the applicable endpoint compatibility contracts.
+ *
+ * THREE STAGES, NEVER CONFLATED (spec §4):
+ *
+ *     Admissible(R,P,Q)  !=  Declared(R)  !=  Executed(R)
+ *
+ *     Admissible  =/=>  Declared
+ *     Declared    =/=>  Executed
+ *     Executed     =>   Declared
+ *
+ * Admissibility is therefore evaluated WITHOUT consulting R->declared: a
+ * relation that does not yet exist can be assessed for admissibility, which
+ * is exactly what §9's future-relation question asks (C18a).  Collapsing
+ * this into rme_compose_valid() would make "R may subsequently be declared
+ * without redesigning either boundary" unaskable.
+ *
+ * The ACTIVE requirement is unconditional.  A relation able to connect a
+ * vestigial endpoint would have to be a different, explicitly declared
+ * relation class -- never an exception embedded here. */
+RmeComposition rme_admissible(const RmePrototype *P,
+                              const RmePrototype *Q,
+                              const RmeRelation  *R);
+
+/* ComposeValid(P,Q,R) = Declared(R) AND Admissible(R,P,Q). */
 RmeComposition rme_compose_valid(const RmePrototype *P,
                                  const RmePrototype *Q,
                                  const RmeRelation  *R);

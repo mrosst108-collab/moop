@@ -1182,7 +1182,7 @@ poiesis/SPEC.md                   NEW   this specification, committed alongside 
 Architecture              FROZEN
 Axis A implementation     PASS
 Axis B implementation     PASS
-Global conformance suite  NOT COMPLETE
+Global conformance suite  COMPLETE — C1-C18e, C11b, C15b, K1-K11
 
 Gate 1  bind      PASS      C15, C15b, C16 (+ B3–B6)
 Gate 2  schedule  PASS      E_dispatch ⊆ E_envelope; VESTIGIAL ⇏ EnvelopeAbsent (S1–S11)
@@ -1194,7 +1194,7 @@ Negative compilation      PASS      4 forgeries refused, each for its intended r
 
 Layering                  PASS      `make layering`: src/rme/ free of AWV vocabulary
 
-74 runtime tests, 0 failures, under -Wall -Wextra -Wpedantic -Werror.
+84 runtime tests, 0 failures, under -Wall -Wextra -Wpedantic -Werror.
 Gate 2's envelope invariant was mutation-tested: making rme_envelope() honour
 elision fails exactly S1, S2, S3 and S6 and nothing else.
 ```
