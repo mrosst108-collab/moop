@@ -731,6 +731,20 @@ invariant:
 11. Can an undeclared transition dependency enter without changing `ArgType`?
 12. Can the classifier obtain information the declared interface does not expose?
 
+**Non-vacuity requirement on the AUDIT HARNESS itself.** An audit run whose agents fail must report
+an INCOMPLETE audit, never an empty finding set:
+
+```
+agent failure  ≠  no finding
+agent failure  =  audit failure
+```
+
+A `null`, exception, timeout, missing result or dropped verification stage must make the run
+incomplete. This is not housekeeping: a harness that converts agent failure into `confirmed: []`
+violates exactly the non-vacuity principle the substrate exists to enforce, and it did — the first
+audit run returned `confirmed: []` because its verification stage crashed, which would have read as
+a clean bill of health. The apparatus is held to the same standard as the thing it audits.
+
 **Discovery discipline for the audit:**
 
 ```
@@ -1185,7 +1199,7 @@ Axis B implementation     PASS
 Global conformance suite  COMPLETE — C1-C18e, C11b, C15b, K1-K11
 
 Gate 1  bind      PASS      C15, C15b, C16 (+ B3–B6)
-Gate 2  schedule  PASS      E_dispatch ⊆ E_envelope; VESTIGIAL ⇏ EnvelopeAbsent (S1–S11)
+Gate 2  schedule  PASS*     VESTIGIAL ⇏ EnvelopeAbsent (S1–S11); see the correction below
 Gate 3  Axis C    PARTIAL   K1–K7, K9, K10, C17 PASS; prototype→E_GS sufficiency still OPEN
 Gate 4  AWV       PASS      K8 (+ K8a-K8h)
 
@@ -1195,8 +1209,14 @@ Negative compilation      PASS      4 forgeries refused, each for its intended r
 Layering                  PASS      `make layering`: src/rme/ free of AWV vocabulary
 
 84 runtime tests, 0 failures, under -Wall -Wextra -Wpedantic -Werror.
-Gate 2's envelope invariant was mutation-tested: making rme_envelope() honour
-elision fails exactly S1, S2, S3 and S6 and nothing else.
+**Gate 2 claim, CORRECTED — weaker than first reported.** `E_dispatch ⊆ E_envelope` is a
+*consequence of construction*, not an independently checkable runtime property: `rme_dispatch()` can
+only ever omit ports, so the subset half of `rme_dispatch_within_envelope()` is **structurally
+vacuous** — deleting it leaves the suite green. The *count* half (the envelope is the whole schema)
+IS load-bearing and mutation-tested: making `rme_envelope()` honour elision fails exactly S1, S2, S3
+and S6. No second test has been invented to make the phrase "both directions" true; the earlier
+claim was simply stronger than the evidence, and the useful architectural fact is that omission-only
+dispatch makes the subset relation hold by construction.
 ```
 
 **Toolchain fact, not a conformance claim:** GCC 13.3.0 rejects `-std=c23` and accepts `-std=c2x`;

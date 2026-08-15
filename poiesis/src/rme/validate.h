@@ -24,9 +24,22 @@
  *     by copying its parent's handle.  This is what makes F7/F8 a
  *     type-level barrier instead of a convention.
  *
- *  2. rme_validate() stores a COPY in substrate-owned storage.  The
- *     validated prototype is therefore not the caller's object, closing the
- *     mutate-after-validate window a pointer-only handle would leave open.
+ *  2. rme_validate() stores a COPY of the RECORD in substrate-owned
+ *     storage, so the caller's own RmePrototype object can be mutated
+ *     afterwards without reaching the validated one.
+ *
+ *     OWNERSHIP, STATED EXACTLY -- an earlier version of this comment
+ *     overstated it.  What the substrate owns is the RECORD: every port's
+ *     status and id, the identity and the schema fields.  What it does NOT
+ *     own is anything those fields POINT AT -- the per-port API objects and
+ *     the identity/schema strings remain the client's storage, aliased by
+ *     the copy.  Mutating a non-const realization object through the
+ *     client's own pointer IS visible inside the validated copy.
+ *
+ *     That is by design and not a defect to fix: a port realization is a
+ *     dispatch table supplied by the client, and deep-copying it would
+ *     defeat its purpose.  The claim is therefore bounded to the record,
+ *     and V3 pins both halves so the bound cannot quietly widen again.
  *
  *  3. There is NO validity field anywhere in actor.h to launder.  The
  *     forbidden line `child->validated = parent->validated;` does not
@@ -81,7 +94,14 @@ RmeConformance rme_validated_conforms(const RmeValidated *v);
 RmeComposition rme_compose_valid_v(const RmeValidated *P, const RmeValidated *Q,
                                    const RmeRelation *R);
 
-/* Substrate storage management (test support). */
+/* True while `v` belongs to the current arena generation.  A handle from
+ * before a rme_validation_reset() is inert, not merely stale: every
+ * accessor refuses it rather than returning whatever now occupies the
+ * slot. */
+bool rme_validated_live(const RmeValidated *v);
+
+/* Releases all validated storage and invalidates every outstanding handle
+ * by bumping the arena generation. */
 void   rme_validation_reset(void);
 size_t rme_validation_count(void);
 

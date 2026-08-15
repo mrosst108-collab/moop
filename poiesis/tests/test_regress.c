@@ -15,6 +15,7 @@
 #include "rme/classify.h"
 #include "rme/compose.h"
 #include "rme/schedule.h"
+#include "rme/validate.h"
 
 extern void rme_check(bool cond, const char *id, const char *what);
 
@@ -138,6 +139,89 @@ void rme_test_regress(void)
 
         rme_check(refused && refused_scc,
                   "D5", "edge endpoints outside [0,n) are refused, not written out of bounds");
+    }
+
+    /* ---- V4: SPEC §6's status closure is a VALIDATION-BOUNDARY claim, and
+     * §15.1 step 5(c) names this exact record: an ACTIVE port aimed at the
+     * declared vestigial realization.  rme_validate() omitted the
+     * RealizationValid conjunct, so this reached validated state while
+     * rme7_conforms() called it non-conformant -- the boundary and the
+     * conformance predicate disagreed about the same record. */
+    {
+        rme_validation_reset();
+        RmePrototype p = mk("P");
+        p.adaptation.api = &rme_vestigial_adaptation;   /* status still ACTIVE */
+        RmeValidation err;
+        const RmeValidated *v = rme_validate(&p, &err);
+        rme_check(v == nullptr && !err.ok && err.port == RME_PORT_adaptation
+                      && !rme7_conforms(&p).ok,
+                  "V4", "ACTIVE port aimed at the vestigial realization is refused AT the boundary");
+    }
+
+    /* ---- V5: a VESTIGIAL port pointing somewhere other than its declared
+     * vestigial realization is refused by the boundary too, so V4 is not
+     * passing on one direction of the closure alone. */
+    {
+        rme_validation_reset();
+        static const RmeCouplingApi impostor = { r_couple, "not the declared object" };
+        RmePrototype p = mk("P");
+        p.coupling = (RmeCouplingPort){ { RME_VESTIGIAL, RME_PORT_coupling }, &impostor };
+        RmeValidation err;
+        rme_check(rme_validate(&p, &err) == nullptr && err.port == RME_PORT_coupling,
+                  "V5", "VESTIGIAL port not pointing at its declared realization is refused too");
+    }
+
+    /* ---- V6: a handle from before a reset is INERT, not stale.  Arena
+     * slots are recycled, so without a generation check the old handle
+     * silently began denoting a different prototype -- laundering arriving
+     * by lifetime rather than by inheritance.
+     *
+     * The first attempt at this fix FAILED THIS TEST: stamping a generation
+     * into the slot does nothing while slots are recycled, because the
+     * reused slot receives the CURRENT generation and the old handle shares
+     * its address.  Allocation had to become monotonic.  The test is
+     * recorded here in the form that caught it. */
+    {
+        rme_validation_reset();
+        RmePrototype first = mk("FIRST");
+        const RmeValidated *old = rme_validate(&first, nullptr);
+        bool named_first = rme_validated_name(old) != nullptr;
+
+        rme_validation_reset();
+        RmePrototype second = mk("SECOND");
+        const RmeValidated *fresh = rme_validate(&second, nullptr);
+
+        rme_check(named_first && old != fresh          /* the slot is NOT reused */
+                      && !rme_validated_live(old)      /* the old handle is dead */
+                      && rme_validated_name(old) == nullptr
+                      && rme_validated_proto(old) == nullptr
+                      && !rme_validated_conforms(old).ok,
+                  "V6", "a handle from a released generation is inert, never re-designated");
+    }
+
+    /* ---- V7: OWNERSHIP, both halves.  The substrate owns the RECORD --
+     * mutating the caller's prototype cannot reach the validated copy.  It
+     * does NOT own what the record points at: a realization object is the
+     * client's dispatch table, aliased by the copy.  Deep-copying a vtable
+     * would defeat its purpose, so the claim is bounded here rather than
+     * the code changed, and this test is what stops the bound widening
+     * again by accident. */
+    {
+        rme_validation_reset();
+        RmePrototype p = mk("P");
+        const RmeValidated *v = rme_validate(&p, nullptr);
+        const RmePrototype *inside = rme_validated_proto(v);
+
+        /* Owned: the record. */
+        p.coupling.hdr.status = RME_UNDEFINED;
+        bool record_owned = inside->coupling.hdr.status == RME_ACTIVE
+                         && rme_validated_conforms(v).ok;
+
+        /* Not owned, by design: the realization object itself. */
+        bool realization_aliased = inside->coupling.api == &x_coup;
+
+        rme_check(record_owned && realization_aliased,
+                  "V7", "the record is substrate-owned; the realization it names is not (bounded claim)");
     }
 
     /* ---- D6: a malformed system is refused by the SCHEDULER too, on the
