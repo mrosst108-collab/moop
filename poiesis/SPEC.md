@@ -1167,12 +1167,14 @@ Global conformance suite  NOT COMPLETE
 Gate 1  bind      PASS      C15, C15b, C16 (+ B3–B6)
 Gate 2  schedule  PASS      E_dispatch ⊆ E_envelope; VESTIGIAL ⇏ EnvelopeAbsent (S1–S11)
 Gate 3  Axis C    PARTIAL   K1–K7, K9, K10, C17 PASS; prototype→E_GS sufficiency still OPEN
-Gate 4  AWV       PENDING   K8
+Gate 4  AWV       PASS      K8 (+ K8a-K8h)
 
 Authority/validity        PASS      F7a/b, F8a/b/c/d, F9, G1/G2, CAP1, CAPREF, V1/V2
 Negative compilation      PASS      4 forgeries refused, each for its intended reason
 
-65 runtime tests, 0 failures, under -Wall -Wextra -Wpedantic -Werror.
+Layering                  PASS      `make layering`: src/rme/ free of AWV vocabulary
+
+74 runtime tests, 0 failures, under -Wall -Wextra -Wpedantic -Werror.
 Gate 2's envelope invariant was mutation-tested: making rme_envelope() honour
 elision fails exactly S1, S2, S3 and S6 and nothing else.
 ```

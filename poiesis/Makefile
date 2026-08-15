@@ -19,7 +19,7 @@ TBIN := $(BUILD)/test_rme
 
 NEG := $(wildcard tests/negative/*.c)
 
-.PHONY: all test clean std negative
+.PHONY: all test clean std negative layering
 
 all: $(TBIN)
 
@@ -53,6 +53,40 @@ negative:
 	done; \
 	if [ $$fail -eq 0 ]; then \
 	  echo ""; echo "all negative tests correctly refused"; \
+	fi; \
+	exit $$fail
+
+# Dependency direction: AWV -> poiesis, NEVER the reverse.  src/rme/ must
+# know nothing of AWV's vocabulary.  Checked mechanically, because a rule
+# this easy to violate by a single convenient #include should not rest on
+# anyone remembering it.
+# Case-sensitive and word-bounded (grep -w).  A loose pattern produces false
+# positives that train people to ignore the check -- an earlier version
+# matched H_S inside rme_auth_subset, and a backslash-escaped version
+# matched nothing at all while still reporting success.
+AWV_TERMS := awv Sigma_U PageRank H_S delta
+
+layering:
+	@fail=0; \
+	for t in $(AWV_TERMS); do \
+	  if grep -rnwE "$$t" src/rme/ >/dev/null 2>&1; then \
+	    echo "FAIL - src/rme/ mentions AWV term: $$t"; \
+	    grep -rnwE "$$t" src/rme/ | head -3; \
+	    fail=1; \
+	  fi; \
+	done; \
+	for phrase in "Route 7C" "Fork [A-Z]"; do \
+	  if grep -rnE "$$phrase" src/rme/ >/dev/null 2>&1; then \
+	    echo "FAIL - src/rme/ mentions AWV phrase: $$phrase"; \
+	    grep -rnE "$$phrase" src/rme/ | head -3; \
+	    fail=1; \
+	  fi; \
+	done; \
+	if grep -rn '#include *"awv/' src/rme/ >/dev/null 2>&1; then \
+	  echo "FAIL - src/rme/ includes an AWV header"; fail=1; \
+	fi; \
+	if [ $$fail -eq 0 ]; then \
+	  echo "ok   - src/rme/ is free of AWV vocabulary (AWV -> poiesis holds)"; \
 	fi; \
 	exit $$fail
 
