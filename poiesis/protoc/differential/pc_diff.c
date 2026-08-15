@@ -316,6 +316,81 @@ int main(void)
         cell("D-S8b", "S8", true, p2, a2c, "an out-of-range dependency is refused, not dropped");
     }
 
+    /* ---- S6: ownership stops at the RECORD boundary.  The comparable
+     * consequence: after a surface is admitted, does mutating the CALLER'S
+     * record reach inside what the substrate holds? */
+    {
+        PcSurface *store[2]; uint64_t ser[2]; PcRegistry reg;
+        pc_registry_init(&reg, store, ser, 2);
+        PcPort sa[4]; PcSurface A = pcs("A", sa);
+        PcAdmission adm = pc_admit_surface(&reg, &A);
+        sa[0].status = PC_STATUS_UNSET;                  /* corrupt the caller's record */
+        const PcSurface *inside_p = pc_identity_surface(&reg, adm.identity);
+        XCons p = (inside_p && inside_p->ports[0].status == PC_STATUS_UNSET) ? X_YES : X_NO;
+
+        rme_validation_reset();
+        RmePrototype ra = awv("A");
+        const RmeValidated *h = rme_validate(&ra, nullptr);
+        ra.state.hdr.status = RME_UNDEFINED;             /* corrupt the caller's record */
+        const RmePrototype *inside_a = rme_validated_proto(h);
+        XCons a = (inside_a && inside_a->state.hdr.status == RME_UNDEFINED) ? X_YES : X_NO;
+
+        /* ORACLE DEFECT, CAUGHT AND CORRECTED -- see DIFFERENTIAL.md.
+         *
+         * This cell was first marked DETERMINED and produced the run's only
+         * DISAGREE (protoc=yes, awv=no).  The five questions dissolve it:
+         *
+         *  1. S6 does NOT fix this.  "Ownership stops at the record
+         *     boundary" is a CEILING on what the substrate may own, not a
+         *     FLOOR requiring it to own the record.  The statement's second
+         *     clause -- "the substrate must not CLAIM otherwise" -- is the
+         *     operative one, and it came from AWV's R3, which was an
+         *     OVERCLAIM defect, not a missing-copy defect.
+         *  2. The comparison is NOT invariant to pre-registered slack: K-5
+         *     already declared "ownership architecture: value identity vs
+         *     opaque handle" to be slack, and this cell tests exactly that
+         *     difference under a different label -- routing around the
+         *     pre-registration, which is worse than contradicting it.
+         *  4. Both results follow directly from that architecture.
+         *  5. DERIVATION.md's S6 entry and SEMANTICS.md's
+         *     invariants-not-mechanisms section both say S6 requires no
+         *     particular ownership architecture.
+         *
+         * Marked UNDETERMINED accordingly.  Note what is NOT done: the
+         * S-statement is unchanged.  The oracle's CLASSIFICATION of the
+         * cell was wrong, not the frozen semantics. */
+        cell("D-S6a", "S6", false, p, a,
+             "record-copy vs record-reference: K-5 slack under another name (oracle defect, corrected)");
+    }
+
+    /* ---- S9/S10: checked status is not transferable.  A malformed child
+     * cannot obtain it from a well-formed parent. */
+    {
+        PcSurface *store[4]; uint64_t ser[4]; PcRegistry reg;
+        pc_registry_init(&reg, store, ser, 4);
+        PcPort pp[4], cp[4]; PcSurface parent = pcs("parent", pp), child = pcs("child", cp);
+        cp[2].status = PC_STATUS_UNSET;
+        PcAdmission pa2 = pc_admit_surface(&reg, &parent);
+        PcAdmission ca = pc_admit_surface(&reg, &child);
+        XCons p = (pa2.identity.serial != 0 && ca.identity.serial == 0) ? X_YES : X_NO;
+
+        rme_validation_reset();
+        RmePrototype rp = awv("parent"), rc = awv("child");
+        rc.coupling.hdr.status = RME_UNDEFINED;
+        const RmeValidated *hp = rme_validate(&rp, nullptr);
+        const RmeValidated *hc = rme_validate(&rc, nullptr);
+        XCons a = (hp != nullptr && hc == nullptr) ? X_YES : X_NO;
+        cell("D-S9a", "S9/10", true, p, a,
+             "a malformed child cannot obtain checked status from a valid parent");
+    }
+
+    /* ---- S11 is STRUCTURALLY UNCOMPARABLE, and that is by design, not an
+     * omission.  Classification lives outside ProtoC (SEMANTICS.md), so
+     * ProtoC has no consequence to offer here.  Recorded rather than
+     * silently skipped: an S-statement with no cell would otherwise look
+     * like coverage. */
+    printf("D-S11   S11    NOT COMPARABLE BY DESIGN        ProtoC has no classifier; classification is external\n");
+
     /* ================= PRE-REGISTERED SLACK ================= */
     printf("\n--- pre-registered slack: DISAGREE here would be an ORACLE DEFECT ---\n");
 
