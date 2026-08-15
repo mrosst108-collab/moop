@@ -19,7 +19,7 @@ TBIN := $(BUILD)/test_rme
 
 NEG := $(wildcard tests/negative/*.c)
 
-.PHONY: all test clean std negative layering protoc
+.PHONY: all test clean std negative layering protoc differential
 
 all: $(TBIN)
 
@@ -102,6 +102,14 @@ protoc:
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -o $(BUILD)/pc_test protoc/tests/pc_test.c $(PC_SRC)
 	@./$(BUILD)/pc_test
+
+# The differential harness links BOTH substrates deliberately.  It is
+# excluded from PC_SRC, so ProtoC proper still never sees an AWV header.
+differential:
+	@mkdir -p $(BUILD)
+	$(CC) -std=$(STD) -Wall -Wextra -Wpedantic -O2 -Isrc \
+	  -o $(BUILD)/pc_diff protoc/differential/pc_diff.c $(PC_SRC) $(wildcard src/rme/*.c)
+	@./$(BUILD)/pc_diff
 
 clean:
 	rm -rf $(BUILD)
