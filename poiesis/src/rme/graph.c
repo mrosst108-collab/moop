@@ -39,9 +39,7 @@ size_t rme_project(const RmeSystem *s, bool governed_only,
 }
 
 /* Tarjan's SCC, iterative so that a long chain (K1 uses a thousand nodes)
- * cannot exhaust the stack.  We need only the verdict: does any SCC have
- * more than one member, or is there a self-loop?  Either is a directed
- * cycle in the projection handed to us. */
+ * cannot exhaust the stack. */
 typedef struct {
     size_t *off;      /* CSR offsets, n+1 */
     size_t *adj;      /* CSR targets, m   */
@@ -51,19 +49,25 @@ typedef struct {
     size_t *stk;      /* Tarjan stack     */
     size_t *frame_v;  /* DFS frame: vertex */
     size_t *frame_e;  /* DFS frame: next adjacency slot */
+    size_t *cursor;   /* CSR fill cursor  */
 } Tarjan;
 
-bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m)
+static void tarjan_release(Tarjan *t)
 {
-    if (n == 0) {
+    free(t->off); free(t->adj); free(t->index); free(t->low);
+    free(t->onstack); free(t->stk); free(t->frame_v); free(t->frame_e);
+    free(t->cursor);
+}
+
+bool rme_graph_scc(size_t n, const RmeEdge *e, size_t m,
+                   size_t *comp, size_t *component_count)
+{
+    if (comp == nullptr || component_count == nullptr) {
         return false;
     }
-    /* FROZEN self-loop rule: a self-edge is a directed cycle.  Tarjan would
-     * report it as a one-member SCC, which cardinality alone would miss. */
-    for (size_t i = 0; i < m; i++) {
-        if (e[i].from == e[i].to) {
-            return true;
-        }
+    if (n == 0) {
+        *component_count = 0;
+        return true;
     }
 
     Tarjan t = { 0 };
@@ -75,11 +79,12 @@ bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m)
     t.stk     = calloc(n, sizeof *t.stk);
     t.frame_v = calloc(n + 1, sizeof *t.frame_v);
     t.frame_e = calloc(n + 1, sizeof *t.frame_e);
+    t.cursor  = calloc(n, sizeof *t.cursor);
 
-    bool found = false;
     if (!t.off || !t.adj || !t.index || !t.low || !t.onstack ||
-        !t.stk || !t.frame_v || !t.frame_e) {
-        goto done;
+        !t.stk || !t.frame_v || !t.frame_e || !t.cursor) {
+        tarjan_release(&t);
+        return false;
     }
 
     /* CSR build: counting sort of edges by source. */
@@ -89,24 +94,18 @@ bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m)
     for (size_t v = 0; v < n; v++) {
         t.off[v + 1] += t.off[v];
     }
-    {
-        size_t *cursor = calloc(n, sizeof *cursor);
-        if (!cursor) {
-            goto done;
-        }
-        for (size_t i = 0; i < m; i++) {
-            size_t f = e[i].from;
-            t.adj[t.off[f] + cursor[f]] = e[i].to;
-            cursor[f]++;
-        }
-        free(cursor);
+    for (size_t i = 0; i < m; i++) {
+        size_t f = e[i].from;
+        t.adj[t.off[f] + t.cursor[f]] = e[i].to;
+        t.cursor[f]++;
     }
 
     /* index[] is 1-based so 0 means "unvisited". */
     size_t next_index = 1;
-    size_t sp = 0;    /* Tarjan stack pointer */
+    size_t sp = 0;      /* Tarjan stack pointer */
+    size_t ncomp = 0;
 
-    for (size_t root = 0; root < n && !found; root++) {
+    for (size_t root = 0; root < n; root++) {
         if (t.index[root] != 0) {
             continue;
         }
@@ -137,19 +136,15 @@ bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m)
                 continue;
             }
 
-            /* v is finished. */
+            /* v is finished; if it roots an SCC, emit that component. */
             if (t.low[v] == t.index[v]) {
-                size_t members = 0;
                 size_t w;
                 do {
                     w = t.stk[--sp];
                     t.onstack[w] = false;
-                    members++;
+                    comp[w] = ncomp;
                 } while (w != v);
-                if (members > 1) {
-                    found = true;
-                    break;
-                }
+                ncomp++;
             }
             if (fp == 0) {
                 break;
@@ -162,8 +157,50 @@ bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m)
         }
     }
 
-done:
-    free(t.off); free(t.adj); free(t.index); free(t.low);
-    free(t.onstack); free(t.stk); free(t.frame_v); free(t.frame_e);
-    return found;
+    tarjan_release(&t);
+    *component_count = ncomp;
+    return true;
+}
+
+bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m, bool *out)
+{
+    if (out == nullptr) {
+        return false;
+    }
+    if (n == 0) {
+        *out = false;
+        return true;
+    }
+    /* FROZEN self-loop rule: a self-edge is a directed cycle.  Tarjan would
+     * report it as a one-member SCC, which cardinality alone would miss. */
+    for (size_t i = 0; i < m; i++) {
+        if (e[i].from == e[i].to) {
+            *out = true;
+            return true;
+        }
+    }
+
+    size_t *comp = calloc(n, sizeof *comp);
+    size_t *size = calloc(n, sizeof *size);
+    if (!comp || !size) {
+        free(comp); free(size);
+        return false;   /* no verdict — never silently "acyclic" */
+    }
+
+    size_t ncomp = 0;
+    if (!rme_graph_scc(n, e, m, comp, &ncomp)) {
+        free(comp); free(size);
+        return false;
+    }
+    bool found = false;
+    for (size_t v = 0; v < n; v++) {
+        size[comp[v]]++;
+        if (size[comp[v]] > 1) {
+            found = true;
+            break;
+        }
+    }
+    free(comp); free(size);
+    *out = found;
+    return true;
 }

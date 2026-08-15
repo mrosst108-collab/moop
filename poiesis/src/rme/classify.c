@@ -35,7 +35,11 @@ bool rme_classify(const RmeSystem *s, RmeClassification *out)
     if (m_gs == SIZE_MAX) {
         return false;   /* projection did not fit; no verdict is available */
     }
-    if (rme_graph_has_cycle(s->slot_count, edges, m_gs)) {
+    bool cyclic = false;
+    if (!rme_graph_has_cycle(s->slot_count, edges, m_gs, &cyclic)) {
+        return false;   /* no verdict computable; never guess */
+    }
+    if (cyclic) {
         *out = RME_CLASS_RME7;
         return true;
     }
@@ -50,7 +54,10 @@ bool rme_classify(const RmeSystem *s, RmeClassification *out)
     if (m_all == SIZE_MAX) {
         return false;
     }
-    if (rme_graph_has_cycle(s->slot_count, edges, m_all)) {
+    if (!rme_graph_has_cycle(s->slot_count, edges, m_all, &cyclic)) {
+        return false;
+    }
+    if (cyclic) {
         *out = RME_CLASS_RME6B;
         return true;
     }

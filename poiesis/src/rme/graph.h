@@ -60,13 +60,31 @@ typedef struct {
 size_t rme_project(const RmeSystem *s, bool governed_only,
                    RmeEdge *out, size_t cap);
 
-/* Directed-cycle predicate over an edge set, exposed so that acyclicity can
- * be asserted directly rather than inferred from a classification (K1).
+/* Strongly connected components.  `comp` must have room for n entries and
+ * receives comp[v] = the component id of vertex v.
+ *
+ * Components are numbered in EMISSION order, which Tarjan guarantees to be
+ * REVERSE TOPOLOGICAL over the condensation: if component A has an edge
+ * into component B, B receives the LOWER id.  Since an edge Y -> X means
+ * "T_X reads Y", evaluation order is therefore DESCENDING component id.
+ *
+ * Returns false only when working storage could not be obtained — never as
+ * a way of saying "no components".  A caller must not read *component_count
+ * after a false return. */
+bool rme_graph_scc(size_t n, const RmeEdge *e, size_t m,
+                   size_t *comp, size_t *component_count);
+
+/* Directed-cycle predicate, exposed so acyclicity can be asserted directly
+ * rather than inferred from a classification (K1).
  *
  * FROZEN self-loop rule: a self-edge X -> X counts as a directed cycle.
  * Tarjan reports it as a single-member SCC, so cardinality alone would miss
  * it; the check is explicit.  See classify.h for why the rule is semantic
- * rather than algorithmic. */
-bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m);
+ * rather than algorithmic.
+ *
+ * Returns false if no verdict could be computed, so an allocation failure
+ * can never be silently reported as "acyclic" — which would downgrade an
+ * RME-7 system to RME-6. */
+bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m, bool *out);
 
 #endif /* RME_GRAPH_H */

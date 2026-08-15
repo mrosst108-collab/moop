@@ -1160,14 +1160,21 @@ poiesis/SPEC.md                   NEW   this specification, committed alongside 
 
 ```
 Architecture              FROZEN
-Axis A implementation     PASS — 22 implemented tests
-Axis B implementation     PASS — within the same 22
+Axis A implementation     PASS
+Axis B implementation     PASS
 Global conformance suite  NOT COMPLETE
 
-Gate 1  bind      PENDING   C15, C15b, C16
-Gate 2  schedule  PENDING   E_dispatch ⊆ E_envelope
-Gate 3  Axis C    PENDING   K1–K7, K9, C17 + prototype→E_GS sufficiency
+Gate 1  bind      PASS      C15, C15b, C16 (+ B3–B6)
+Gate 2  schedule  PASS      E_dispatch ⊆ E_envelope; VESTIGIAL ⇏ EnvelopeAbsent (S1–S11)
+Gate 3  Axis C    PARTIAL   K1–K7, K9, K10, C17 PASS; prototype→E_GS sufficiency still OPEN
 Gate 4  AWV       PENDING   K8
+
+Authority/validity        PASS      F7a/b, F8a/b/c/d, F9, G1/G2, CAP1, CAPREF, V1/V2
+Negative compilation      PASS      4 forgeries refused, each for its intended reason
+
+65 runtime tests, 0 failures, under -Wall -Wextra -Wpedantic -Werror.
+Gate 2's envelope invariant was mutation-tested: making rme_envelope() honour
+elision fails exactly S1, S2, S3 and S6 and nothing else.
 ```
 
 **Toolchain fact, not a conformance claim:** GCC 13.3.0 rejects `-std=c23` and accepts `-std=c2x`;

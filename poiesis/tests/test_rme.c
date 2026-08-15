@@ -12,6 +12,7 @@ void rme_test_axis_b(void);
 void rme_test_bind(void);
 void rme_test_classify(void);
 void rme_test_authority(void);
+void rme_test_schedule(void);
 
 int rme_test_passed;
 int rme_test_failed;
@@ -207,6 +208,7 @@ int main(void)
     rme_test_bind();
     rme_test_classify();
     rme_test_authority();
+    rme_test_schedule();
 
     printf("\n%d passed, %d failed\n", rme_test_passed, rme_test_failed);
     if (rme_test_failed == 0) {

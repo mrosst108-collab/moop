@@ -169,7 +169,10 @@ void rme_test_classify(void)
         RmeSystem s = { k1_slots, K1_N, k1_trans, K1_N - 1, false };
 
         size_t m = rme_project(&s, true, k1_edges, K1_N);
-        bool gs_acyclic = (m != SIZE_MAX) && !rme_graph_has_cycle(K1_N, k1_edges, m);
+        bool cyclic = true;
+        bool gs_acyclic = (m != SIZE_MAX)
+                       && rme_graph_has_cycle(K1_N, k1_edges, m, &cyclic)
+                       && !cyclic;
         bool deep = (k1_nesting_depth() == K1_N);
 
         rme_check(classifies(&s, RME_CLASS_RME6) && gs_acyclic && deep && m == K1_N - 1,
