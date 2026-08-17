@@ -263,6 +263,42 @@ static void test_encoding(void)
           "exchange is self-inverse");
 }
 
+static void test_chart_is_not_the_state(void)
+{
+    /* `value` reads loop A only: it charts a body, it is not the body.
+     * Two bodies can agree on every coordinate and still be different
+     * machines (docs/model.md, "The chart is not the state"). */
+    bool xa[8] = {0}, xb[13] = {0}, mxa[8], mxb[13];
+    bool ya[8] = {0}, yb[13] = {0}, mya[8], myb[13];
+    MoopCore x, y;
+    moop_core_init(&x, xa, mxa, 8, xb, mxb, 13);
+    moop_core_init(&y, ya, mya, 8, yb, myb, 13);
+    moop_encode_xor(&x, 37);
+    moop_encode_xor(&y, 37);
+    yb[3] = true;  /* the bodies differ only off the chart */
+    check(moop_decode(&x) == moop_decode(&y),
+          "two bodies can share every coordinate");
+
+    bool diverged = false;
+    for (int i = 0; i < 12; i++)
+        diverged |= moop_maybe(&x) != moop_maybe(&y);
+    check(diverged, "equal coordinates, unequal observations");
+    check(moop_decode(&x) != moop_decode(&y),
+          "and the readings themselves come apart");
+
+    /* x's loop B never supplies a control, so nothing ever fires: its
+     * orbit is bare rotation, one alignment cycle long. The birth state
+     * selects the orbit; the loop lengths do not. */
+    bool za[8] = {0}, zb[13] = {0}, mza[8], mzb[13];
+    MoopCore frozen;
+    moop_core_init(&frozen, za, mza, 8, zb, mzb, 13);
+    moop_encode_xor(&frozen, 37);
+    for (size_t i = 0; i < moop_core_epoch(&frozen); i++)
+        moop_core_step(&frozen);
+    check(moop_decode(&frozen) == 37 && frozen.a.head == 0 && frozen.b.head == 0,
+          "an unfiring body returns to its birth state in one alignment cycle");
+}
+
 static bool msg_observe(MoopProto *self)
 {
     /* answers from the receiver's own body: proves self stays the
@@ -459,6 +495,7 @@ int main(void)
     test_maybe();
     test_ram();
     test_encoding();
+    test_chart_is_not_the_state();
     test_actor();
     test_proto_generation();
     return failures;

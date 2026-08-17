@@ -137,6 +137,48 @@ loop A (`src/encode.{h,c}`). The primitives are involutions, keeping
 Values wider than the loop are refused, never truncated: silent
 truncation would make a "bijection" lossy.
 
+### The chart is not the state
+
+Four things get loosely called "the state of a body", and the rules
+above are already keeping them apart. Naming them stops the confusion
+from coming back:
+
+- **Configuration space** — every assignment of bits to the two loops,
+  times the head alignment: for an interpreter body (8/13) that is
+  2^21 x 104 = 218,103,808 configurations. What *could* be on the tapes.
+- **Orbit** — the configurations actually reached from a given birth
+  state. The wiring is a bijection, so an orbit is a cycle, and which
+  cycle a body is on is fixed at birth.
+- **Wiring** — `moop_core_step`: the law, not its solutions. Every
+  body runs the same law on different tapes.
+- **Chart** — the value encoding above: bit i of a value is cell i of
+  loop A. A reading of a configuration, not the configuration.
+
+None of the four hands you the next one:
+
+- *Configuration space does not give the orbit.* Measured on an 8/13
+  body: from an all-ones birth the orbit is 8,020,272 configurations
+  (3.7% of the space); from an all-zero birth it is 104 — bare rotation,
+  because a loop with no set cell never supplies a control. Same
+  geometry, five orders of magnitude apart. This is the coprimality
+  assert seen from the other side: lengths are the ambient geometry and
+  say nothing about what is reachable.
+- *An orbit does not give the wiring.* Solutions do not identify the law
+  that produced them; only `src/tapeloop.c` does.
+- *The chart does not give the state.* `value` reads 8 of the 21 cells
+  and none of loop B, so two bodies can agree on every coordinate and
+  still be different machines: deposit 37 in each, set one cell of one
+  body's loop B, and their `maybe` observations diverge within an
+  alignment cycle while one body's reading never moves at all
+  (`tests/test_core.c`). Equal readings, unequal bodies.
+
+The practical ruling: `x -> value` answers what loop A currently reads,
+never what x *is*. `<->` writes through the chart and its consequences
+are not confined to it — a deposit also marks cells causal and changes
+which cells later fire. Nothing may treat a chart reading as an identity
+(no comparing bodies by decoding them), and nothing may promote the
+geometry of the loops into a claim about a body's dynamics.
+
 ## Actors
 
 Actors (`src/actor.{h,c}`) are the bridging construct between the layers.
