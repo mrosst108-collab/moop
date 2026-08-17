@@ -188,3 +188,74 @@ mechanism, zero code.
   dissolves any *mechanism* here; what survives is a docs ruling and a
   test, which is the smallest thing that can fail loudly if the
   distinction is ever collapsed.
+
+### 4 — the sender qualifies entry 3: five roles, orthogonal, not a chain
+
+- **from → to**: same unanchored relay, follow-up → `mrosst108-collab/moop @
+  claude/space-roles-rme7-u2-m112-dygpjx`. **Corrects entry 3.**
+- **ground**: still none. No repository, commit, path, or hash. The
+  qualification is authored by the holder of the instrument rather than
+  read off a source, which changes who is speaking, not whether it is
+  anchored.
+- **claims** (sender's terms, unedited): RME-7 is not merely a typing
+  discipline for preventing promotions — it is a *maximally expressive
+  minimal format whose compression is achieved by preserving
+  orthogonality between distinct roles*. Five roles, each classifying a
+  different question: **ambient space** — where the state/configuration
+  is situated; **coordinate system** — how that state is represented;
+  **dynamic system** — how states evolve; **solution space** — which
+  states/trajectories satisfy the governing relations; **ontology** —
+  what standing, if any, is assigned to the represented structure. The
+  offered formulation, verbatim:
+
+  > RME-7 is a maximally expressive minimal format for classifying
+  > systems while maintaining orthogonality under compression. Its
+  > expressiveness permits the distinctions among ambient space,
+  > coordinate system, dynamics, solution space, and ontology to be
+  > represented without collapsing them; it does not authorize inference
+  > from one role to another.
+
+  With two riders: *maximally expressive* means the format can classify
+  the relevant distinctions and interactions, *minimal* means it
+  introduces no separate primitive where an existing typed relation
+  suffices; and **expressive completeness does not imply constructive
+  sufficiency** — classifying the roles as orthogonal tells you nothing
+  about how to construct a particular solution, choose coordinates, or
+  establish an ontological correspondence.
+- **status**: `testimony`. Nothing here is anchored, and nothing here is
+  re-derivable in this tree: the claim is about the format's own
+  economy, and this repository holds no ASDG source against which
+  "maximally expressive" or "minimal" could be checked.
+- **correction to entry 3**: entry 3 recorded the arrival as "the chain
+  of non-implications, ambient ⇏ solution ⇏ dynamical law ⇏ physical
+  instantiation". That was faithful to the text as it arrived, and it is
+  now superseded as a *reading*: the roles are not a linear hierarchy,
+  and the arrow ordering is a presentation artifact of writing five
+  orthogonal dimensions on one line. The sender's point is sharper than
+  the chain form: RME-7 classifies their typed relations precisely so
+  that compression does not falsely turn orthogonal dimensions into an
+  implication chain. Recording a chain of ⇏ therefore reproduces, in the
+  ledger's own prose, the conflation the format exists to prevent —
+  worth noting because the failure survived translation into the
+  receiver's terms. Per the append-only rule, entry 3 stands as written;
+  this entry carries the correction forward.
+- **consequences**: `c5ffde9` reverted in
+  `b7714d0` — the arrival's footprint in this tree is now two ledger
+  entries and no code, no test, and no `docs/model.md` commitment, which
+  is the correct footprint for background ontology. The sender's own
+  ruling on that point, recorded because it is the standard the receiver
+  was corrected against: the ambient/coordinate distinction belongs as
+  background testimony about how RME-7 preserves orthogonality, not
+  automatically as a `model.md` commitment. (What the reverted commit
+  measured about this core — orbit sizes, the non-injectivity of
+  `value` — remains true and remains in git history; it can return if
+  something in the language forces it, on its own derivation rather than
+  on this arrival's authority.)
+- **open, deliberately not acted on**: whether the boxed formulation
+  should also refine §1 of `prompts/asdg-rme7.md`, which already carries
+  "holding the orthogonality of the distinctions their dynamics
+  require". That file admits only **[carried]** (transcribed from
+  Rosst–CP v5) and **[unpopulated]**, and this text is neither — it is
+  supplied in-session by the instrument's holder. Marking it needs a
+  provenance decision the receiver has no standing to make, so the file
+  is untouched and the question is parked here.
