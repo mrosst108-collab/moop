@@ -259,3 +259,81 @@ mechanism, zero code.
   supplied in-session by the instrument's holder. Marking it needs a
   provenance decision the receiver has no standing to make, so the file
   is untouched and the question is parked here.
+
+### 5 — Rosst Object Theory arrives as a table of contents
+
+- **from → to**: unanchored relay ("ROSST OBJECT THEORY — A Typed
+  Architecture from Metatheory to Communicative Pragmatism", front
+  matter and section headings, XV parts + appendices A–J) →
+  `mrosst108-collab/moop @ claude/space-roles-rme7-u2-m112-dygpjx`.
+- **ground**: none, and doubly so. No commit, path, or hash — and the
+  arrival is a *table of contents*: headings, not text. Even fully
+  anchored, a ToC grounds the existence and ordering of sections, never
+  their content. κ > 0 on both counts.
+- **claims**: a nine-level vertical stack (metatheory → communicative
+  pragmatism → Rosst ontology → object theory → formal grammar →
+  engineering format → realization → solution space → physical or
+  empirical interpretation), governed by a non-collapse principle and a
+  non-promotion rule; four typing verdicts — ASDG = grammar, RME-7 =
+  maximally expressive minimal format, U₂ = dynamic engineering object,
+  ℳ₁₁₂ = candidate realization/carrier; an eight-layer Rosst ontology
+  with a promotion firewall; and the closing thesis that *expressive
+  power depends upon preserving distinctions while compressing their
+  representation*.
+- **status**: `testimony`. Explicitly **not admissible** to populate
+  `prompts/asdg-rme7.md` §3 (operator semantics) or §4 (ASDG grammar):
+  §13 of the arrival names the operators with the glosses already
+  recorded in entry 3, and §12 names the grammar, but a heading is not a
+  definition — no types, domains, admissibility conditions, or
+  composition rules cross. The gate in that file holds unchanged. What
+  the arrival does supply is a map of *what would* lift each flag if the
+  underlying text ever arrives: appendix A for the primitive ledger
+  (§3), part V with appendix B for the grammar and the specification
+  relation (§4), appendix C for the canonical equation (§2), appendix G
+  for promotion rules, and parts XIII–XIV for the worked examples and
+  failure cases (§§9–10). Named as a retrieval target, not as content.
+- **corroboration, not binding**: §§14.4–14.5 ("ASDG may specify what
+  can be expressed / RME-7 specifies the minimal format in which it is
+  classified") say the same thing as the **[carried]** claim in
+  `prompts/asdg-rme7.md` §1 that RME-7 is specified *within* ASDG. Two
+  unanchored statements agreeing does not make either grounded; recorded
+  so a later reader does not mistake the agreement for verification.
+- **re-derived here — the six layers are a prefix of eight**: the
+  arrival's layers 1–6 (forensic contention, performative structure,
+  metatheory, object theory, epistemic validity, local ontological
+  soundness) match `bookended-thinking/ontology/cp_layers.yaml`
+  name-for-name and in order, at
+  `28ec250`. Its layers 7 (theism) and 8 (Krama–Trika) have no
+  representation anywhere in this tree: `LAYER_IDS` is
+  `("L1".."L6")`, and `engine/ledger.py` rejects any other id with
+  `unknown layer` — `tests/test_ledger_and_report.py` exercises exactly
+  that with `"L7"`, alongside a stray field, as *malformed input*. So
+  the engine's six-layer interface is a scoped prefix of the eight-layer
+  architecture, cut precisely where promotion past local soundness would
+  begin, and its L5|L6 firewall is the arrival's §11.3 while L6's
+  failure mode ("a local vocabulary treated as though it carried
+  universal authority") is its §11.4. Two consequences follow and
+  neither is acted on here: `cp_layers.yaml` (status `sealed`) calls
+  itself "the six-layer epistemic interface" without saying it is a
+  deliberate prefix, so a later reader can take the part for the whole —
+  the non-collapse principle applied to the tree's own artifact; and the
+  engine cannot distinguish "layer outside my declared scope,
+  promotion-explicit" from "layer id you typo'd", which is a scope
+  question, not a defect.
+- **tension recorded, not resolved**: §6.6 states "the general
+  non-implication chain", representation ⇏ structure ⇏ dynamics ⇏
+  solution ⇏ ontology, while entry 4 ruled the chain form a
+  presentation artifact and the roles orthogonal rather than linear.
+  Part XIV then gives the same content as a pairwise *atlas* (§§40–45:
+  coordinate ≠ state, ambient ≠ solution, dynamics ≠ solution, solution
+  ≠ realization, realization ≠ ontology, formal validity ≠ communicative
+  warrant), which is the orthogonality-consistent form. Both forms are
+  present in one document; which governs is the author's adjudication,
+  and the receiver has no standing to pick. Noted because entry 4
+  established that the chain form reproduces the conflation the format
+  exists to prevent.
+- **consequences**: this entry, and nothing else. No code, no test, no
+  `docs/model.md` commitment, no edit to `prompts/asdg-rme7.md`, no edit
+  to the sealed `cp_layers.yaml`. Two questions stay parked: the §1
+  refinement carried over from entry 4, and whether `cp_layers.yaml`
+  should state that its six layers are a deliberate prefix of eight.
