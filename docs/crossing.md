@@ -102,3 +102,89 @@ mechanism, zero code.
 - **claims → rulings**: coprimality asserted at init (loop lengths select semantics, not capacity; non-coprime is a different machine, refused); `step_back` asserts `ticks > 0` (the between-prunes discipline, crash-loud). Both encode rules the docs already stated — no new concepts.
 - **status**: `re-derived`, landed.
 - **parked, correctly**: reified γ for the substrate ("what did the last prune forget") stays open until reflection forces it; adding a log now fails the deletion test.
+
+### 3 — the four roles of "space" arrive unanchored; the local half re-derives
+
+- **from → to**: unanchored relay (pasted prose; no repository, branch,
+  commit, or path named) → `mrosst108-collab/moop @
+  claude/space-roles-rme7-u2-m112-dygpjx`.
+- **ground**: none. The text cites no artifact, and its opening ("Yes.")
+  and its references to "the earlier promotion errors" (∇R=0 ⇏ F=0;
+  homogeneity ⇏ κ≡1) belong to a conversation this tree does not hold.
+  Zero stated ground, so κ > 0 by inspection and nothing here can bind
+  on the sender's authority.
+- **claims**: (a) four roles are conflated by the word *space* — ambient
+  space (where a thing could exist), solution space (which
+  configurations satisfy the relations), dynamical system (how state
+  changes), coordinate system (how the thing is represented); (b) the
+  chain of non-implications, ambient ⇏ solution ⇏ dynamical law ⇏
+  physical instantiation, and separately coordinate representation ⇏
+  what is represented; (c) a custody ruling for ℳ₁₁₂ — it coordinates
+  the state, it is not itself the ledger, and membership in it is not a
+  physical-instantiation claim; (d) U₂ is a dynamical specification, not
+  a solution manifold, and RME-7 is the compositional level above it;
+  (e) glosses for each RME-7 object (J♯ conservative circulation, G♯
+  dissipative descent, G̃♯ teleological confinement, Σ stochastic
+  forcing, F autopoietic self-production, κ generator gate, γ
+  curvature/observable defined as [G♯, G̃♯]).
+- **status**: (a)–(d) about RME-7/U₂/ℳ₁₁₂ — `testimony`. (e) —
+  `testimony`, and **inadmissible for populating
+  `prompts/asdg-rme7.md` §3**: that file's own gate says the
+  unpopulated sections are "not to be filled in from memory by a
+  reader", and a gloss read off notation is exactly the reconstruction
+  it prohibits ("a plausible reconstruction is worse than none, because
+  it looks right"). The object *names* it uses need no import — they are
+  already carried at `bookended-thinking/ontology/rme7_objects.yaml`
+  with status `retrieved`; the semantics are what stay unpopulated, and
+  they stay unpopulated. (a)–(b) applied to this tree's core —
+  `re-derived`. The disclosure hazard below — `re-derived`.
+- **derivation**: the four roles land on the core without importing
+  anything: **configuration space** (every bit assignment times the head
+  alignment), **orbit** (what a birth state actually reaches — the
+  wiring is a bijection, so orbits are cycles), **wiring**
+  (`moop_core_step`, the law), **chart** (`src/encode.{h,c}`: bit i of a
+  value is cell i of loop A). Measured on an 8/13 body at
+  `dec435d251df0f949919f0dd39db9919a08298ef`: the configuration space is
+  2^21 × 104 = 218,103,808; the orbit from an all-ones birth is
+  8,020,272 of them (3.7%); the orbit from an all-zero birth is 104,
+  bare rotation. Same geometry, five orders of magnitude apart —
+  ambient ⇏ solution, which is entry 2's coprimality ruling ("lengths
+  select semantics, not capacity") seen from the other side. Chart ⇏
+  state reproduces just as concretely: `value` reads 8 of 21 cells and
+  none of loop B, so two bodies deposited with 37 and differing in one
+  loop-B cell diverge under `maybe` inside one alignment cycle while one
+  of them never moves at all. The senses that do *not* re-derive are
+  named too: this tree has no ontology layer, so "⇏ physical
+  instantiation" has no local referent and is recorded, not adopted.
+- **disclosure hazard (verified here)**: the arriving text states γ =
+  [G♯, G̃♯] in the open. `bookended-thinking/engine/ontology.py` lists
+  `definition`, `commutator_of`, and `computed_from` in
+  `WITHHELD_FIELDS` precisely so a classifier is never handed the
+  commutator ("giving it the commutator would hand it most of the void
+  conjecture"), and `bookended-thinking/tests/test_core.py` asserts the
+  rendered prompt never contains it. So this text must not be pasted
+  into a classifier prompt, drill input, or sealed commitment: doing so
+  would make the cell-level γ cross-check self-confirming. Recorded as a
+  usage ruling; no code, because the render path already guards the
+  files it controls and a paste is outside its custody.
+- **consequences**: commit `c5ffde916b52403104008c7a1833a7c85b4b2516`
+  (3 files, +80/−1) — `docs/model.md` gains "The chart is not the
+  state", `tests/test_core.c` gains `test_chart_is_not_the_state`,
+  `CLAUDE.md` carries the ruling that `x -> value` answers what loop A
+  reads and never what x *is*. Post-state hashes: `docs/model.md`
+  `b484ebb7982c6a06e589c5afb67ed476c3fb547d9dc25cf86934ab376258910d`,
+  `tests/test_core.c`
+  `a197b5c377833e1c5ab5c2ca197d2dbbd348e6eb4f3d113c957db3c698302c33`,
+  `CLAUDE.md`
+  `c152eba01f65e35edb8ada35ba62525de50a4f13c8ee2551805afa2f7afa2cd4`.
+  Deliberately unchanged: `prompts/asdg-rme7.md` (gate above) and
+  everything under `bookended-thinking/` (usage ruling, not a defect).
+  Ledger order note: the re-derivation commit precedes this entry
+  because the entry cites its hashes; nothing derived from the unbound
+  half was committed at all, which is what the G♯ row actually asks.
+- **why this is not a new construct**: the four roles name distinctions
+  the core already enforces — coprimality (configuration ⇏ orbit) and
+  the encode/decode discipline (chart ⇏ state). The deletion test
+  dissolves any *mechanism* here; what survives is a docs ruling and a
+  test, which is the smallest thing that can fail loudly if the
+  distinction is ever collapsed.
