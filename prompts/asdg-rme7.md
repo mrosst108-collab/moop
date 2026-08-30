@@ -61,6 +61,14 @@ is exactly the reconstruction the constitution prohibits, however natural the sh
 
 Populate from the primary ASDG source before any generator-equation work.
 
+**A candidate arrived and was refused, 2026-08-30.** A state-space variant of the canonical form —
+a McKean–Vlasov Stratonovich SDE with seven operator classes, retrieved from the Rosst Mathematics
+corpus in Drive — is recorded in `docs/crossing.md` entry 3. It is **testimony, not this section's
+source**: the primary ASDG reference it cites throughout was not retrievable, it disagrees with this
+repository's own retrieved ontology (`bookended-thinking/ontology/rme7_objects.yaml`) on two of the
+seven members, and it retypes κ from indicator to gain coefficient. Read the entry before proposing
+to populate §3 from it. **The gate above is not lifted.**
+
 ---
 
 ## 4 — ASDG grammar **[unpopulated]**
