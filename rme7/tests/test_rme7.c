@@ -334,6 +334,30 @@ static void test_co_location_is_not_coupling(void) {
           "recorded coupling supports it");
 }
 
+/* A typed difference tells you two slots are distinguishable. It does not
+ * tell you which comes first. Boundary is not order. */
+static void test_the_order_itself_is_ungrounded(void) {
+    Rme7Slot ungrounded[RME7_SLOT_COUNT];
+    int n = rme7_ungrounded_order(ungrounded, RME7_SLOT_COUNT);
+    check(n == 4, "four slots sit above the base, and not one of their "
+                  "positions is grounded in a recorded relation");
+
+    bool all_above_base = true;
+    for (int i = 0; i < n; i++)
+        if (rme7_slot_tier(ungrounded[i]) == 0) all_above_base = false;
+    check(all_above_base, "the three base slots need no predecessor and are "
+                          "not counted against the order");
+
+    /* gamma has the only recorded dependency, and it points DOWN four ranks
+     * to the base rather than to the rank below it -- so even the one slot
+     * with a relation has an ungrounded position. */
+    Rme7Slot dep[2];
+    (void)rme7_slot_derives_from(RME7_GAMMA, dep, 2);
+    check(rme7_slot_tier(RME7_GAMMA) == 4 && rme7_slot_tier(dep[0]) == 0 &&
+          !rme7_slot_order_grounded(RME7_GAMMA),
+          "gamma's one relation reaches the base, not the rank beneath it");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -707,6 +731,7 @@ int main(void) {
     test_only_one_tier_boundary_is_untyped();
     test_the_recorded_coupling_spans_two_of_three();
     test_co_location_is_not_coupling();
+    test_the_order_itself_is_ungrounded();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();

@@ -126,6 +126,29 @@ int rme7_unsupported_groupings(Rme7Slot *out, int max) {
     return found;
 }
 
+bool rme7_slot_order_grounded(Rme7Slot slot) {
+    assert(slot < RME7_SLOT_COUNT);
+    uint8_t rank = rme7_slot_tier(slot);
+    if (rank == 0) return true;            /* the base needs no predecessor */
+
+    Rme7Slot dep[RME7_SLOT_COUNT];
+    int n = rme7_slot_derives_from(slot, dep, RME7_SLOT_COUNT);
+    for (int i = 0; i < n; i++)
+        if (rme7_slot_tier(dep[i]) == rank - 1) return true;
+    return false;
+}
+
+int rme7_ungrounded_order(Rme7Slot *out, int max) {
+    int found = 0;
+    for (int s = 0; s < RME7_SLOT_COUNT; s++) {
+        Rme7Slot sl = (Rme7Slot)s;
+        if (rme7_slot_order_grounded(sl)) continue;
+        if (out != nullptr && found < max) out[found] = sl;
+        found++;
+    }
+    return found;
+}
+
 bool rme7_custody_may_legislate(Rme7Custody custody) {
     (void)custody;
     return false;

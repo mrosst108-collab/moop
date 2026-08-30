@@ -134,6 +134,24 @@ typedef struct {
  * and returns the count. */
 [[nodiscard]] int rme7_unsupported_groupings(Rme7Slot *out, int max);
 
+/* Is this slot's POSITION IN THE ORDER grounded in a recorded relation?
+ *
+ * The audit above asks whether a grouping is recoverable. This asks the same
+ * question of the sequence, and it is a different question. A typed difference
+ * establishes that two slots are DISTINGUISHABLE; it does not establish which
+ * comes FIRST. Distinguishability is a classification fact and sequence is a
+ * relation, so a boundary being recoverable says nothing about the direction
+ * across it.
+ *
+ * Grounded means: this slot is at the base, or a slot it is recorded as
+ * depending on sits at the rank immediately below. Nothing else counts --
+ * an office saying kappa gates F's proposals is prose, and prose is what this
+ * predicate exists to stop standing in for a relation.
+ *
+ * Every slot above the base returns false today. */
+[[nodiscard]] bool rme7_slot_order_grounded(Rme7Slot slot);
+[[nodiscard]] int  rme7_ungrounded_order(Rme7Slot *out, int max);
+
 /* Always false, for every tag. No custody grade licenses a grammar-level
  * claim; this exists so the refusal is callable rather than remembered. */
 [[nodiscard]] bool rme7_custody_may_legislate(Rme7Custody custody);
