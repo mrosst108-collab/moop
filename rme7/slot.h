@@ -152,6 +152,45 @@ typedef struct {
 [[nodiscard]] bool rme7_slot_order_grounded(Rme7Slot slot);
 [[nodiscard]] int  rme7_ungrounded_order(Rme7Slot *out, int max);
 
+/* THE PROVENANCE LEDGER.
+ *
+ * Which structure is part of the object, and which is an artifact of how the
+ * representation was laid out? Every structural claim this format makes, with
+ * what carries it -- so the question is answered by calling rather than by
+ * reading nine documents.
+ *
+ * The distinction that makes it necessary: a format contains claims about its
+ * object AND choices about its own encoding, and the two are not
+ * distinguishable by inspection. Bit position and rank are both orders over
+ * the same seven slots, they agree monotonically, and they govern entirely
+ * different things -- which bit a profile sets, versus which prefix is well
+ * formed. Nothing requires the agreement. Two coincident orders, one a claim
+ * and one an artifact, is exactly the condition under which each gets read as
+ * the other. */
+typedef enum : uint8_t {
+    RME7_BASIS_RECORDED,    /* a typed field or relation carries it           */
+    RME7_BASIS_DERIVED,     /* follows from recorded structure                */
+    RME7_BASIS_STIPULATED,  /* asserted, and nothing in the format carries it */
+    RME7_BASIS_LAYOUT,      /* encoding choice; not a claim about the object  */
+    RME7_BASIS_ABSENT       /* the format has no such structure at all        */
+} Rme7Basis;
+
+typedef enum : uint8_t {
+    RME7_STRUCT_KIND_PARTITION,
+    RME7_STRUCT_EQUATION_ADMISSION,
+    RME7_STRUCT_OPERATOR_BICONDITIONAL,
+    RME7_STRUCT_GAMMA_DERIVATION,
+    RME7_STRUCT_RANK0_GROUPING,
+    RME7_STRUCT_RANK_ORDER,
+    RME7_STRUCT_COUPLING,
+    RME7_STRUCT_BIT_POSITION
+} Rme7Structure;
+#define RME7_STRUCTURE_COUNT 8
+
+[[nodiscard]] Rme7Basis   rme7_structure_basis(Rme7Structure structure);
+[[nodiscard]] const char *rme7_structure_name(Rme7Structure structure);
+[[nodiscard]] const char *rme7_basis_name(Rme7Basis basis);
+
 /* Always false, for every tag. No custody grade licenses a grammar-level
  * claim; this exists so the refusal is callable rather than remembered. */
 [[nodiscard]] bool rme7_custody_may_legislate(Rme7Custody custody);

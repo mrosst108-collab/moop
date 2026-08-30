@@ -149,6 +149,47 @@ int rme7_ungrounded_order(Rme7Slot *out, int max) {
     return found;
 }
 
+Rme7Basis rme7_structure_basis(Rme7Structure structure) {
+    switch (structure) {
+    case RME7_STRUCT_KIND_PARTITION:         return RME7_BASIS_RECORDED;
+    case RME7_STRUCT_EQUATION_ADMISSION:     return RME7_BASIS_RECORDED;
+    case RME7_STRUCT_GAMMA_DERIVATION:       return RME7_BASIS_RECORDED;
+    /* operator iff additive is not an independent fact: it follows from the
+     * kind and the equation, and is asserted where the two are read. */
+    case RME7_STRUCT_OPERATOR_BICONDITIONAL: return RME7_BASIS_DERIVED;
+    case RME7_STRUCT_RANK0_GROUPING:         return RME7_BASIS_STIPULATED;
+    case RME7_STRUCT_RANK_ORDER:             return RME7_BASIS_STIPULATED;
+    case RME7_STRUCT_BIT_POSITION:           return RME7_BASIS_LAYOUT;
+    case RME7_STRUCT_COUPLING:               return RME7_BASIS_ABSENT;
+    }
+    return RME7_BASIS_ABSENT;
+}
+
+const char *rme7_structure_name(Rme7Structure structure) {
+    switch (structure) {
+    case RME7_STRUCT_KIND_PARTITION:         return "the 5 + 1 + 1 partition";
+    case RME7_STRUCT_EQUATION_ADMISSION:     return "which equation admits a slot";
+    case RME7_STRUCT_OPERATOR_BICONDITIONAL: return "operator iff additive";
+    case RME7_STRUCT_GAMMA_DERIVATION:       return "gamma from G# and G~#";
+    case RME7_STRUCT_RANK0_GROUPING:         return "rank 0 groups three slots";
+    case RME7_STRUCT_RANK_ORDER:             return "the ranks occur in this sequence";
+    case RME7_STRUCT_COUPLING:               return "slots that must co-occur";
+    case RME7_STRUCT_BIT_POSITION:           return "which bit a slot occupies";
+    }
+    return "unknown";
+}
+
+const char *rme7_basis_name(Rme7Basis basis) {
+    switch (basis) {
+    case RME7_BASIS_RECORDED:   return "recorded";
+    case RME7_BASIS_DERIVED:    return "derived from recorded structure";
+    case RME7_BASIS_STIPULATED: return "stipulated -- nothing carries it";
+    case RME7_BASIS_LAYOUT:     return "layout -- not a claim about the object";
+    case RME7_BASIS_ABSENT:     return "absent";
+    }
+    return "unknown";
+}
+
 bool rme7_custody_may_legislate(Rme7Custody custody) {
     (void)custody;
     return false;

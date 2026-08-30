@@ -358,6 +358,37 @@ static void test_the_order_itself_is_ungrounded(void) {
           "gamma's one relation reaches the base, not the rank beneath it");
 }
 
+/* The provenance ledger: object or artifact, for every structural claim. */
+static void test_the_provenance_ledger(void) {
+    int n[5] = {0};
+    for (int i = 0; i < RME7_STRUCTURE_COUNT; i++)
+        n[rme7_structure_basis((Rme7Structure)i)]++;
+
+    check(n[RME7_BASIS_RECORDED] == 3 && n[RME7_BASIS_DERIVED] == 1 &&
+          n[RME7_BASIS_STIPULATED] == 2 && n[RME7_BASIS_LAYOUT] == 1 &&
+          n[RME7_BASIS_ABSENT] == 1,
+          "eight structural claims: 3 recorded, 1 derived, 2 stipulated, "
+          "1 layout, 1 absent");
+
+    check(rme7_structure_basis(RME7_STRUCT_RANK0_GROUPING) == RME7_BASIS_STIPULATED &&
+          rme7_structure_basis(RME7_STRUCT_RANK_ORDER) == RME7_BASIS_STIPULATED,
+          "the two stipulated claims are exactly the two the audits report "
+          "deficits on");
+
+    check(rme7_structure_basis(RME7_STRUCT_BIT_POSITION) == RME7_BASIS_LAYOUT,
+          "bit position is an encoding choice and makes no claim about the object");
+
+    bool monotone = true; int prev = -1;
+    for (int s = 0; s < RME7_SLOT_COUNT; s++) {
+        int r = rme7_slot_tier((Rme7Slot)s);
+        if (r < prev) monotone = false;
+        prev = r;
+    }
+    check(monotone,
+          "bit position and rank coincide today, which is exactly when each is "
+          "liable to be read as the other");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -732,6 +763,7 @@ int main(void) {
     test_the_recorded_coupling_spans_two_of_three();
     test_co_location_is_not_coupling();
     test_the_order_itself_is_ungrounded();
+    test_the_provenance_ledger();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
