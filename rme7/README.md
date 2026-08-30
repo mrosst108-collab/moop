@@ -105,6 +105,40 @@ test asserts that no profile out of all 128 computes its way there. `⊥_static`
 *is* computable and is returned normally: certified non-membership, and a
 deliverable rather than a failure.
 
+## Autopoietic-interoperability readiness
+
+A named contract, so the property is checkable rather than asserted. A
+framework is **autopoietic-interoperability-ready** when an independently
+realized object can do these ten things. The verdicts are against this code,
+not against the intention:
+
+| # | condition | status |
+|---|---|---|
+| 1 | identify its RME-7 type and rung | met — `rme7_proto_classify` |
+| 2 | expose only the distinctions it instantiates | met — exhibition is local, and refused for a slot the chain does not define |
+| 3 | preserve local purpose rather than inherit it | met — no resolver for the payload exists |
+| 4 | resolve definitions without inheriting activation | met — the three-scope split |
+| 5 | present a typed crossing port | met at the stage level — `rme7_channel_contracted` |
+| 6 | translate foreign representations into local terms | **partial** — see below |
+| 7 | gate admission | met — a two-valued verdict with no arithmetic |
+| 8 | assimilate admitted content | met |
+| 9 | report exactly where crossing failed | met — stage plus outcome, distinguishing untranslatable from refused from unassimilable |
+| 10 | preserve provenance and non-heredity across the crossing | met — crossings carry `from`/`to`, and assimilation that installs a definition is caught |
+
+**Condition 6 is the honest gap.** The channel's *stages* are typed; its
+*content* is not. `translate` has the signature
+`bool (*)(const void *claim, void *into, void *ctx)` — a claim is a `void *`,
+so nothing declares which slot it concerns or at what rung, and nothing
+enforces that the translated form is well typed for the receiver. The port is
+typed as a pipeline and untyped as a carrier. Closing this is what would let
+a channel carry operator-governed content rather than arbitrary bytes.
+
+**Condition 10 was unmet** until crossings were given provenance and the
+non-heredity check. That is worth recording rather than smoothing over: what
+crosses a channel is content, never grammar, and before the check an
+assimilation could install a slot definition that the receiver's own children
+would then inherit as though the receiver had established it.
+
 ## What this is not
 
 - **Not an integrator.** The value layer sits above this one and is blocked on

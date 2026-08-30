@@ -47,9 +47,29 @@ typedef struct {
     const Rme7Proto *to;
 } Rme7Channel;
 
+/* Why a crossing ended where it did. The stage says where; this says what,
+ * and separates three failures that a single "refused" would conflate: a
+ * claim that means nothing in the receiver's terms, one that means something
+ * and was not admitted, and one that was admitted and could not be taken up. */
+typedef enum : uint8_t {
+    RME7_CROSS_OK,
+    RME7_CROSS_UNCONTRACTED,
+    RME7_CROSS_UNTRANSLATABLE,
+    RME7_CROSS_REFUSED,
+    RME7_CROSS_UNASSIMILABLE,
+    RME7_CROSS_MADE_HEREDITARY
+} Rme7CrossOutcome;
+
+/* A crossing carries its provenance. Which object sent it and which received
+ * it is explicit in the result rather than implicit in the call site: across
+ * a boundary there is no shared past to run backwards, so provenance has to
+ * be recorded where the crossing happens or it is not recorded at all. */
 typedef struct {
-    Rme7Stage   reached;
-    Rme7Verdict verdict;
+    Rme7Stage        reached;
+    Rme7Verdict      verdict;
+    Rme7CrossOutcome outcome;
+    const Rme7Proto *from;
+    const Rme7Proto *to;
 } Rme7Crossing;
 
 /* A channel is contracted when both endpoints are named, distinct, and all
@@ -57,11 +77,21 @@ typedef struct {
 [[nodiscard]] bool rme7_channel_contracted(const Rme7Channel *ch);
 
 /* Runs T, then kappa, then A, stopping at the first stage that fails.
- * Refuses (without running anything) when the channel is not contracted. */
+ * Refuses (without running anything) when the channel is not contracted.
+ *
+ * NON-HEREDITY IS ENFORCED, not hoped for. What crosses a channel is content,
+ * never grammar: assimilation may change the receiver's state, but it may not
+ * install a slot definition, because a definition is delegable and the
+ * receiver's own children would then inherit foreign content as if the
+ * receiver had established it. The receiver's definitions are fingerprinted
+ * before and after assimilation, and a crossing that changed them reports
+ * RME7_CROSS_MADE_HEREDITARY. This is the actor rule -- a miss never
+ * delegates -- holding one level up, at the boundary between objects. */
 [[nodiscard]] Rme7Crossing rme7_channel_cross(const Rme7Channel *ch,
                                               const void *claim, void *into);
 
 [[nodiscard]] const char *rme7_stage_name(Rme7Stage stage);
+[[nodiscard]] const char *rme7_cross_outcome_name(Rme7CrossOutcome outcome);
 
 /* Composition is not "more autonomy": it is exactly the event that some
  * ordered pair has a contracted channel. */

@@ -280,6 +280,72 @@ static void test_channel(void) {
           "composition is exactly one contracted channel, not more autonomy");
 }
 
+/* Provenance and non-heredity across the crossing. */
+
+static Rme7Proto *heir_target = nullptr;
+
+/* An assimilation that oversteps: it installs a slot definition rather than
+ * changing state, which would make foreign content hereditary in the
+ * receiver's own children. */
+static bool a_installs_definition(const void *translated, void *ctx) {
+    (void)translated; (void)ctx;
+    rme7_proto_define(heir_target, RME7_GAMMA, RME7_CUSTODY_INTERPRETIVE,
+                      "smuggled in through a channel");
+    return true;
+}
+
+static void test_crossing_carries_provenance(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto i, j;
+    (void)rme7_proto_generate(&l.userroot, &i, "i");
+    (void)rme7_proto_generate(&l.userroot, &j, "j");
+
+    Ctx ctx = { 0, 0, false };   /* the gate refuses non-positive claims */
+    Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
+                       .ctx = &ctx, .from = &j, .to = &i };
+    int claim = 3, into = 0;
+    Rme7Crossing r = rme7_channel_cross(&ch, &claim, &into);
+    check(r.from == &j && r.to == &i,
+          "a crossing records who sent it and who received it");
+    check(r.outcome == RME7_CROSS_OK, "a completed crossing says so");
+
+    claim = -1;
+    r = rme7_channel_cross(&ch, &claim, &into);
+    check(r.outcome == RME7_CROSS_REFUSED, "understood and not admitted");
+    Rme7Channel bad = ch; bad.translate = t_fail;
+    r = rme7_channel_cross(&bad, &claim, &into);
+    check(r.outcome == RME7_CROSS_UNTRANSLATABLE,
+          "untranslatable is a different fact from refused");
+    check(r.from == &j,
+          "provenance survives a failed crossing, which is when it matters most");
+}
+
+static void test_crossing_cannot_make_content_hereditary(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto i, j, child;
+    (void)rme7_proto_generate(&l.userroot, &i, "i");
+    (void)rme7_proto_generate(&l.userroot, &j, "j");
+
+    heir_target = &i;
+    Ctx ctx = { 0, 0, true };
+    Rme7Channel ch = { .translate = t_ok, .admit = k_gate,
+                       .assimilate = a_installs_definition,
+                       .ctx = &ctx, .from = &j, .to = &i };
+    int claim = 1, into = 0;
+    Rme7Crossing r = rme7_channel_cross(&ch, &claim, &into);
+    check(r.outcome == RME7_CROSS_MADE_HEREDITARY,
+          "assimilation that installs a definition is caught, not silently allowed");
+    check(r.verdict == RME7_REFUSED,
+          "what crosses a channel is content, never grammar");
+
+    (void)rme7_proto_generate(&i, &child, "i's child");
+    const Rme7Proto *found = nullptr;
+    (void)rme7_proto_resolve(&child, RME7_GAMMA, &found);
+    check(found == &i,
+          "the smuggled definition WOULD have been inherited -- which is why "
+          "the crossing reports it");
+}
+
 /* A channel is not delegation, and delegation is not a channel. */
 static void test_channel_is_not_delegation(void) {
     Ladder l; build_ladder(&l);
@@ -313,6 +379,8 @@ int main(void) {
     test_purpose_is_never_shared();
     test_channel();
     test_channel_is_not_delegation();
+    test_crossing_carries_provenance();
+    test_crossing_cannot_make_content_hereditary();
     printf(failures ? "\n%d failing\n" : "\nall passing\n", failures);
     return failures ? 1 : 0;
 }
