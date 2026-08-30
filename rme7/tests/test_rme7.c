@@ -207,6 +207,35 @@ static void test_the_tier_zero_family_is_thirty(void) {
           "admitting any nonempty tier-0 subset gives 35, not a chain of 5");
 }
 
+/* Modularity, measured. How many of the seven slots can an object withhold
+ * INDEPENDENTLY -- exhibit the other six and not this one?
+ *
+ * Note what this is not: it is not a contradiction of the removal witnesses.
+ * Those remove a slot from the FORMAT, giving a six-slot format with its own
+ * staircase. This withholds a slot from an OBJECT while the format keeps all
+ * seven. Different operations, and conflating them would be a category error.
+ * What it measures is object-level modularity, which is a separate property
+ * and the one a composability criterion cares about. */
+static void test_only_one_slot_is_independently_withholdable(void) {
+    const Rme7Slot all[7] = { RME7_J_SHARP, RME7_G_SHARP, RME7_G_TILDE_SHARP,
+                              RME7_SIGMA, RME7_F, RME7_KAPPA, RME7_GAMMA };
+    int wellformed = 0; bool gamma_ok = false;
+
+    for (int drop = 0; drop < 7; drop++) {
+        Rme7Profile p = rme7_profile_empty();
+        for (int i = 0; i < 7; i++)
+            if (i != drop) rme7_profile_set(&p, all[i], true);
+        Rme7Cast c = rme7_profile_classify(p);
+        if (c.kind == RME7_CAST_RUNG) {
+            wellformed++;
+            if (all[drop] == RME7_GAMMA) gamma_ok = (c.rung == RME7_RUNG_6);
+        }
+    }
+    check(wellformed == 1 && gamma_ok,
+          "exactly one of seven slots can be withheld independently: gamma, "
+          "the top of the staircase");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -576,6 +605,7 @@ int main(void) {
     test_exhibiting_the_undefined();
     test_staircase();
     test_the_tier_zero_family_is_thirty();
+    test_only_one_slot_is_independently_withholdable();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
