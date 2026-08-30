@@ -165,6 +165,48 @@ static void test_staircase(void) {
           "a gap in the staircase is a decidable violation, and names its slot");
 }
 
+/* How big is the tier-0 hole, exactly? Partition all 128 profiles by WHY they
+ * are refused, so the open question is a number rather than an impression. */
+static void test_the_tier_zero_family_is_thirty(void) {
+    const Rme7Slot t0[3] = { RME7_J_SHARP, RME7_G_SHARP, RME7_G_TILDE_SHARP };
+    const Rme7Slot up[4] = { RME7_SIGMA, RME7_F, RME7_KAPPA, RME7_GAMMA };
+    int wf = 0, bot = 0, tier0_only = 0, gap = 0;
+
+    for (unsigned b = 0; b < 128u; b++) {
+        Rme7Profile p = { .bits = (uint8_t)b };
+        int n0 = 0;
+        for (int i = 0; i < 3; i++) if (rme7_profile_exhibits(p, t0[i])) n0++;
+
+        /* is the tier 1..4 part a prefix of (Sigma, F, kappa, gamma)? */
+        bool up_ok = true, seen_gap = false; int depth = 0;
+        for (int i = 0; i < 4; i++) {
+            if (rme7_profile_exhibits(p, up[i])) {
+                if (seen_gap) { up_ok = false; break; }
+                depth = i + 1;
+            } else seen_gap = true;
+        }
+
+        if (!up_ok)                     gap++;
+        else if (n0 == 0 && depth == 0) bot++;
+        else if (n0 == 0)               gap++;   /* upper tiers with no state */
+        else if (n0 == 3)               wf++;
+        else                            tier0_only++;
+    }
+
+    check(wf == 5 && bot == 1 && tier0_only == 30 && gap == 92,
+          "the 128 profiles partition 5 / 1 / 30 / 92");
+    check(wf + bot + tier0_only + gap == 128, "and the partition is exhaustive");
+    check(tier0_only + gap == 122,
+          "of the 122 malformed, only 30 are the tier-0 family: the rest are "
+          "genuine gaps, refused correctly");
+
+    /* The alternative rule -- tier 0 admits any nonempty subset -- would admit
+     * the 30, giving 7 tier-0 shapes x 5 upper depths. That trades the chain
+     * for a product, and one-profile-per-rung goes with it. */
+    check(wf + tier0_only == 35 && 7 * 5 == 35,
+          "admitting any nonempty tier-0 subset gives 35, not a chain of 5");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -533,6 +575,7 @@ int main(void) {
     test_definition_is_not_exhibition();
     test_exhibiting_the_undefined();
     test_staircase();
+    test_the_tier_zero_family_is_thirty();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();

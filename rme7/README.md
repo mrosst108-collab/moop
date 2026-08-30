@@ -172,8 +172,13 @@ gives a different verdict.
 
 **And contract-completeness is not structural completeness.** Q1 is a
 *blocker*, not a background question: a profile exhibiting `G♯` alone returns
-`MALFORMED`, and pure gradient flow is not malformed. 122 of 128 profiles are
-malformed. So:
+`MALFORMED`, and pure gradient flow is not malformed. Partitioning all 128
+profiles by *why* they are refused puts a number on it — 5 well formed, 1
+`⊥_static`, **30 refused only because tier 0 is all-or-nothing**, and 92
+genuine gaps where a prerequisite is absent. So the hole is 30, not the 122
+malformed: the other 92 are the framework working. The six tier-0 shapes it
+refuses are the classical ones — Hamiltonian flow, gradient flow, and the
+conservative-plus-dissipative pair among them. So:
 
 > **Readiness status: contract-complete; structural RME-7 profile completeness
 > remains blocked by Q1.**
