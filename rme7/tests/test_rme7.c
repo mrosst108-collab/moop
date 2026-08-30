@@ -275,6 +275,32 @@ static void test_only_one_tier_boundary_is_untyped(void) {
           "office -- the same evidence that separates Sigma from them");
 }
 
+/* The one recorded inter-slot relation, and what it says about tier 0. */
+static void test_the_recorded_coupling_spans_two_of_three(void) {
+    Rme7Slot from[2];
+    check(rme7_slot_derives_from(RME7_GAMMA, from, 2) == 2 &&
+          from[0] == RME7_G_SHARP && from[1] == RME7_G_TILDE_SHARP,
+          "gamma is recorded as the commutator of G# and G~#");
+
+    int primitives = 0;
+    for (int s = 0; s < RME7_SLOT_COUNT; s++)
+        if (rme7_slot_is_primitive((Rme7Slot)s)) primitives++;
+    check(primitives == 6, "six slots are primitive; gamma is the one derived");
+
+    /* Both of gamma's sources sit in tier 0 -- and J# does not. So the only
+     * recorded coupling among tier-0 members spans TWO of the three, which is
+     * neither the fused reading nor the fully composable one. */
+    check(rme7_slot_tier(from[0]) == 0 && rme7_slot_tier(from[1]) == 0 &&
+          rme7_slot_tier(RME7_J_SHARP) == 0,
+          "all three are tier 0, but only two are coupled by the record");
+
+    bool j_involved = false;
+    for (int i = 0; i < 2; i++) if (from[i] == RME7_J_SHARP) j_involved = true;
+    check(!j_involved,
+          "J# participates in no recorded relation: the coupling that exists "
+          "does not reach it");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -646,6 +672,7 @@ int main(void) {
     test_the_tier_zero_family_is_thirty();
     test_only_one_slot_is_independently_withholdable();
     test_only_one_tier_boundary_is_untyped();
+    test_the_recorded_coupling_spans_two_of_three();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();

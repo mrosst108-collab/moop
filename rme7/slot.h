@@ -90,6 +90,27 @@ typedef struct {
 /* What is lost when this slot is removed -- the removal witness. */
 [[nodiscard]] const char *rme7_slot_witness(Rme7Slot slot);
 
+/* Inter-slot relations the format RECORDS.
+ *
+ * Minimality permits omitting a distinction only when it is reconstructible
+ * from the retained typed structure without ambiguity. An unrecorded coupling
+ * fails that test in the way that matters: it leaves undecidable whether
+ * operators must travel together, may be independently substituted, may be
+ * removed singly, may have their positions occupied by another operator, or
+ * constitute an indivisible module. Those are exactly the questions a modular
+ * format exists to settle mechanically.
+ *
+ * Only one relation is recorded, and it is transcribed rather than invented:
+ * gamma is the commutator [G#, G~#], which this repository's retrieved
+ * ontology carries as `commutator_of`. (That ontology withholds the field
+ * from a classifier prompt, for reasons local to that experiment; the
+ * withholding is prompt-scoped and says nothing about the format.)
+ *
+ * Fills `out` with the slots this slot is computed from and returns their
+ * count; returns 0 for a primitive slot. */
+[[nodiscard]] int rme7_slot_derives_from(Rme7Slot slot, Rme7Slot *out, int max);
+[[nodiscard]] bool rme7_slot_is_primitive(Rme7Slot slot);
+
 /* Always false, for every tag. No custody grade licenses a grammar-level
  * claim; this exists so the refusal is callable rather than remembered. */
 [[nodiscard]] bool rme7_custody_may_legislate(Rme7Custody custody);

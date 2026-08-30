@@ -88,6 +88,20 @@ const char *rme7_slot_witness(Rme7Slot slot) {
     return FACTS[slot].witness;
 }
 
+int rme7_slot_derives_from(Rme7Slot slot, Rme7Slot *out, int max) {
+    assert(slot < RME7_SLOT_COUNT);
+    if (slot != RME7_GAMMA) return 0;
+    if (out != nullptr && max >= 2) {
+        out[0] = RME7_G_SHARP;
+        out[1] = RME7_G_TILDE_SHARP;
+    }
+    return 2;
+}
+
+bool rme7_slot_is_primitive(Rme7Slot slot) {
+    return rme7_slot_derives_from(slot, nullptr, 0) == 0;
+}
+
 bool rme7_custody_may_legislate(Rme7Custody custody) {
     (void)custody;
     return false;
