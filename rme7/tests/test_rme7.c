@@ -236,6 +236,45 @@ static void test_only_one_slot_is_independently_withholdable(void) {
           "the top of the staircase");
 }
 
+/* Is each tier boundary justified by a property the format actually RECORDS?
+ *
+ * Three of the four are: the equation changes at F, and the kind changes at
+ * kappa and again at gamma. The fourth is not -- Sigma and the tier-0 triple
+ * carry identical typed signatures, so nothing typed separates them. Which
+ * makes the fused-versus-composable question answerable only from the offices,
+ * and the offices distinguish the triple's members from each other exactly as
+ * much as they distinguish Sigma from the triple. */
+static void test_only_one_tier_boundary_is_untyped(void) {
+    Rme7Kind kind[RME7_TIER_COUNT]; Rme7Equation eq[RME7_TIER_COUNT];
+    bool got[RME7_TIER_COUNT] = { false };
+    for (int s = 0; s < RME7_SLOT_COUNT; s++) {
+        Rme7Slot sl = (Rme7Slot)s;
+        uint8_t t = rme7_slot_tier(sl);
+        if (!got[t]) { kind[t] = rme7_slot_kind(sl); eq[t] = rme7_slot_admits(sl);
+                       got[t] = true; }
+    }
+    int typed_boundaries = 0, untyped = -1;
+    for (int t = 0; t + 1 < RME7_TIER_COUNT; t++) {
+        if (kind[t] != kind[t + 1] || eq[t] != eq[t + 1]) typed_boundaries++;
+        else if (untyped < 0) untyped = t;
+    }
+    check(typed_boundaries == 3 && untyped == 0,
+          "three of four tier boundaries are typed; the untyped one is 0 -> 1");
+
+    check(rme7_slot_kind(RME7_SIGMA) == rme7_slot_kind(RME7_J_SHARP) &&
+          rme7_slot_admits(RME7_SIGMA) == rme7_slot_admits(RME7_J_SHARP),
+          "Sigma and the tier-0 triple are typed identically: operator, state");
+
+    const Rme7Slot t0[3] = { RME7_J_SHARP, RME7_G_SHARP, RME7_G_TILDE_SHARP };
+    bool uniform = true;
+    for (int i = 1; i < 3; i++)
+        if (rme7_slot_kind(t0[i]) != rme7_slot_kind(t0[0]) ||
+            rme7_slot_admits(t0[i]) != rme7_slot_admits(t0[0])) uniform = false;
+    check(uniform,
+          "the triple's members are typed identically too, and differ only in "
+          "office -- the same evidence that separates Sigma from them");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -606,6 +645,7 @@ int main(void) {
     test_staircase();
     test_the_tier_zero_family_is_thirty();
     test_only_one_slot_is_independently_withholdable();
+    test_only_one_tier_boundary_is_untyped();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
