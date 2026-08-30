@@ -187,6 +187,37 @@ typedef enum : uint8_t {
 } Rme7Structure;
 #define RME7_STRUCTURE_COUNT 8
 
+/* THE ARCHITECTURAL TEST, mechanized.
+ *
+ *   Every distinction whose alteration could change the legal composition,
+ *   substitution, ordering, coupling, or interpretation of a component must be
+ *   recoverable from the representation.
+ *
+ * Two legitimate outcomes when one is not: encode it, or remove the claim that
+ * depends on it. Never a third -- inferring it from layout, sort, proximity,
+ * convention or prose is what the preceding audits kept catching.
+ *
+ * The test needs BOTH halves. Recoverability alone over-reports: it flags an
+ * encoding choice that was never a claim. Consequentiality alone under-reports:
+ * it says nothing about whether the claim is carried. A defect is the
+ * conjunction -- consequential AND not recoverable.
+ *
+ * CUSTODY NOTE. Recoverability is checked; consequentiality is a JUDGEMENT
+ * encoded here, not derived from anything. It is exposed as its own predicate
+ * precisely so it can be disputed per structure rather than buried inside a
+ * verdict. */
+[[nodiscard]] bool rme7_structure_consequential(Rme7Structure structure);
+[[nodiscard]] bool rme7_structure_recoverable(Rme7Structure structure);
+[[nodiscard]] bool rme7_structure_defective(Rme7Structure structure);
+
+/* Consequential claims the representation does not carry. */
+[[nodiscard]] int rme7_defects(Rme7Structure *out, int max);
+
+/* The other side of the constraint against overengineering: structure the
+ * format records that no composition depends on. Adding capacity merely to
+ * look complete shows up here. */
+[[nodiscard]] int rme7_over_recorded(Rme7Structure *out, int max);
+
 [[nodiscard]] Rme7Basis   rme7_structure_basis(Rme7Structure structure);
 [[nodiscard]] const char *rme7_structure_name(Rme7Structure structure);
 [[nodiscard]] const char *rme7_basis_name(Rme7Basis basis);

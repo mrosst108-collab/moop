@@ -165,6 +165,71 @@ Rme7Basis rme7_structure_basis(Rme7Structure structure) {
     return RME7_BASIS_ABSENT;
 }
 
+bool rme7_structure_consequential(Rme7Structure structure) {
+    switch (structure) {
+    /* Alter the kind and a slot's admissible role changes: substitution and
+     * interpretation both move. */
+    case RME7_STRUCT_KIND_PARTITION:         return true;
+    /* Alter which equation admits a slot and legal composition changes. */
+    case RME7_STRUCT_EQUATION_ADMISSION:     return true;
+    case RME7_STRUCT_OPERATOR_BICONDITIONAL: return true;
+    /* gamma without both operands is not computable: composition changes. */
+    case RME7_STRUCT_GAMMA_DERIVATION:       return true;
+    /* Both decide which profiles are legal. */
+    case RME7_STRUCT_RANK0_GROUPING:         return true;
+    case RME7_STRUCT_RANK_ORDER:             return true;
+    case RME7_STRUCT_COUPLING:               return true;
+    /* Permute the bits and profiles re-encode; no composition, substitution,
+     * ordering, coupling or interpretation of any component changes. */
+    case RME7_STRUCT_BIT_POSITION:           return false;
+    }
+    return true;
+}
+
+bool rme7_structure_recoverable(Rme7Structure structure) {
+    switch (rme7_structure_basis(structure)) {
+    case RME7_BASIS_RECORDED:
+    case RME7_BASIS_DERIVED:
+        return true;
+    /* An explicitly empty relation IS carried: the format states that no
+     * coupling is recorded, rather than leaving a reader to infer one. */
+    case RME7_BASIS_ABSENT:
+        return true;
+    case RME7_BASIS_STIPULATED:
+    case RME7_BASIS_LAYOUT:
+        return false;
+    }
+    return false;
+}
+
+bool rme7_structure_defective(Rme7Structure structure) {
+    return rme7_structure_consequential(structure) &&
+           !rme7_structure_recoverable(structure);
+}
+
+int rme7_defects(Rme7Structure *out, int max) {
+    int found = 0;
+    for (int i = 0; i < RME7_STRUCTURE_COUNT; i++) {
+        Rme7Structure st = (Rme7Structure)i;
+        if (!rme7_structure_defective(st)) continue;
+        if (out != nullptr && found < max) out[found] = st;
+        found++;
+    }
+    return found;
+}
+
+int rme7_over_recorded(Rme7Structure *out, int max) {
+    int found = 0;
+    for (int i = 0; i < RME7_STRUCTURE_COUNT; i++) {
+        Rme7Structure st = (Rme7Structure)i;
+        if (rme7_structure_consequential(st)) continue;
+        if (rme7_structure_basis(st) != RME7_BASIS_RECORDED) continue;
+        if (out != nullptr && found < max) out[found] = st;
+        found++;
+    }
+    return found;
+}
+
 const char *rme7_structure_name(Rme7Structure structure) {
     switch (structure) {
     case RME7_STRUCT_KIND_PARTITION:         return "the 5 + 1 + 1 partition";

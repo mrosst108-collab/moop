@@ -389,6 +389,41 @@ static void test_the_provenance_ledger(void) {
           "liable to be read as the other");
 }
 
+/* The architectural test, run over the whole format. */
+static void test_the_architectural_test(void) {
+    Rme7Structure def[RME7_STRUCTURE_COUNT];
+    int n = rme7_defects(def, RME7_STRUCTURE_COUNT);
+    check(n == 2, "two consequential claims are not recoverable");
+    check((def[0] == RME7_STRUCT_RANK0_GROUPING &&
+           def[1] == RME7_STRUCT_RANK_ORDER),
+          "and they are exactly rank 0's grouping and the rank order");
+
+    /* The test needs both halves, and here is why each alone fails. */
+    check(!rme7_structure_recoverable(RME7_STRUCT_BIT_POSITION) &&
+          !rme7_structure_defective(RME7_STRUCT_BIT_POSITION),
+          "bit position is unrecoverable and not a defect: nothing composes "
+          "on it, so recoverability alone would over-report");
+    check(rme7_structure_consequential(RME7_STRUCT_KIND_PARTITION) &&
+          !rme7_structure_defective(RME7_STRUCT_KIND_PARTITION),
+          "the kind partition is consequential and carried, so "
+          "consequentiality alone would over-report too");
+
+    /* An explicitly empty relation is carried, not missing. */
+    check(rme7_structure_basis(RME7_STRUCT_COUPLING) == RME7_BASIS_ABSENT &&
+          rme7_structure_recoverable(RME7_STRUCT_COUPLING),
+          "stating that no coupling is recorded is itself a recoverable fact");
+
+    /* Nothing is recorded that no composition depends on. */
+    check(rme7_over_recorded(nullptr, 0) == 0,
+          "no structure is recorded that nothing composes on: the format has "
+          "not been padded toward completeness");
+
+    /* The two defects are exactly what the two standing audits report. */
+    check(rme7_unsupported_groupings(nullptr, 0) == 1 &&
+          rme7_ungrounded_order(nullptr, 0) == 4,
+          "and the per-slot audits agree: one grouping, four positions");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -764,6 +799,7 @@ int main(void) {
     test_co_location_is_not_coupling();
     test_the_order_itself_is_ungrounded();
     test_the_provenance_ledger();
+    test_the_architectural_test();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
