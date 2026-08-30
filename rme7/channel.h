@@ -27,6 +27,39 @@ typedef enum : uint8_t {
  * is a verdict; a channel that could report 0.87 would be the wrong type. */
 static_assert(RME7_ADMITTED == 1 && RME7_REFUSED == 0);
 
+/* A claim, typed enough for a receiver to check it without knowing what it
+ * means. The content stays opaque -- the operator semantics are not ours to
+ * invent -- but everything a receiver needs in order to refuse it structurally
+ * is declared: which distinction it concerns, at what rung it was made, how
+ * grounded it is at the sender, and whether it purports to legislate. */
+typedef struct {
+    bool        concerns_slot;  /* false: a payload-only claim */
+    Rme7Slot    slot;           /* meaningful iff concerns_slot */
+    Rme7Rung    rung;           /* the rung at which the sender made it */
+    Rme7Custody custody;        /* how grounded at the sender */
+    bool        legislates;     /* claims grammar-level force; always refused */
+    const void *content;        /* opaque: the semantics are not the port's */
+    size_t      size;
+} Rme7Claim;
+
+/* Why a translated claim is or is not well typed FOR THIS RECEIVER. These are
+ * structural facts, checkable with no operator semantics whatever. */
+typedef enum : uint8_t {
+    RME7_TYPING_OK,
+    RME7_TYPING_UNDEFINED_SLOT,      /* the receiver's chain does not define it */
+    RME7_TYPING_RUNG_ABOVE_RECEIVER, /* it cites distinctions the receiver lacks */
+    RME7_TYPING_LEGISLATES           /* no custody grade licenses this */
+} Rme7Typing;
+
+/* Well-typedness is the POSTCONDITION OF TRANSLATION, not a fourth stage.
+ * The factorization has three factors and this does not add one: a
+ * translation that yields something ill typed for the receiver has not put
+ * the claim in the receiver's terms, which was its whole job. Enforcing T's
+ * contract is not the same as inserting a stage between T and kappa. */
+[[nodiscard]] Rme7Typing rme7_claim_typing(const Rme7Claim *claim,
+                                           const Rme7Proto *receiver);
+[[nodiscard]] const char *rme7_typing_name(Rme7Typing typing);
+
 typedef enum : uint8_t {
     RME7_STAGE_TRANSLATE,
     RME7_STAGE_ADMIT,
@@ -35,12 +68,13 @@ typedef enum : uint8_t {
 } Rme7Stage;
 
 typedef struct {
-    /* T_ij: put the claim in the receiver's terms. False = untranslatable. */
-    bool (*translate)(const void *claim, void *into, void *ctx);
-    /* kappa_i: admit or refuse the translated claim. */
-    Rme7Verdict (*admit)(const void *translated, void *ctx);
+    /* T_ij: re-express the claim in the receiver's terms. False =
+     * untranslatable. Its output is then held to rme7_claim_typing. */
+    bool (*translate)(const Rme7Claim *foreign, Rme7Claim *local, void *ctx);
+    /* kappa_i: admit or refuse a well-typed claim. Policy, not typing. */
+    Rme7Verdict (*admit)(const Rme7Claim *local, void *ctx);
     /* A_i: take it up locally. False = assimilation failed. */
-    bool (*assimilate)(const void *translated, void *ctx);
+    bool (*assimilate)(const Rme7Claim *local, void *ctx);
     void *ctx;
 
     const Rme7Proto *from;
@@ -55,6 +89,7 @@ typedef enum : uint8_t {
     RME7_CROSS_OK,
     RME7_CROSS_UNCONTRACTED,
     RME7_CROSS_UNTRANSLATABLE,
+    RME7_CROSS_ILL_TYPED,
     RME7_CROSS_REFUSED,
     RME7_CROSS_UNASSIMILABLE,
     RME7_CROSS_MADE_HEREDITARY
@@ -68,6 +103,7 @@ typedef struct {
     Rme7Stage        reached;
     Rme7Verdict      verdict;
     Rme7CrossOutcome outcome;
+    Rme7Typing       typing;   /* why translation failed, when it did */
     const Rme7Proto *from;
     const Rme7Proto *to;
 } Rme7Crossing;
@@ -88,7 +124,8 @@ typedef struct {
  * RME7_CROSS_MADE_HEREDITARY. This is the actor rule -- a miss never
  * delegates -- holding one level up, at the boundary between objects. */
 [[nodiscard]] Rme7Crossing rme7_channel_cross(const Rme7Channel *ch,
-                                              const void *claim, void *into);
+                                              const Rme7Claim *claim,
+                                              Rme7Claim *local);
 
 [[nodiscard]] const char *rme7_stage_name(Rme7Stage stage);
 [[nodiscard]] const char *rme7_cross_outcome_name(Rme7CrossOutcome outcome);

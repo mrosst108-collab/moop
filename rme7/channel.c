@@ -26,8 +26,42 @@ bool rme7_channel_contracted(const Rme7Channel *ch) {
     return ch->from != ch->to;   /* i != j */
 }
 
+Rme7Typing rme7_claim_typing(const Rme7Claim *claim, const Rme7Proto *receiver) {
+    if (claim == nullptr || receiver == nullptr) return RME7_TYPING_UNDEFINED_SLOT;
+
+    /* No custody grade licenses a grammar-level claim, so the flag settles it
+     * without consulting the grade at all. */
+    if (claim->legislates && !rme7_custody_may_legislate(claim->custody))
+        return RME7_TYPING_LEGISLATES;
+
+    if (!claim->concerns_slot) return RME7_TYPING_OK;   /* payload-only */
+
+    /* A distinction the receiver's chain never defines means nothing here. */
+    if (!rme7_proto_defines(receiver, claim->slot))
+        return RME7_TYPING_UNDEFINED_SLOT;
+
+    /* Rung-matched, never rung-inflated: a claim made above the receiver's
+     * rung cites distinctions the receiver does not exhibit. */
+    Rme7Cast cast = rme7_proto_classify(receiver);
+    if (cast.kind != RME7_CAST_RUNG) return RME7_TYPING_RUNG_ABOVE_RECEIVER;
+    if (rme7_rung_level(claim->rung) > rme7_rung_level(cast.rung))
+        return RME7_TYPING_RUNG_ABOVE_RECEIVER;
+
+    return RME7_TYPING_OK;
+}
+
+const char *rme7_typing_name(Rme7Typing typing) {
+    switch (typing) {
+    case RME7_TYPING_OK:                   return "well typed";
+    case RME7_TYPING_UNDEFINED_SLOT:       return "concerns a slot the receiver does not define";
+    case RME7_TYPING_RUNG_ABOVE_RECEIVER:  return "made above the receiver's rung";
+    case RME7_TYPING_LEGISLATES:           return "purports to legislate";
+    }
+    return "unknown";
+}
+
 Rme7Crossing rme7_channel_cross(const Rme7Channel *ch,
-                                const void *claim, void *into) {
+                                const Rme7Claim *claim, Rme7Claim *local) {
     if (!rme7_channel_contracted(ch))
         return (Rme7Crossing){ .reached  = RME7_STAGE_TRANSLATE,
                                .verdict  = RME7_REFUSED,
@@ -37,14 +71,24 @@ Rme7Crossing rme7_channel_cross(const Rme7Channel *ch,
 
     Rme7Crossing r = { .from = ch->from, .to = ch->to };
 
-    if (!ch->translate(claim, into, ch->ctx)) {
+    if (!ch->translate(claim, local, ch->ctx)) {
         r.reached = RME7_STAGE_TRANSLATE;
         r.verdict = RME7_REFUSED;
         r.outcome = RME7_CROSS_UNTRANSLATABLE;
         return r;
     }
 
-    if (ch->admit(into, ch->ctx) != RME7_ADMITTED) {
+    /* T's postcondition, not a fourth stage: a translation that yields
+     * something ill typed for the receiver has not done its job. */
+    r.typing = rme7_claim_typing(local, ch->to);
+    if (r.typing != RME7_TYPING_OK) {
+        r.reached = RME7_STAGE_TRANSLATE;
+        r.verdict = RME7_REFUSED;
+        r.outcome = RME7_CROSS_ILL_TYPED;
+        return r;
+    }
+
+    if (ch->admit(local, ch->ctx) != RME7_ADMITTED) {
         r.reached = RME7_STAGE_ADMIT;
         r.verdict = RME7_REFUSED;
         r.outcome = RME7_CROSS_REFUSED;
@@ -52,7 +96,7 @@ Rme7Crossing rme7_channel_cross(const Rme7Channel *ch,
     }
 
     uint64_t before = definition_fingerprint(ch->to);
-    bool took = ch->assimilate(into, ch->ctx);
+    bool took = ch->assimilate(local, ch->ctx);
     uint64_t after = definition_fingerprint(ch->to);
 
     if (before != after) {
@@ -92,6 +136,7 @@ const char *rme7_cross_outcome_name(Rme7CrossOutcome outcome) {
     case RME7_CROSS_OK:              return "crossed";
     case RME7_CROSS_UNCONTRACTED:    return "uncontracted route";
     case RME7_CROSS_UNTRANSLATABLE:  return "means nothing in the receiver's terms";
+    case RME7_CROSS_ILL_TYPED:       return "translated, and ill typed for the receiver";
     case RME7_CROSS_REFUSED:         return "understood and not admitted";
     case RME7_CROSS_UNASSIMILABLE:   return "admitted and could not be taken up";
     case RME7_CROSS_MADE_HEREDITARY: return "assimilation installed a definition";

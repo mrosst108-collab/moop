@@ -226,19 +226,34 @@ static void test_purpose_is_never_shared(void) {
 
 typedef struct { int admitted; int assimilated; bool admit_everything; } Ctx;
 
-static bool t_ok(const void *claim, void *into, void *ctx) {
-    (void)ctx; *(int *)into = *(const int *)claim; return true;
+static bool t_ok(const Rme7Claim *foreign, Rme7Claim *local, void *ctx) {
+    (void)ctx; *local = *foreign; return true;   /* already in local terms */
 }
-static bool t_fail(const void *claim, void *into, void *ctx) {
-    (void)claim; (void)into; (void)ctx; return false;
+static bool t_fail(const Rme7Claim *foreign, Rme7Claim *local, void *ctx) {
+    (void)foreign; (void)local; (void)ctx; return false;
 }
-static Rme7Verdict k_gate(const void *translated, void *ctx) {
+static Rme7Verdict k_gate(const Rme7Claim *local, void *ctx) {
     Ctx *c = ctx; c->admitted++;
-    return (c->admit_everything || *(const int *)translated > 0)
+    if (c->admit_everything) return RME7_ADMITTED;
+    return (local->content != nullptr && *(const int *)local->content > 0)
            ? RME7_ADMITTED : RME7_REFUSED;
 }
-static bool a_take(const void *translated, void *ctx) {
-    (void)translated; ((Ctx *)ctx)->assimilated++; return true;
+static bool a_take(const Rme7Claim *local, void *ctx) {
+    (void)local; ((Ctx *)ctx)->assimilated++; return true;
+}
+
+/* An object at RME-4: the metriplectic triple plus Sigma. */
+static void exhibit_rme4(Rme7Proto *p) {
+    (void)rme7_proto_exhibit(p, RME7_J_SHARP);
+    (void)rme7_proto_exhibit(p, RME7_G_SHARP);
+    (void)rme7_proto_exhibit(p, RME7_G_TILDE_SHARP);
+    (void)rme7_proto_exhibit(p, RME7_SIGMA);
+}
+
+static Rme7Claim payload_claim(const int *n) {
+    return (Rme7Claim){ .concerns_slot = false, .rung = RME7_RUNG_4,
+                        .custody = RME7_CUSTODY_INTERPRETIVE,
+                        .content = n, .size = sizeof *n };
 }
 
 static void test_channel(void) {
@@ -246,32 +261,33 @@ static void test_channel(void) {
     Rme7Proto i, j;
     (void)rme7_proto_generate(&l.userroot, &i, "i");
     (void)rme7_proto_generate(&l.userroot, &j, "j");
+    exhibit_rme4(&i); exhibit_rme4(&j);
 
     Ctx ctx = { 0, 0, false };
     Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
                        .ctx = &ctx, .from = &j, .to = &i };
     check(rme7_channel_contracted(&ch), "three stages and two endpoints is a contract");
 
-    int claim = 1, into = 0;
-    Rme7Crossing r = rme7_channel_cross(&ch, &claim, &into);
+    int n = 1; Rme7Claim c = payload_claim(&n), local = {0};
+    Rme7Crossing r = rme7_channel_cross(&ch, &c, &local);
     check(r.reached == RME7_STAGE_COMPLETE && r.verdict == RME7_ADMITTED,
           "translate, admit, assimilate -- in that order");
     check(ctx.admitted == 1 && ctx.assimilated == 1, "each stage ran once");
 
-    claim = -1;
-    r = rme7_channel_cross(&ch, &claim, &into);
-    check(r.reached == RME7_STAGE_ADMIT && r.verdict == RME7_REFUSED,
+    n = -1;
+    r = rme7_channel_cross(&ch, &c, &local);
+    check(r.reached == RME7_STAGE_ADMIT && r.outcome == RME7_CROSS_REFUSED,
           "a refused claim stops at the gate and is not assimilated");
     check(ctx.assimilated == 1, "nothing crossed that the gate refused");
 
     Rme7Channel untranslatable = ch; untranslatable.translate = t_fail;
-    r = rme7_channel_cross(&untranslatable, &claim, &into);
+    r = rme7_channel_cross(&untranslatable, &c, &local);
     check(r.reached == RME7_STAGE_TRANSLATE, "what cannot be translated never reaches the gate");
 
     Rme7Channel uncontracted = ch; uncontracted.admit = nullptr;
     check(!rme7_channel_contracted(&uncontracted), "a route missing a stage is not a channel");
-    r = rme7_channel_cross(&uncontracted, &claim, &into);
-    check(r.verdict == RME7_REFUSED, "an untyped route is refused, not run");
+    r = rme7_channel_cross(&uncontracted, &c, &local);
+    check(r.outcome == RME7_CROSS_UNCONTRACTED, "an untyped route is refused, not run");
 
     Rme7Channel selfch = ch; selfch.to = selfch.from;
     check(!rme7_channel_contracted(&selfch), "a channel needs two objects");
@@ -280,15 +296,82 @@ static void test_channel(void) {
           "composition is exactly one contracted channel, not more autonomy");
 }
 
+/* Condition 6: the carrier is typed, and translation must land well typed. */
+
+static void test_claims_are_typed_for_the_receiver(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto i, j;
+    (void)rme7_proto_generate(&l.userroot, &i, "i at RME-4");
+    (void)rme7_proto_generate(&l.userroot, &j, "j");
+    exhibit_rme4(&i); exhibit_rme4(&j);
+
+    int n = 1;
+    Rme7Claim at_rung_4 = { .concerns_slot = true, .slot = RME7_SIGMA,
+                            .rung = RME7_RUNG_4, .content = &n, .size = sizeof n };
+    check(rme7_claim_typing(&at_rung_4, &i) == RME7_TYPING_OK,
+          "a claim at the receiver's own rung is well typed");
+
+    Rme7Claim at_rung_7 = at_rung_4; at_rung_7.rung = RME7_RUNG_7;
+    check(rme7_claim_typing(&at_rung_7, &i) == RME7_TYPING_RUNG_ABOVE_RECEIVER,
+          "a claim above the receiver's rung cites distinctions it does not have");
+
+    Rme7Claim legislating = at_rung_4; legislating.legislates = true;
+    legislating.custody = RME7_CUSTODY_ANCHORED;
+    check(rme7_claim_typing(&legislating, &i) == RME7_TYPING_LEGISLATES,
+          "not even an anchored claim may legislate through a port");
+
+    Rme7Proto orphan = { .name = "no format", .layer = RME7_LAYER_USER,
+                         .parent = nullptr };
+    check(rme7_claim_typing(&at_rung_4, &orphan) == RME7_TYPING_UNDEFINED_SLOT,
+          "a slot the receiver's chain never defines means nothing there");
+
+    Rme7Claim payload = { .concerns_slot = false, .content = &n, .size = sizeof n };
+    check(rme7_claim_typing(&payload, &orphan) == RME7_TYPING_OK,
+          "a payload-only claim carries no slot to be wrong about");
+
+    /* And the channel enforces it as translation's postcondition. */
+    Ctx ctx = { 0, 0, true };
+    Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
+                       .ctx = &ctx, .from = &j, .to = &i };
+    Rme7Claim local = {0};
+    Rme7Crossing r = rme7_channel_cross(&ch, &at_rung_7, &local);
+    check(r.outcome == RME7_CROSS_ILL_TYPED && r.reached == RME7_STAGE_TRANSLATE,
+          "ill typed is translation failing its contract, not a fourth stage");
+    check(r.typing == RME7_TYPING_RUNG_ABOVE_RECEIVER,
+          "and the crossing says which way it was ill typed");
+    check(ctx.admitted == 0,
+          "an ill-typed claim never reaches the gate: typing is not policy");
+}
+
+/* A channel is not delegation, and delegation is not a channel. */
+static void test_channel_is_not_delegation(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto i, j;
+    (void)rme7_proto_generate(&l.userroot, &i, "i");
+    (void)rme7_proto_generate(&l.userroot, &j, "j");
+    exhibit_rme4(&i); exhibit_rme4(&j);
+    i.payload.purpose = "i's purpose";
+    j.payload.purpose = "j's purpose";
+
+    Ctx ctx = { 0, 0, true };
+    Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
+                       .ctx = &ctx, .from = &j, .to = &i };
+    int n = 5; Rme7Claim c = payload_claim(&n), local = {0};
+    (void)rme7_channel_cross(&ch, &c, &local);
+
+    check(!rme7_proto_delegates_to(&i, &j) && !rme7_proto_delegates_to(&j, &i),
+          "peers that exchange influence do not thereby delegate to each other");
+    check(strcmp(rme7_proto_payload(&i)->purpose,
+                 rme7_proto_payload(&j)->purpose) != 0,
+          "coupling is not identification: the purposes stay distinct");
+}
+
 /* Provenance and non-heredity across the crossing. */
 
 static Rme7Proto *heir_target = nullptr;
 
-/* An assimilation that oversteps: it installs a slot definition rather than
- * changing state, which would make foreign content hereditary in the
- * receiver's own children. */
-static bool a_installs_definition(const void *translated, void *ctx) {
-    (void)translated; (void)ctx;
+static bool a_installs_definition(const Rme7Claim *local, void *ctx) {
+    (void)local; (void)ctx;
     rme7_proto_define(heir_target, RME7_GAMMA, RME7_CUSTODY_INTERPRETIVE,
                       "smuggled in through a channel");
     return true;
@@ -299,21 +382,22 @@ static void test_crossing_carries_provenance(void) {
     Rme7Proto i, j;
     (void)rme7_proto_generate(&l.userroot, &i, "i");
     (void)rme7_proto_generate(&l.userroot, &j, "j");
+    exhibit_rme4(&i); exhibit_rme4(&j);
 
-    Ctx ctx = { 0, 0, false };   /* the gate refuses non-positive claims */
+    Ctx ctx = { 0, 0, false };
     Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
                        .ctx = &ctx, .from = &j, .to = &i };
-    int claim = 3, into = 0;
-    Rme7Crossing r = rme7_channel_cross(&ch, &claim, &into);
+    int n = 3; Rme7Claim c = payload_claim(&n), local = {0};
+    Rme7Crossing r = rme7_channel_cross(&ch, &c, &local);
     check(r.from == &j && r.to == &i,
           "a crossing records who sent it and who received it");
     check(r.outcome == RME7_CROSS_OK, "a completed crossing says so");
 
-    claim = -1;
-    r = rme7_channel_cross(&ch, &claim, &into);
+    n = -1;
+    r = rme7_channel_cross(&ch, &c, &local);
     check(r.outcome == RME7_CROSS_REFUSED, "understood and not admitted");
     Rme7Channel bad = ch; bad.translate = t_fail;
-    r = rme7_channel_cross(&bad, &claim, &into);
+    r = rme7_channel_cross(&bad, &c, &local);
     check(r.outcome == RME7_CROSS_UNTRANSLATABLE,
           "untranslatable is a different fact from refused");
     check(r.from == &j,
@@ -325,14 +409,15 @@ static void test_crossing_cannot_make_content_hereditary(void) {
     Rme7Proto i, j, child;
     (void)rme7_proto_generate(&l.userroot, &i, "i");
     (void)rme7_proto_generate(&l.userroot, &j, "j");
+    exhibit_rme4(&i); exhibit_rme4(&j);
 
     heir_target = &i;
     Ctx ctx = { 0, 0, true };
     Rme7Channel ch = { .translate = t_ok, .admit = k_gate,
                        .assimilate = a_installs_definition,
                        .ctx = &ctx, .from = &j, .to = &i };
-    int claim = 1, into = 0;
-    Rme7Crossing r = rme7_channel_cross(&ch, &claim, &into);
+    int n = 1; Rme7Claim c = payload_claim(&n), local = {0};
+    Rme7Crossing r = rme7_channel_cross(&ch, &c, &local);
     check(r.outcome == RME7_CROSS_MADE_HEREDITARY,
           "assimilation that installs a definition is caught, not silently allowed");
     check(r.verdict == RME7_REFUSED,
@@ -346,28 +431,6 @@ static void test_crossing_cannot_make_content_hereditary(void) {
           "the crossing reports it");
 }
 
-/* A channel is not delegation, and delegation is not a channel. */
-static void test_channel_is_not_delegation(void) {
-    Ladder l; build_ladder(&l);
-    Rme7Proto i, j;
-    (void)rme7_proto_generate(&l.userroot, &i, "i");
-    (void)rme7_proto_generate(&l.userroot, &j, "j");
-    i.payload.purpose = "i's purpose";
-    j.payload.purpose = "j's purpose";
-
-    Ctx ctx = { 0, 0, true };
-    Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
-                       .ctx = &ctx, .from = &j, .to = &i };
-    int claim = 5, into = 0;
-    (void)rme7_channel_cross(&ch, &claim, &into);
-
-    check(!rme7_proto_delegates_to(&i, &j) && !rme7_proto_delegates_to(&j, &i),
-          "peers that exchange influence do not thereby delegate to each other");
-    check(strcmp(rme7_proto_payload(&i)->purpose,
-                 rme7_proto_payload(&j)->purpose) != 0,
-          "coupling is not identification: the purposes stay distinct");
-}
-
 int main(void) {
     test_slots();
     test_ladder();
@@ -379,6 +442,7 @@ int main(void) {
     test_purpose_is_never_shared();
     test_channel();
     test_channel_is_not_delegation();
+    test_claims_are_typed_for_the_receiver();
     test_crossing_carries_provenance();
     test_crossing_cannot_make_content_hereditary();
     printf(failures ? "\n%d failing\n" : "\nall passing\n", failures);

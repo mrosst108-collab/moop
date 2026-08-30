@@ -107,10 +107,10 @@ deliverable rather than a failure.
 
 ## Autopoietic-interoperability readiness
 
-A named contract, so the property is checkable rather than asserted. A
-framework is **autopoietic-interoperability-ready** when an independently
-realized object can do these ten things. The verdicts are against this code,
-not against the intention:
+**This is the framework's stated goal**, so the contract is named and checked
+rather than asserted. A framework is **autopoietic-interoperability-ready**
+when an independently realized object can do these ten things. The verdicts
+are against this code:
 
 | # | condition | status |
 |---|---|---|
@@ -119,25 +119,47 @@ not against the intention:
 | 3 | preserve local purpose rather than inherit it | met — no resolver for the payload exists |
 | 4 | resolve definitions without inheriting activation | met — the three-scope split |
 | 5 | present a typed crossing port | met at the stage level — `rme7_channel_contracted` |
-| 6 | translate foreign representations into local terms | **partial** — see below |
+| 6 | translate foreign representations into local terms | met — a claim is typed, and translation must land well typed |
 | 7 | gate admission | met — a two-valued verdict with no arithmetic |
 | 8 | assimilate admitted content | met |
 | 9 | report exactly where crossing failed | met — stage plus outcome, distinguishing untranslatable from refused from unassimilable |
 | 10 | preserve provenance and non-heredity across the crossing | met — crossings carry `from`/`to`, and assimilation that installs a definition is caught |
 
-**Condition 6 is the honest gap.** The channel's *stages* are typed; its
-*content* is not. `translate` has the signature
-`bool (*)(const void *claim, void *into, void *ctx)` — a claim is a `void *`,
-so nothing declares which slot it concerns or at what rung, and nothing
-enforces that the translated form is well typed for the receiver. The port is
-typed as a pipeline and untyped as a carrier. Closing this is what would let
-a channel carry operator-governed content rather than arbitrary bytes.
+**Ten of ten.** Two were not, and how they closed is worth keeping.
 
-**Condition 10 was unmet** until crossings were given provenance and the
-non-heredity check. That is worth recording rather than smoothing over: what
-crosses a channel is content, never grammar, and before the check an
-assimilation could install a slot definition that the receiver's own children
-would then inherit as though the receiver had established it.
+**Condition 6** was partial: the channel's *stages* were typed while a claim
+was a `void *`, so the port was typed as a pipeline and untyped as a carrier.
+A claim now declares which slot it concerns, at what rung it was made, its
+custody at the sender, and whether it purports to legislate — while its
+*content* stays opaque, because the operator semantics are not the port's to
+invent. Three structural checks then run with no semantics whatever:
+
+- a slot the receiver's chain never **defines** means nothing there;
+- a claim made **above the receiver's rung** cites distinctions it does not
+  exhibit — rung-matched, never rung-inflated;
+- a claim that **purports to legislate** is refused, and not even an anchored
+  custody grade licenses one.
+
+These run as **translation's postcondition, not a fourth stage**. The
+factorization has three factors and this does not add one: a translation that
+yields something ill typed for the receiver has not put the claim in the
+receiver's terms, which was its whole job. Typing is therefore separate from
+policy — an ill-typed claim never reaches `κ` at all.
+
+**Condition 10** was absent: a crossing recorded no provenance, and nothing
+stopped an assimilation from installing a slot definition. Because definitions
+delegate, the receiver's own children would then inherit foreign content as
+though the receiver had established it — content becoming grammar by passing
+through a port. Crossings now carry `from`/`to`, and the receiver's local
+definitions are fingerprinted either side of assimilation.
+
+**What "ready" does and does not mean.** The ten conditions hold, and they are
+checked by tests rather than claimed. They are a contract about *structure*:
+that an independently realized object can type itself, expose only what it
+instantiates, keep its own purpose, and cross a boundary without losing
+provenance or leaking grammar. They are not a claim that RME-7-governed
+content has been carried — the content of a claim is still opaque here, and
+must be, until the operator semantics arrive from a primary source.
 
 ## What this is not
 
