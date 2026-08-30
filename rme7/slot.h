@@ -111,6 +111,29 @@ typedef struct {
 [[nodiscard]] int rme7_slot_derives_from(Rme7Slot slot, Rme7Slot *out, int max);
 [[nodiscard]] bool rme7_slot_is_primitive(Rme7Slot slot);
 
+/* A COUPLING: slots that must be exhibited TOGETHER. This is what a fusion
+ * claim requires, and it is NOT what derives_from records.
+ *
+ * The two are different relations and conflating them is easy. `derives_from`
+ * is directional: gamma is computed from G# and G~#, which says gamma implies
+ * both, and says nothing whatever about whether G# implies G~#. A coupling is
+ * symmetric co-occurrence. Only the second can ground a fusion.
+ *
+ * NO COUPLING IS RECORDED. This returns 0 for every slot, and exists so the
+ * absence is callable rather than remembered -- and so that a coupling, once
+ * established, has somewhere to be written instead of being stipulated inside
+ * a predicate where nothing can point at it. */
+[[nodiscard]] int rme7_slot_coupled_with(Rme7Slot slot, Rme7Slot *out, int max);
+
+/* Grouping claims the staircase makes that no recorded coupling supports.
+ *
+ * A rank carrying one slot makes no grouping claim -- there is nothing to
+ * fuse. A rank carrying several claims they belong together, and under the
+ * recoverability criterion that claim must be reconstructible from a recorded
+ * relation. Fills `out` with one representative slot per unsupported grouping
+ * and returns the count. */
+[[nodiscard]] int rme7_unsupported_groupings(Rme7Slot *out, int max);
+
 /* Always false, for every tag. No custody grade licenses a grammar-level
  * claim; this exists so the refusal is callable rather than remembered. */
 [[nodiscard]] bool rme7_custody_may_legislate(Rme7Custody custody);

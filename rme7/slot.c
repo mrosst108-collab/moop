@@ -102,6 +102,30 @@ bool rme7_slot_is_primitive(Rme7Slot slot) {
     return rme7_slot_derives_from(slot, nullptr, 0) == 0;
 }
 
+int rme7_slot_coupled_with(Rme7Slot slot, Rme7Slot *out, int max) {
+    assert(slot < RME7_SLOT_COUNT);
+    (void)out; (void)max;
+    return 0;   /* nothing in the record establishes a co-occurrence coupling */
+}
+
+int rme7_unsupported_groupings(Rme7Slot *out, int max) {
+    int found = 0;
+    for (uint8_t rank = 0; rank < RME7_TIER_COUNT; rank++) {
+        int members = 0; Rme7Slot first = RME7_J_SHARP;
+        for (int s = 0; s < RME7_SLOT_COUNT; s++) {
+            Rme7Slot sl = (Rme7Slot)s;
+            if (rme7_slot_tier(sl) != rank) continue;
+            if (members == 0) first = sl;
+            members++;
+        }
+        if (members < 2) continue;              /* a singleton fuses nothing */
+        if (rme7_slot_coupled_with(first, nullptr, 0) >= members - 1) continue;
+        if (out != nullptr && found < max) out[found] = first;
+        found++;
+    }
+    return found;
+}
+
 bool rme7_custody_may_legislate(Rme7Custody custody) {
     (void)custody;
     return false;

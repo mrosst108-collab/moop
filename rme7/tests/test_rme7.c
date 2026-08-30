@@ -301,6 +301,39 @@ static void test_the_recorded_coupling_spans_two_of_three(void) {
           "does not reach it");
 }
 
+/* Co-location at a rank is a SORT. A fusion needs a COUPLING, and the two are
+ * different relations -- which is what the recorded commutator turns out not
+ * to supply. */
+static void test_co_location_is_not_coupling(void) {
+    /* gamma's dependency is directional and already entailed by the order:
+     * every well-formed profile exhibiting gamma exhibits all seven slots, so
+     * the commutator constrains nothing the staircase does not. */
+    int with_gamma = 0, exhibiting_all = 0;
+    for (unsigned b = 0; b < 128u; b++) {
+        Rme7Profile p = { .bits = (uint8_t)b };
+        if (rme7_profile_classify(p).kind != RME7_CAST_RUNG) continue;
+        if (!rme7_profile_exhibits(p, RME7_GAMMA)) continue;
+        with_gamma++;
+        if (rme7_profile_count(p) == RME7_SLOT_COUNT) exhibiting_all++;
+    }
+    check(with_gamma == 1 && exhibiting_all == with_gamma,
+          "the staircase forces strictly more than gamma's dependency requires, "
+          "so the recorded relation grounds nothing the order does not");
+
+    /* No co-occurrence coupling is recorded for any slot. */
+    int coupled = 0;
+    for (int s = 0; s < RME7_SLOT_COUNT; s++)
+        coupled += rme7_slot_coupled_with((Rme7Slot)s, nullptr, 0);
+    check(coupled == 0, "no co-occurrence coupling is recorded for any slot");
+
+    /* Exactly one rank groups more than one slot, and nothing supports it. */
+    Rme7Slot unsupported[RME7_TIER_COUNT];
+    int n = rme7_unsupported_groupings(unsupported, RME7_TIER_COUNT);
+    check(n == 1 && rme7_slot_tier(unsupported[0]) == 0,
+          "the format makes exactly one grouping claim, at rank 0, and no "
+          "recorded coupling supports it");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -673,6 +706,7 @@ int main(void) {
     test_only_one_slot_is_independently_withholdable();
     test_only_one_tier_boundary_is_untyped();
     test_the_recorded_coupling_spans_two_of_three();
+    test_co_location_is_not_coupling();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
