@@ -67,7 +67,7 @@ Each axis owns one non-overlapping job at the boundary:
 
 | axis | job at the crossing |
 |------|---------------------|
-| **κ** | The ground-resolution check: do the cited anchors resolve here, do the hashes match? κ > 0 (stated ground ≠ actual ground) blocks binding and sequences everything behind resolution. |
+| **κ** | The ground-resolution check: do the cited anchors resolve here, do the hashes match? κ = 0 (stated ground ≠ actual ground) blocks binding and sequences everything behind resolution. |
 | **Σ** | The entry format itself — the typed port. Loop lengths taught us configuration can smuggle semantics; testimony can too. Typing the port is this document. |
 | **G̃♯** | The admissibility predicate for *binding*: ground resolves ∧ locally re-derived. An entry failing either conjunct stays `testimony` and cannot justify a commit. |
 | **J♯** | Provenance reified: which claims came from where, and where each was verified, is explicit state in the ledger rather than implicit in a conversation. |
