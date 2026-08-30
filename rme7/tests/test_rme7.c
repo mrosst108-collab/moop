@@ -343,6 +343,102 @@ static void test_claims_are_typed_for_the_receiver(void) {
           "an ill-typed claim never reaches the gate: typing is not policy");
 }
 
+/* The design fork: what does a port certify -- comprehension or exhibition?
+ * Both predicates are implemented so the question can be decided with data. */
+
+static const Rme7Slot STAIR[7] = { RME7_J_SHARP, RME7_G_SHARP, RME7_G_TILDE_SHARP,
+                                   RME7_SIGMA, RME7_F, RME7_KAPPA, RME7_GAMMA };
+
+static void exhibit_upto(Rme7Proto *p, int n) {
+    for (int k = 0; k < n; k++) (void)rme7_proto_exhibit(p, STAIR[k]);
+}
+
+static void test_comprehension_and_exhibition_are_incomparable(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto zero, four;
+    (void)rme7_proto_generate(&l.userroot, &zero, "RME-4-zero object");
+    (void)rme7_proto_generate(&l.userroot, &four, "RME-4 object");
+    exhibit_upto(&zero, 3);   /* the metriplectic triple, no Sigma */
+    exhibit_upto(&four, 4);
+
+    check(rme7_proto_classify(&zero).rung == RME7_RUNG_4_ZERO &&
+          rme7_proto_classify(&four).rung == RME7_RUNG_4, "the two receivers cast as expected");
+
+    /* Case A -- the hole comprehension has: a slot the receiver understands
+     * by delegation and demonstrably does not instantiate. */
+    Rme7Claim sigma_at_4 = { .concerns_slot = true, .slot = RME7_SIGMA,
+                             .rung = RME7_RUNG_4 };
+    check(rme7_claim_typing_in(&sigma_at_4, &zero, RME7_TYPING_COMPREHENSION)
+          == RME7_TYPING_OK,
+          "comprehension admits a claim about a slot the receiver does not exhibit");
+    check(rme7_claim_typing_in(&sigma_at_4, &zero, RME7_TYPING_EXHIBITION)
+          == RME7_TYPING_UNEXHIBITED_SLOT, "exhibition refuses it");
+
+    /* Case B -- what exhibition loses: it never reads the sender's rung, so
+     * it cannot refuse level inflation. */
+    Rme7Claim j_at_7 = { .concerns_slot = true, .slot = RME7_J_SHARP,
+                         .rung = RME7_RUNG_7 };
+    check(rme7_claim_typing_in(&j_at_7, &four, RME7_TYPING_COMPREHENSION)
+          == RME7_TYPING_RUNG_ABOVE_RECEIVER,
+          "comprehension refuses a claim made above the receiver's rung");
+    check(rme7_claim_typing_in(&j_at_7, &four, RME7_TYPING_EXHIBITION)
+          == RME7_TYPING_OK,
+          "exhibition admits it: a unary predicate cannot order sender against receiver");
+
+    /* Neither implies the other. Both directions of divergence are non-empty,
+     * so exhibition is not a strengthening and the fork is not a choice
+     * between weaker and stronger. */
+    check(true, "the two predicates are incomparable: cases A and B point opposite ways");
+
+    /* Only the conjunction refuses both failures. */
+    check(rme7_claim_typing_in(&sigma_at_4, &zero, RME7_TYPING_BOTH)
+          == RME7_TYPING_UNEXHIBITED_SLOT &&
+          rme7_claim_typing_in(&j_at_7, &four, RME7_TYPING_BOTH)
+          == RME7_TYPING_RUNG_ABOVE_RECEIVER,
+          "BOTH is the only mode that refuses vacuous reference AND level inflation");
+
+    check(rme7_claim_typing(&sigma_at_4, &zero) ==
+          rme7_claim_typing_in(&sigma_at_4, &zero, RME7_TYPING_COMPREHENSION),
+          "comprehension stays the default: the shipped behaviour is not changed silently");
+
+    /* A legislating claim is refused under every mode. */
+    Rme7Claim leg = { .concerns_slot = true, .slot = RME7_J_SHARP,
+                      .rung = RME7_RUNG_4, .legislates = true,
+                      .custody = RME7_CUSTODY_ANCHORED };
+    bool all_refuse = true;
+    for (int m = 0; m <= RME7_TYPING_BOTH; m++)
+        if (rme7_claim_typing_in(&leg, &four, (Rme7TypingMode)m) != RME7_TYPING_LEGISLATES)
+            all_refuse = false;
+    check(all_refuse, "no mode and no custody grade lets a claim legislate");
+}
+
+static void test_channel_honours_its_mode(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto zero, sender;
+    (void)rme7_proto_generate(&l.userroot, &zero, "RME-4-zero receiver");
+    (void)rme7_proto_generate(&l.userroot, &sender, "sender");
+    exhibit_upto(&zero, 3); exhibit_upto(&sender, 4);
+
+    int n = 1;
+    Rme7Claim sigma = { .concerns_slot = true, .slot = RME7_SIGMA,
+                        .rung = RME7_RUNG_4, .content = &n, .size = sizeof n };
+    Rme7Claim local = {0};
+    Ctx ctx = { 0, 0, true };
+    Rme7Channel ch = { .translate = t_ok, .admit = k_gate, .assimilate = a_take,
+                       .ctx = &ctx, .from = &sender, .to = &zero };
+
+    Rme7Crossing r = rme7_channel_cross(&ch, &sigma, &local);
+    check(r.outcome == RME7_CROSS_OK, "under comprehension the crossing completes");
+
+    ch.mode = RME7_TYPING_EXHIBITION;
+    r = rme7_channel_cross(&ch, &sigma, &local);
+    check(r.outcome == RME7_CROSS_ILL_TYPED &&
+          r.typing == RME7_TYPING_UNEXHIBITED_SLOT,
+          "under exhibition the same crossing is ill typed at the port");
+    check(r.from == &sender && r.to == &zero,
+          "and provenance is recorded either way");
+}
+
 /* A channel is not delegation, and delegation is not a channel. */
 static void test_channel_is_not_delegation(void) {
     Ladder l; build_ladder(&l);
@@ -443,6 +539,8 @@ int main(void) {
     test_channel();
     test_channel_is_not_delegation();
     test_claims_are_typed_for_the_receiver();
+    test_comprehension_and_exhibition_are_incomparable();
+    test_channel_honours_its_mode();
     test_crossing_carries_provenance();
     test_crossing_cannot_make_content_hereditary();
     printf(failures ? "\n%d failing\n" : "\nall passing\n", failures);

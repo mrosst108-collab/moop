@@ -153,13 +153,93 @@ though the receiver had established it — content becoming grammar by passing
 through a port. Crossings now carry `from`/`to`, and the receiver's local
 definitions are fingerprinted either side of assimilation.
 
-**What "ready" does and does not mean.** The ten conditions hold, and they are
-checked by tests rather than claimed. They are a contract about *structure*:
-that an independently realized object can type itself, expose only what it
-instantiates, keep its own purpose, and cross a boundary without losing
-provenance or leaking grammar. They are not a claim that RME-7-governed
-content has been carried — the content of a claim is still opaque here, and
-must be, until the operator semantics arrive from a primary source.
+## Readiness status, stated precisely
+
+"Ready" is one word doing four jobs, so it is split. Only the first is
+established:
+
+| status | verdict |
+|---|---|
+| **contract-complete** — all ten declared conditions implemented and tested | **yes**, by 81 assertions |
+| **RME-7-compatible at the port/typing layer** | only to the extent this contract defines compatibility |
+| **RME-7 semantically interoperable** | **not established** — a claim's content is opaque and stays so until the operator semantics arrive |
+| **autopoietically interoperable in operation** | **not established** — nothing has yet run in an ecology |
+
+The goal is readiness. **The status is contract-complete.** The two are not the
+same sentence, and the contract itself is a correspondent's proposal adopted
+for being checkable — not something derived from RME-7. A different contract
+gives a different verdict.
+
+**And contract-completeness is not structural completeness.** Q1 is a
+*blocker*, not a background question: a profile exhibiting `G♯` alone returns
+`MALFORMED`, and pure gradient flow is not malformed. 122 of 128 profiles are
+malformed. So:
+
+> **Readiness status: contract-complete; structural RME-7 profile completeness
+> remains blocked by Q1.**
+
+## What a port certifies: comprehension or exhibition
+
+The open architectural question, implemented rather than argued. Both
+predicates ship; `RME7_TYPING_COMPREHENSION` is the default because it is the
+behaviour that was already there, and a default is not an endorsement.
+
+- **Comprehension** — the receiver has the definitional machinery to
+  understand the distinction: `defines(σ) ∧ ℓ(claim) ≤ ℓ(receiver)`. It is
+  **relational**, comparing sender to receiver.
+- **Exhibition** — the receiver actually instantiates it: `exhibits(σ)`, per
+  slot rather than per level. It is **unary**, and the sender's rung does not
+  appear in it at all.
+
+**They are incomparable.** Enumerated over all 175 (receiver rung, slot, claim
+rung) triples: comprehension accepts 112, exhibition accepts 125, both accept
+88. So 24 are accepted only by comprehension and 37 only by exhibition —
+neither direction is empty, and exhibition is *not* a strengthening.
+
+Two cases decide it:
+
+| case | comprehension | exhibition | both |
+|---|---|---|---|
+| `Σ` claim at rung 4 → RME-4⁰ receiver | well typed *(the hole)* | refused | refused |
+| `J♯` claim at rung 7 → RME-4 receiver | refused | well typed *(loses directionality)* | refused |
+
+They guard different failures. Comprehension refuses **level inflation** —
+being addressed in terms of a stratum you have not reached. Exhibition refuses
+**vacuous reference** — being addressed about a distinction you do not
+instantiate. A predicate that never reads the sender's rung cannot order
+senders against receivers, so **exhibition alone destroys the directionality
+result**. `RME7_TYPING_BOTH` is the conjunction, accepts 88, and is the only
+mode that refuses both failures.
+
+## Negative tests
+
+Interoperability readiness is mostly about refusing the wrong input, so the
+suite is mostly refusals:
+
+| case | expected | held by |
+|---|---|---|
+| lower rung → higher rung | accept | directionality tests |
+| same rung → same rung | accept | " |
+| higher rung → lower rung | reject (`RUNG_ABOVE_RECEIVER`) | " |
+| slot the receiver's chain never defines | reject (`UNDEFINED_SLOT`) | typing tests |
+| claim purporting to legislate | reject under every mode | " |
+| assimilation installing a definition | reject (`MADE_HEREDITARY`) | non-heredity test |
+| route missing a stage, or `i = j` | reject (`UNCONTRACTED`), never partially run | channel tests |
+| translation failure | reject (`UNTRANSLATABLE`), gate never reached | " |
+| opaque payload carrying no slot | accept if policy permits | " |
+| `Σ` claim → RME-4⁰ receiver | **exposes the fork** — accepted under comprehension, refused under exhibition | incomparability test |
+
+The last row is the useful one: the suite found an architectural limitation
+rather than certifying a happy path.
+
+## What the contract does and does not mean
+
+The ten conditions are a contract about *structure*: that an independently
+realized object can type itself, expose only what it instantiates, keep its
+own purpose, and cross a boundary without losing provenance or leaking
+grammar. They are not a claim that RME-7-governed content has been carried —
+the content of a claim is still opaque here, and must be, until the operator
+semantics arrive from a primary source.
 
 ## What this is not
 

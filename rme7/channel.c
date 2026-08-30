@@ -26,22 +26,33 @@ bool rme7_channel_contracted(const Rme7Channel *ch) {
     return ch->from != ch->to;   /* i != j */
 }
 
-Rme7Typing rme7_claim_typing(const Rme7Claim *claim, const Rme7Proto *receiver) {
+Rme7Typing rme7_claim_typing_in(const Rme7Claim *claim, const Rme7Proto *receiver,
+                                Rme7TypingMode mode) {
     if (claim == nullptr || receiver == nullptr) return RME7_TYPING_UNDEFINED_SLOT;
 
     /* No custody grade licenses a grammar-level claim, so the flag settles it
-     * without consulting the grade at all. */
+     * without consulting the grade at all. Common to both modes. */
     if (claim->legislates && !rme7_custody_may_legislate(claim->custody))
         return RME7_TYPING_LEGISLATES;
 
     if (!claim->concerns_slot) return RME7_TYPING_OK;   /* payload-only */
 
-    /* A distinction the receiver's chain never defines means nothing here. */
+    /* A distinction the receiver's chain never defines means nothing here,
+     * under either reading of what a port certifies. */
     if (!rme7_proto_defines(receiver, claim->slot))
         return RME7_TYPING_UNDEFINED_SLOT;
 
+    if (mode == RME7_TYPING_EXHIBITION || mode == RME7_TYPING_BOTH) {
+        /* Per slot, not per level -- so no rung comparison is needed here, and
+         * the RME-4-zero blind spot in the level map cannot reach this test. */
+        if (!rme7_profile_exhibits(rme7_proto_profile(receiver), claim->slot))
+            return RME7_TYPING_UNEXHIBITED_SLOT;
+        if (mode == RME7_TYPING_EXHIBITION) return RME7_TYPING_OK;
+        /* BOTH falls through to the relational test as well. */
+    }
+
     /* Rung-matched, never rung-inflated: a claim made above the receiver's
-     * rung cites distinctions the receiver does not exhibit. */
+     * rung cites distinctions the receiver has not reached. */
     Rme7Cast cast = rme7_proto_classify(receiver);
     if (cast.kind != RME7_CAST_RUNG) return RME7_TYPING_RUNG_ABOVE_RECEIVER;
     if (rme7_rung_level(claim->rung) > rme7_rung_level(cast.rung))
@@ -50,11 +61,16 @@ Rme7Typing rme7_claim_typing(const Rme7Claim *claim, const Rme7Proto *receiver) 
     return RME7_TYPING_OK;
 }
 
+Rme7Typing rme7_claim_typing(const Rme7Claim *claim, const Rme7Proto *receiver) {
+    return rme7_claim_typing_in(claim, receiver, RME7_TYPING_COMPREHENSION);
+}
+
 const char *rme7_typing_name(Rme7Typing typing) {
     switch (typing) {
     case RME7_TYPING_OK:                   return "well typed";
     case RME7_TYPING_UNDEFINED_SLOT:       return "concerns a slot the receiver does not define";
     case RME7_TYPING_RUNG_ABOVE_RECEIVER:  return "made above the receiver's rung";
+    case RME7_TYPING_UNEXHIBITED_SLOT:     return "understood but not instantiated by the receiver";
     case RME7_TYPING_LEGISLATES:           return "purports to legislate";
     }
     return "unknown";
@@ -80,7 +96,7 @@ Rme7Crossing rme7_channel_cross(const Rme7Channel *ch,
 
     /* T's postcondition, not a fourth stage: a translation that yields
      * something ill typed for the receiver has not done its job. */
-    r.typing = rme7_claim_typing(local, ch->to);
+    r.typing = rme7_claim_typing_in(local, ch->to, ch->mode);
     if (r.typing != RME7_TYPING_OK) {
         r.reached = RME7_STAGE_TRANSLATE;
         r.verdict = RME7_REFUSED;

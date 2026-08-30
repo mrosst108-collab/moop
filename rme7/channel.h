@@ -48,14 +48,64 @@ typedef enum : uint8_t {
     RME7_TYPING_OK,
     RME7_TYPING_UNDEFINED_SLOT,      /* the receiver's chain does not define it */
     RME7_TYPING_RUNG_ABOVE_RECEIVER, /* it cites distinctions the receiver lacks */
+    RME7_TYPING_UNEXHIBITED_SLOT,    /* defined, understood, and not instantiated */
     RME7_TYPING_LEGISLATES           /* no custody grade licenses this */
 } Rme7Typing;
+
+/* WHAT A PORT CERTIFIES -- the open architectural question, made runnable
+ * rather than argued.
+ *
+ *   COMPREHENSION: the receiver possesses the definitional machinery to
+ *   understand the distinction. Checked as `defines(slot) AND the claim was
+ *   not made above the receiver's rung`. Permits being told about a
+ *   distinction one understands but does not currently instantiate.
+ *
+ *   EXHIBITION: the receiver actually instantiates the distinction. Checked
+ *   as `exhibits(slot)`, per slot rather than per level, so it needs no rung
+ *   comparison at all -- a well-formed profile cannot exhibit a slot without
+ *   standing at or above its tier.
+ *
+ * The two are NOT equivalent, and RME-4-zero is where they come apart: it
+ * defines Sigma by delegation and does not exhibit it, so a Sigma-claim at
+ * rung 4 is well typed under COMPREHENSION and refused under EXHIBITION.
+ * Comprehension is the default because it is the behaviour that was already
+ * shipped; the default is not an endorsement. */
+typedef enum : uint8_t {
+    RME7_TYPING_COMPREHENSION = 0,
+    RME7_TYPING_EXHIBITION    = 1,
+    RME7_TYPING_BOTH          = 2
+} Rme7TypingMode;
+
+/* The two are INCOMPARABLE, which is the reason BOTH exists. Enumerated over
+ * every (receiver rung, slot, claim rung) triple: 114 of 175 agree, 24 are
+ * accepted only by comprehension, and 37 only by exhibition. Neither implies
+ * the other, so exhibition is not a strengthening of comprehension and
+ * choosing between them forfeits something either way. They guard different
+ * failures:
+ *
+ *   comprehension is RELATIONAL -- it compares sender and receiver, and is
+ *   what refuses level inflation: being addressed in terms of a stratum you
+ *   have not reached.
+ *
+ *   exhibition is UNARY -- it reads the receiver alone, per slot, and is what
+ *   refuses vacuous reference: being addressed about a distinction you do not
+ *   instantiate. The sender's rung does not appear in it at all.
+ *
+ * Consequence worth knowing before choosing: exhibition alone DESTROYS the
+ * directionality result, because a predicate that never reads the sender's
+ * rung cannot order senders against receivers. BOTH is the conjunction and
+ * is the only mode that refuses both failures. */
 
 /* Well-typedness is the POSTCONDITION OF TRANSLATION, not a fourth stage.
  * The factorization has three factors and this does not add one: a
  * translation that yields something ill typed for the receiver has not put
  * the claim in the receiver's terms, which was its whole job. Enforcing T's
  * contract is not the same as inserting a stage between T and kappa. */
+[[nodiscard]] Rme7Typing rme7_claim_typing_in(const Rme7Claim *claim,
+                                              const Rme7Proto *receiver,
+                                              Rme7TypingMode mode);
+
+/* Shorthand for the comprehension mode. */
 [[nodiscard]] Rme7Typing rme7_claim_typing(const Rme7Claim *claim,
                                            const Rme7Proto *receiver);
 [[nodiscard]] const char *rme7_typing_name(Rme7Typing typing);
@@ -79,6 +129,9 @@ typedef struct {
 
     const Rme7Proto *from;
     const Rme7Proto *to;
+
+    /* Which question this port asks. Zero-initialises to COMPREHENSION. */
+    Rme7TypingMode mode;
 } Rme7Channel;
 
 /* Why a crossing ended where it did. The stage says where; this says what,
