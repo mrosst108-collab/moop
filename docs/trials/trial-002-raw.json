@@ -1,0 +1,46 @@
+{
+ "P1-brownian__S_v5": {
+  "v1": "G#",
+  "v2": "G~#",
+  "v3": "kappa",
+  "v4": "Sigma",
+  "v5": "F"
+ },
+ "P1-brownian__S_C1": {
+  "c3": "gamma",
+  "c4": "Sigma"
+ },
+ "P3-adaptive__S_v5": {
+  "v1": "J#",
+  "v2": "G#",
+  "v3": "G~#",
+  "v5": "F",
+  "v6": "kappa",
+  "v7": "gamma"
+ },
+ "P2-coupled__S_C1": {
+  "c1": "J#",
+  "c2": "G#",
+  "c3": "G~#",
+  "c4": "F",
+  "c5": "Sigma"
+ },
+ "P3-adaptive__S_C1": {
+  "c1": "J#",
+  "c2": "G#",
+  "c3": "G~#"
+ },
+ "P4-constrained__S_v5": {
+  "v1": "J#",
+  "v3": "G~#"
+ },
+ "P4-constrained__S_C1": {
+  "c1": "J#",
+  "c3": "G~#"
+ },
+ "P2-coupled__S_v5": {
+  "v3": "gamma",
+  "v4": "Sigma",
+  "v5": "kappa"
+ }
+}
