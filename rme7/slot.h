@@ -44,11 +44,45 @@ typedef enum : uint8_t {
  * forcing, which is a category error and the most frequently reintroduced
  * one. kappa and gamma are NONE: a gate is not a term, and an invariant
  * computed over trajectories is not a term either. */
+/* Position in the canonical form. Read off the equation as carried:
+ *
+ *   dX_t = J#(dH) - G#(dH) - G~#(dPhi) + Sigma.dW_t
+ *   dtheta = ... F(X, theta, Phi) dt
+ *
+ * The state equation has TWO positions, not one. The metriplectic triple sits
+ * under dt; Sigma sits under dW. Drift and diffusion are the structure of an
+ * SDE, and a typing that calls both "the state equation" is coarser than the
+ * form it transcribes -- which is why the tier-0/tier-1 boundary looked
+ * ungrounded when it is written down in the equation itself.
+ *
+ * STATE and GENERATOR remain as unions, so a claim may name a coarser
+ * position than the format distinguishes. That is under-specification, not
+ * error: a claim is refused only when it names a position the slot does not
+ * admit at all. */
 typedef enum : uint8_t {
-    RME7_EQ_NONE      = 0u,
-    RME7_EQ_STATE     = 1u << 0,  /* dX      */
-    RME7_EQ_GENERATOR = 1u << 1   /* dtheta  */
+    RME7_EQ_NONE         = 0u,
+    RME7_EQ_DRIFT_X      = 1u << 0,  /* the dt term of dX      */
+    RME7_EQ_DIFFUSION_X  = 1u << 1,  /* the dW term of dX      */
+    RME7_EQ_DRIFT_THETA  = 1u << 2,  /* the dt term of dtheta  */
+
+    RME7_EQ_STATE     = RME7_EQ_DRIFT_X | RME7_EQ_DIFFUSION_X,
+    RME7_EQ_GENERATOR = RME7_EQ_DRIFT_THETA
 } Rme7Equation;
+
+/* What the operator is applied to in the canonical form. J#(dH) and G#(dH)
+ * share an operand; G~#(dPhi) does not. That is a relation among the tier-0
+ * members written into the equation, and it is NOT the gamma commutator --
+ * gamma couples G# with G~#, argument-sharing couples J# with G#. Two
+ * relations over three slots, overlapping on G#, neither covering all three. */
+typedef enum : uint8_t {
+    RME7_OPERAND_NONE,
+    RME7_OPERAND_DH,     /* the energy one-form  */
+    RME7_OPERAND_DPHI,   /* the purpose one-form */
+    RME7_OPERAND_DW      /* a Wiener increment   */
+} Rme7Operand;
+
+[[nodiscard]] Rme7Operand rme7_slot_operand(Rme7Slot slot);
+[[nodiscard]] const char *rme7_operand_name(Rme7Operand operand);
 
 /* Custody. Exhibits may exhibit; they may not legislate. */
 typedef enum : uint8_t {
@@ -183,9 +217,10 @@ typedef enum : uint8_t {
     RME7_STRUCT_RANK0_GROUPING,
     RME7_STRUCT_RANK_ORDER,
     RME7_STRUCT_COUPLING,
-    RME7_STRUCT_BIT_POSITION
+    RME7_STRUCT_BIT_POSITION,
+    RME7_STRUCT_OPERAND                  /* what the operator is applied to */
 } Rme7Structure;
-#define RME7_STRUCTURE_COUNT 8
+#define RME7_STRUCTURE_COUNT 9
 
 /* THE ARCHITECTURAL TEST, mechanized.
  *

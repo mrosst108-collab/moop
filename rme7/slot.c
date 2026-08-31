@@ -5,6 +5,7 @@
 typedef struct {
     Rme7Kind     kind;
     Rme7Equation admits;
+    Rme7Operand  operand;
     uint8_t      tier;
     const char  *name;
     const char  *office;
@@ -15,31 +16,31 @@ typedef struct {
  * not a realization's -- no geometry, no manifold, no coordinates. */
 static const SlotFacts FACTS[RME7_SLOT_COUNT] = {
     [RME7_J_SHARP] = {
-        RME7_KIND_OPERATOR, RME7_EQ_STATE, 0, "J#",
+        RME7_KIND_OPERATOR, RME7_EQ_DRIFT_X, RME7_OPERAND_DH, 0, "J#",
         "circulates without converging",
         "Hdot = 0: conservative structure loses its office" },
     [RME7_G_SHARP] = {
-        RME7_KIND_OPERATOR, RME7_EQ_STATE, 0, "G#",
+        RME7_KIND_OPERATOR, RME7_EQ_DRIFT_X, RME7_OPERAND_DH, 0, "G#",
         "converges; the only slot whose office is convergence",
         "Hdot < 0: no dedicated convergent office; descent untypeable" },
     [RME7_G_TILDE_SHARP] = {
-        RME7_KIND_OPERATOR, RME7_EQ_STATE, 0, "G~#",
+        RME7_KIND_OPERATOR, RME7_EQ_DRIFT_X, RME7_OPERAND_DPHI, 0, "G~#",
         "confines without converging; never a gradient descent",
         "Phidot = 0: confinement collapses into descent" },
     [RME7_SIGMA] = {
-        RME7_KIND_OPERATOR, RME7_EQ_STATE, 1, "Sigma",
+        RME7_KIND_OPERATOR, RME7_EQ_DIFFUSION_X, RME7_OPERAND_DW, 1, "Sigma",
         "stochastic exploration, and the one route between objects",
         "Sigma_ij = 0: novelty and the ecological channel die together" },
     [RME7_F] = {
-        RME7_KIND_OPERATOR, RME7_EQ_GENERATOR, 2, "F",
+        RME7_KIND_OPERATOR, RME7_EQ_DRIFT_THETA, RME7_OPERAND_NONE, 2, "F",
         "evolves the generator; never a term in the state equation",
         "dtheta = 0: RME-4 at the generator level" },
     [RME7_KAPPA] = {
-        RME7_KIND_ADMISSIBILITY, RME7_EQ_NONE, 3, "kappa",
+        RME7_KIND_ADMISSIBILITY, RME7_EQ_NONE, RME7_OPERAND_NONE, 3, "kappa",
         "admits or refuses a proposed generator change; a verdict, never a score",
         "im F not contained in K_adm: ungoverned self-modification" },
     [RME7_GAMMA] = {
-        RME7_KIND_INVARIANT, RME7_EQ_NONE, 4, "gamma",
+        RME7_KIND_INVARIANT, RME7_EQ_NONE, RME7_OPERAND_NONE, 4, "gamma",
         "path dependence, measured from trajectories and never applied",
         "[G#, G~#] = 0: order-sensitive dynamics loses its dedicated invariant" },
 };
@@ -81,6 +82,21 @@ const char *rme7_slot_name(Rme7Slot slot) {
 const char *rme7_slot_office(Rme7Slot slot) {
     assert(slot < RME7_SLOT_COUNT);
     return FACTS[slot].office;
+}
+
+Rme7Operand rme7_slot_operand(Rme7Slot slot) {
+    assert(slot < RME7_SLOT_COUNT);
+    return FACTS[slot].operand;
+}
+
+const char *rme7_operand_name(Rme7Operand operand) {
+    switch (operand) {
+    case RME7_OPERAND_NONE: return "none";
+    case RME7_OPERAND_DH:   return "dH";
+    case RME7_OPERAND_DPHI: return "dPhi";
+    case RME7_OPERAND_DW:   return "dW";
+    }
+    return "unknown";
 }
 
 const char *rme7_slot_witness(Rme7Slot slot) {
@@ -154,6 +170,7 @@ Rme7Basis rme7_structure_basis(Rme7Structure structure) {
     case RME7_STRUCT_KIND_PARTITION:         return RME7_BASIS_RECORDED;
     case RME7_STRUCT_EQUATION_ADMISSION:     return RME7_BASIS_RECORDED;
     case RME7_STRUCT_GAMMA_DERIVATION:       return RME7_BASIS_RECORDED;
+    case RME7_STRUCT_OPERAND:                return RME7_BASIS_RECORDED;
     /* operator iff additive is not an independent fact: it follows from the
      * kind and the equation, and is asserted where the two are read. */
     case RME7_STRUCT_OPERATOR_BICONDITIONAL: return RME7_BASIS_DERIVED;
@@ -283,6 +300,7 @@ Rme7Warrant rme7_structure_warrant(Rme7Structure structure) {
     case RME7_STRUCT_KIND_PARTITION:
     case RME7_STRUCT_OPERATOR_BICONDITIONAL:
     case RME7_STRUCT_GAMMA_DERIVATION:
+    case RME7_STRUCT_OPERAND:
         return RME7_WARRANT_REFUTED_CONTINGENTLY;
 
     case RME7_STRUCT_COUPLING:
@@ -326,6 +344,7 @@ bool rme7_structure_consequential(Rme7Structure structure) {
     case RME7_STRUCT_RANK0_GROUPING:         return true;
     case RME7_STRUCT_RANK_ORDER:             return true;
     case RME7_STRUCT_COUPLING:               return true;
+    case RME7_STRUCT_OPERAND:                return true;
     case RME7_STRUCT_BIT_POSITION:           return false;  /* unreachable */
     }
     return true;
@@ -385,6 +404,7 @@ const char *rme7_structure_name(Rme7Structure structure) {
     case RME7_STRUCT_RANK_ORDER:             return "the ranks occur in this sequence";
     case RME7_STRUCT_COUPLING:               return "slots that must co-occur";
     case RME7_STRUCT_BIT_POSITION:           return "which bit a slot occupies";
+    case RME7_STRUCT_OPERAND:                return "what the operator is applied to";
     }
     return "unknown";
 }

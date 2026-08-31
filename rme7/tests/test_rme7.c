@@ -238,13 +238,14 @@ static void test_only_one_slot_is_independently_withholdable(void) {
 
 /* Is each tier boundary justified by a property the format actually RECORDS?
  *
- * Three of the four are: the equation changes at F, and the kind changes at
- * kappa and again at gamma. The fourth is not -- Sigma and the tier-0 triple
- * carry identical typed signatures, so nothing typed separates them. Which
- * makes the fused-versus-composable question answerable only from the offices,
- * and the offices distinguish the triple's members from each other exactly as
- * much as they distinguish Sigma from the triple. */
-static void test_only_one_tier_boundary_is_untyped(void) {
+ * An earlier pass answered "three of four" and named the tier-0/tier-1 boundary
+ * as the ungrounded one, because Sigma and the triple both typed as
+ * (operator, state). That was wrong, and the error was in the transcription
+ * rather than the format: the canonical form writes the state equation in TWO
+ * positions, the triple under dt and Sigma under dW, and calling both "state"
+ * was coarser than the equation being transcribed. Drift and diffusion are the
+ * structure of an SDE, and the boundary is written down in the form itself. */
+static void test_every_tier_boundary_is_grounded(void) {
     Rme7Kind kind[RME7_TIER_COUNT]; Rme7Equation eq[RME7_TIER_COUNT];
     bool got[RME7_TIER_COUNT] = { false };
     for (int s = 0; s < RME7_SLOT_COUNT; s++) {
@@ -253,29 +254,51 @@ static void test_only_one_tier_boundary_is_untyped(void) {
         if (!got[t]) { kind[t] = rme7_slot_kind(sl); eq[t] = rme7_slot_admits(sl);
                        got[t] = true; }
     }
-    int typed_boundaries = 0, untyped = -1;
-    for (int t = 0; t + 1 < RME7_TIER_COUNT; t++) {
-        if (kind[t] != kind[t + 1] || eq[t] != eq[t + 1]) typed_boundaries++;
-        else if (untyped < 0) untyped = t;
-    }
-    check(typed_boundaries == 3 && untyped == 0,
-          "three of four tier boundaries are typed; the untyped one is 0 -> 1");
+    int typed = 0;
+    for (int t = 0; t + 1 < RME7_TIER_COUNT; t++)
+        if (kind[t] != kind[t + 1] || eq[t] != eq[t + 1]) typed++;
+    check(typed == 4, "all four tier boundaries are grounded in a recorded "
+                      "difference once drift and diffusion are distinguished");
 
-    check(rme7_slot_kind(RME7_SIGMA) == rme7_slot_kind(RME7_J_SHARP) &&
-          rme7_slot_admits(RME7_SIGMA) == rme7_slot_admits(RME7_J_SHARP),
-          "Sigma and the tier-0 triple are typed identically: operator, state");
+    check(rme7_slot_admits(RME7_J_SHARP) == RME7_EQ_DRIFT_X &&
+          rme7_slot_admits(RME7_SIGMA) == RME7_EQ_DIFFUSION_X,
+          "the triple is drift and Sigma is diffusion: the boundary the earlier "
+          "pass called ungrounded is in the equation");
 
-    const Rme7Slot t0[3] = { RME7_J_SHARP, RME7_G_SHARP, RME7_G_TILDE_SHARP };
-    bool uniform = true;
-    for (int i = 1; i < 3; i++)
-        if (rme7_slot_kind(t0[i]) != rme7_slot_kind(t0[0]) ||
-            rme7_slot_admits(t0[i]) != rme7_slot_admits(t0[0])) uniform = false;
-    check(uniform,
-          "the triple's members are typed identically too, and differ only in "
-          "office -- the same evidence that separates Sigma from them");
+    /* A coarser claim is under-specification, not error. */
+    check((rme7_slot_admits(RME7_J_SHARP) & RME7_EQ_STATE) != 0 &&
+          (rme7_slot_admits(RME7_F) & RME7_EQ_STATE) == 0,
+          "STATE still overlaps the triple and still excludes F");
+
+    /* But the ORDER is untouched by this: distinguishing drift from diffusion
+     * says which is which, not which comes first. Relay 009 stands. */
+    check(rme7_structure_basis(RME7_STRUCT_RANK_ORDER) == RME7_BASIS_STIPULATED,
+          "grounding the boundaries grounds no order: boundary is still not order");
 }
 
-/* The one recorded inter-slot relation, and what it says about tier 0. */
+/* And tier 0 is not internally uniform after all. */
+static void test_tier_zero_splits_by_operand(void) {
+    check(rme7_slot_operand(RME7_J_SHARP) == RME7_OPERAND_DH &&
+          rme7_slot_operand(RME7_G_SHARP) == RME7_OPERAND_DH &&
+          rme7_slot_operand(RME7_G_TILDE_SHARP) == RME7_OPERAND_DPHI,
+          "J#(dH) and G#(dH) share an operand; G~#(dPhi) does not");
+
+    /* This is a second relation over tier 0, and it is NOT the commutator.
+     * gamma couples G# with G~#; sharing an operand couples J# with G#. Two
+     * relations over three slots, overlapping on G#, neither spanning all
+     * three -- so an earlier pass calling gamma "the only recorded relation"
+     * was reading the ontology and not the equation. */
+    Rme7Slot dep[2];
+    (void)rme7_slot_derives_from(RME7_GAMMA, dep, 2);
+    bool commutator_pair_shares_operand =
+        rme7_slot_operand(dep[0]) == rme7_slot_operand(dep[1]);
+    check(!commutator_pair_shares_operand,
+          "the commutator's pair and the operand's pair are different pairs");
+
+    check(rme7_structure_basis(RME7_STRUCT_OPERAND) == RME7_BASIS_RECORDED,
+          "the operand is recorded, transcribed from the canonical form");
+}
+
 static void test_the_recorded_coupling_spans_two_of_three(void) {
     Rme7Slot from[2];
     check(rme7_slot_derives_from(RME7_GAMMA, from, 2) == 2 &&
@@ -364,10 +387,10 @@ static void test_the_provenance_ledger(void) {
     for (int i = 0; i < RME7_STRUCTURE_COUNT; i++)
         n[rme7_structure_basis((Rme7Structure)i)]++;
 
-    check(n[RME7_BASIS_RECORDED] == 3 && n[RME7_BASIS_DERIVED] == 1 &&
+    check(n[RME7_BASIS_RECORDED] == 4 && n[RME7_BASIS_DERIVED] == 1 &&
           n[RME7_BASIS_STIPULATED] == 2 && n[RME7_BASIS_LAYOUT] == 1 &&
           n[RME7_BASIS_ABSENT] == 1,
-          "eight structural claims: 3 recorded, 1 derived, 2 stipulated, "
+          "nine structural claims: 4 recorded, 1 derived, 2 stipulated, "
           "1 layout, 1 absent");
 
     check(rme7_structure_basis(RME7_STRUCT_RANK0_GROUPING) == RME7_BASIS_STIPULATED &&
@@ -489,7 +512,8 @@ static void test_contingent_refutation_licenses_nothing(void) {
      * on any of them. */
     const Rme7Structure contingent[] = {
         RME7_STRUCT_KIND_PARTITION,
-        RME7_STRUCT_OPERATOR_BICONDITIONAL, RME7_STRUCT_GAMMA_DERIVATION };
+        RME7_STRUCT_OPERATOR_BICONDITIONAL, RME7_STRUCT_GAMMA_DERIVATION,
+        RME7_STRUCT_OPERAND };
     for (size_t i = 0; i < sizeof contingent / sizeof *contingent; i++) {
         check(rme7_structure_warrant(contingent[i]) ==
               RME7_WARRANT_REFUTED_CONTINGENTLY,
@@ -1066,7 +1090,8 @@ int main(void) {
     test_staircase();
     test_the_tier_zero_family_is_thirty();
     test_only_one_slot_is_independently_withholdable();
-    test_only_one_tier_boundary_is_untyped();
+    test_every_tier_boundary_is_grounded();
+    test_tier_zero_splits_by_operand();
     test_the_recorded_coupling_spans_two_of_three();
     test_co_location_is_not_coupling();
     test_the_order_itself_is_ungrounded();

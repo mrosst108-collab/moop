@@ -43,7 +43,7 @@ Rme7Typing rme7_claim_typing_in(const Rme7Claim *claim, const Rme7Proto *receive
      * either turns a gate or an invariant into a term. Recorded as a typed
      * property since the first commit and, until now, read by nothing. */
     if (claim->equation != RME7_EQ_NONE &&
-        (rme7_slot_admits(claim->slot) & claim->equation) != claim->equation)
+        (rme7_slot_admits(claim->slot) & claim->equation) == 0)
         return RME7_TYPING_WRONG_EQUATION;
 
     /* A distinction the receiver's chain never defines means nothing here,
