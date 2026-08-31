@@ -1,0 +1,59 @@
+{
+ "P1-brownian__S_v5": {
+  "v3": "∇",
+  "v4": "√(2D)"
+ },
+ "P1-brownian__S_C1": {
+  "c1": "Grad",
+  "c2": "Div",
+  "c3": "Grad",
+  "c4": "sigma",
+  "c5": ""
+ },
+ "P2-coupled__S_v5": {
+  "v1": "A_1",
+  "v2": "A_2",
+  "v3": "A_3",
+  "v4": "sigma",
+  "v5": "-",
+  "v6": "1",
+  "v7": "F"
+ },
+ "P2-coupled__S_C1": {
+  "c1": "H1",
+  "c2": "H1",
+  "c3": "Phi1",
+  "c4": "sigma_i",
+  "c5": "g_ij"
+ },
+ "P3-adaptive__S_v5": {
+  "v1": "Ad",
+  "v2": "As",
+  "v3": "AΦ",
+  "v4": "Σ",
+  "v5": "b",
+  "v6": "G(theta,F)",
+  "v7": "H(X,theta,Phi)"
+ },
+ "P3-adaptive__S_C1": {
+  "c1": "grad",
+  "c2": "grad",
+  "c3": "grad",
+  "c4": "sigma",
+  "c5": "sigma"
+ },
+ "P4-constrained__S_v5": {
+  "v1": "grad",
+  "v2": "grad",
+  "v3": "grad",
+  "v5": "none",
+  "v7": "none"
+ },
+ "P4-constrained__S_C1": {
+  "c1": "grad_perp",
+  "c2": "grad_par",
+  "c3": "grad",
+  "c4": "sigma",
+  "c5": "Sum"
+ }
+}
