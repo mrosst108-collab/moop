@@ -24,8 +24,15 @@
  * and only the first is inherited:
  *
  *   slot DEFINITIONS  delegate  -- what a slot is, and what office it holds
+ *   the CONTRACT                -- local: what this object offers to compose on
  *   the activation PROFILE      -- local: what THIS object exhibits
  *   the PAYLOAD                 -- local: purpose, energy, state
+ *
+ * Contract and profile are separate for the reason a whole relay was spent
+ * establishing one level up: NOT CURRENTLY USED IS NOT UNAVAILABLE. An object
+ * may contract to compose on a slot it does not presently exhibit, and
+ * collapsing the two would let a momentarily thin object be read as
+ * structurally incapable -- the object-level form of the same error.
  *
  * That split is load-bearing twice over. Because exhibition does not
  * delegate, a proto generated from a root that defines all seven slots does
@@ -82,6 +89,7 @@ struct Rme7Proto {
     const Rme7Proto *parent;  /* delegation; nullptr at either root */
     Rme7Origin       origin;  /* generation; immutable after birth  */
     Rme7SlotDecl     slots[RME7_SLOT_COUNT];  /* definitions; delegable   */
+    Rme7Profile      contracts;                /* offered; local only      */
     Rme7Profile      exhibits;                 /* evidence; local only     */
     Rme7Payload      payload;                  /* value; local only        */
     Rme7Rung         declared;
@@ -116,6 +124,17 @@ void rme7_proto_define(Rme7Proto *proto, Rme7Slot slot,
  * a distinction the format has not given it. Returns false on refusal. */
 [[nodiscard]] bool rme7_proto_exhibit(Rme7Proto *proto, Rme7Slot slot);
 void rme7_proto_unexhibit(Rme7Proto *proto, Rme7Slot slot);
+
+/* Offer to compose on a slot without exhibiting it. Refused, like exhibition,
+ * for a slot no rung of the chain defines: an object cannot contract on a
+ * distinction the format never gave it. Exhibiting implies contracting. */
+[[nodiscard]] bool rme7_proto_contract(Rme7Proto *proto, Rme7Slot slot);
+[[nodiscard]] Rme7Profile rme7_proto_contracts(const Rme7Proto *proto);
+
+/* Two objects are structurally compatible when their contracts agree. Note
+ * what this does NOT consult: lineage. Interoperability does not require
+ * common ancestry, and this is the predicate that says so. */
+[[nodiscard]] bool rme7_proto_compatible(const Rme7Proto *a, const Rme7Proto *b);
 
 /* Resolve a slot DEFINITION by delegation. Returns nullptr when no rung of
  * the chain defines it -- which means not defined, never "absent from the

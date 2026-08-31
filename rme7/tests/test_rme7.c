@@ -557,6 +557,59 @@ static void test_equation_admission_is_enforced(void) {
           "equation admission moves from contingently refuted to demonstrated");
 }
 
+/* Interoperability without common ancestry, and the third slot state. */
+static void test_compatibility_does_not_need_ancestry(void) {
+    Rme7Actor act; Rme7Proto sys, rootA, rootB, weather, finance;
+    rme7_actor_init(&act, "grammar");
+    rme7_actor_generate_system_root(&act, &sys, "sysroot");
+    /* two separate user roots: no common user-layer ancestor */
+    rme7_proto_generate_user_root(&sys, &rootA, "root A");
+    rme7_proto_generate_user_root(&sys, &rootB, "root B");
+    (void)rme7_proto_generate(&rootA, &weather, "P_weather");
+    (void)rme7_proto_generate(&rootB, &finance, "P_finance");
+
+    const Rme7Slot four[4] = { RME7_J_SHARP, RME7_G_SHARP,
+                               RME7_G_TILDE_SHARP, RME7_SIGMA };
+    for (int i = 0; i < 4; i++) {
+        (void)rme7_proto_exhibit(&weather, four[i]);
+        (void)rme7_proto_exhibit(&finance, four[i]);
+    }
+    weather.payload.purpose = "forecast skill";
+    finance.payload.purpose = "solvency";
+
+    check(!rme7_proto_delegates_to(&weather, &finance) &&
+          !rme7_proto_delegates_to(&finance, &weather) &&
+          weather.parent != finance.parent,
+          "neither descends from the other and they share no user-layer parent");
+    check(rme7_proto_compatible(&weather, &finance),
+          "yet they are structurally compatible: interoperability does not "
+          "require common ancestry");
+    check(strcmp(rme7_proto_payload(&weather)->purpose,
+                 rme7_proto_payload(&finance)->purpose) != 0,
+          "and their purposes stay their own");
+
+    /* The third state: contracted without being exhibited. */
+    Rme7Proto dormant;
+    (void)rme7_proto_generate(&rootA, &dormant, "dormant on F");
+    for (int i = 0; i < 4; i++) (void)rme7_proto_exhibit(&dormant, four[i]);
+    check(rme7_proto_contract(&dormant, RME7_F),
+          "an object may offer to compose on a slot it does not exhibit");
+    check(!rme7_profile_exhibits(rme7_proto_profile(&dormant), RME7_F) &&
+          rme7_profile_exhibits(rme7_proto_contracts(&dormant), RME7_F),
+          "contracted and not exhibited are different states, and the port "
+          "can now tell them apart");
+    check(rme7_proto_classify(&dormant).rung == RME7_RUNG_4,
+          "contracting does not inflate the rung: exhibition still decides it");
+    check(!rme7_proto_compatible(&dormant, &weather),
+          "and a wider contract is a different structural offer");
+
+    /* An object cannot contract on a slot the format never gave it. */
+    Rme7Proto orphan = { .name = "no format", .layer = RME7_LAYER_USER,
+                         .parent = nullptr };
+    check(!rme7_proto_contract(&orphan, RME7_J_SHARP),
+          "nor contract on a distinction no rung of the chain defines");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -936,6 +989,7 @@ int main(void) {
     test_warrant_by_perturbation();
     test_contingent_refutation_licenses_nothing();
     test_equation_admission_is_enforced();
+    test_compatibility_does_not_need_ancestry();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();

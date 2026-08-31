@@ -39,6 +39,7 @@ void rme7_actor_generate_system_root(const Rme7Actor *actor,
     };
     memcpy(out->slots, actor->slots, sizeof out->slots);
     out->exhibits = rme7_profile_empty();
+    out->contracts = rme7_profile_empty();
 }
 
 void rme7_proto_generate_user_root(const Rme7Proto *system_root,
@@ -55,6 +56,7 @@ void rme7_proto_generate_user_root(const Rme7Proto *system_root,
     };
     memcpy(out->slots, system_root->slots, sizeof out->slots);
     out->exhibits = rme7_profile_empty();
+    out->contracts = rme7_profile_empty();
 }
 
 bool rme7_proto_generate(const Rme7Proto *generator,
@@ -70,6 +72,7 @@ bool rme7_proto_generate(const Rme7Proto *generator,
     };
     clear_slots(out->slots);
     out->exhibits = rme7_profile_empty();
+    out->contracts = rme7_profile_empty();
     return true;
 }
 
@@ -86,7 +89,25 @@ bool rme7_proto_exhibit(Rme7Proto *proto, Rme7Slot slot) {
     assert(proto != nullptr && slot < RME7_SLOT_COUNT);
     if (rme7_proto_resolve(proto, slot, nullptr) == nullptr) return false;
     rme7_profile_set(&proto->exhibits, slot, true);
+    rme7_profile_set(&proto->contracts, slot, true);  /* exhibiting implies offering */
     return true;
+}
+
+bool rme7_proto_contract(Rme7Proto *proto, Rme7Slot slot) {
+    assert(proto != nullptr && slot < RME7_SLOT_COUNT);
+    if (rme7_proto_resolve(proto, slot, nullptr) == nullptr) return false;
+    rme7_profile_set(&proto->contracts, slot, true);
+    return true;
+}
+
+Rme7Profile rme7_proto_contracts(const Rme7Proto *proto) {
+    assert(proto != nullptr);
+    return proto->contracts;
+}
+
+bool rme7_proto_compatible(const Rme7Proto *a, const Rme7Proto *b) {
+    if (a == nullptr || b == nullptr) return false;
+    return a->contracts.bits == b->contracts.bits;   /* lineage not consulted */
 }
 
 void rme7_proto_unexhibit(Rme7Proto *proto, Rme7Slot slot) {
