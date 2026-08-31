@@ -48,6 +48,69 @@ The two-scale structure is the point: the first line evolves state, the second e
 the evolution. Collapsing them loses the distinction between a system that runs and a system that
 changes how it runs.
 
+### 2.1 — A second form is in circulation, and it is not this section's source **[recorded 2026-08-31]**
+
+A count-aligned, indexed variant of the form above has been used by this repository's
+implementations since their first commit. **It is recorded here, not admitted.** The two are
+custodied separately and neither supersedes the other:
+
+**S_v5** — the form above, transcribed from Rosst-CP v5. This section's carried source.
+
+**S_C1** — the variant, as received:
+
+```
+dX_i = ( J_i♯(dH_i) − G_i♯(dH_i) − G̃_i♯(dΦ_i) ) dt
+       + Σ_ii ∘ dW_i
+       + Σ_{j≠i} Σ_ij(X_j → X_i) ∘ dW_ij
+```
+
+with the parameter/evolution component stated to be represented separately, and not written.
+
+**Provenance of S_C1: chat-level continuity.** Not a primary ASDG source, not a v5 transcription,
+and not retrieved from any corpus this tree can resolve. Conceded as such by the principal,
+2026-08-31. Recorded in `docs/crossing.md` entry 27.
+
+**Where they disagree:**
+
+| feature | S_v5 | S_C1 |
+|---|---|---|
+| `F` | `+ F dt` in `dX_t`, and again in `dθ` | excluded from `dX_i`; parameter equation not written |
+| `Σ` | one undifferentiated `Σ·dW_t` | `Σ_ii ∘ dW_i` and `Σ_ij(X_j → X_i) ∘ dW_ij` |
+| stochastic convention | no `∘` | Stratonovich `∘` throughout |
+| indices | none | `i`, `j`, `ij` |
+| two-scale structure | both lines written | state line only |
+
+**What each form actually writes.** S_v5 writes six of the seven primitives — `J♯`, `G♯`, `G̃♯`,
+`Σ`, `F`, `κ`; `γ` appears in neither form. S_C1 as received writes four — `J♯`, `G♯`, `G̃♯`, `Σ`.
+It drops `κ`'s only written occurrence (`κ(θ, F)` in the second line) and writes `F` only
+negatively, by excluding it. **Consequence for adjudication: admitting S_C1 as *superseding* S_v5
+would lose two written occurrences, so supplementing is the only non-lossy admission.** Note in
+particular that S_C1 alone does not make `F`'s position recorded — it records where `F` is not, and
+nothing about where it is.
+
+**Custody rule, in force now.** No property may be marked `RECORDED` against S_C1 while its
+provenance stands as above. A property read off S_C1 is `STIPULATED` relative to this repository's
+corpus. A later or better-looking formulation does not acquire source status by being later or
+better-looking, and an implementation that depends on a property supplies evidence of what it
+implements, never authority for what the source recorded.
+
+**Currently disputed, per property:**
+
+| property | source | status | version |
+|---|---|---|---|
+| `F` excluded from the state equation | S_C1 | STIPULATED | contradicted by S_v5 |
+| `Σ` split by index | S_C1 | STIPULATED | absent from S_v5 |
+| Stratonovich `∘` | S_C1 | STIPULATED | absent from S_v5 |
+
+**G_prov — open, and prior to every implementation question.** Four questions, none answerable from
+this tree:
+
+1. Which form is primary?
+2. Is S_C1 a later revision, a correction to a faulty v5 transcription, or a reconstruction?
+3. What source authorizes the transition, if there is one?
+4. Until that is answered, which properties are genuinely recorded?
+
+
 ---
 
 ## 3 — Operator semantics **[unpopulated]**
