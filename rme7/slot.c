@@ -89,6 +89,47 @@ Rme7Operand rme7_slot_operand(Rme7Slot slot) {
     return FACTS[slot].operand;
 }
 
+int rme7_format_edges(Rme7Edge *out, int max) {
+    int n = 0;
+    /* symmetric: operators sharing a one-form, recorded once per pair */
+    for (int a = 0; a < RME7_SLOT_COUNT; a++)
+        for (int b = a + 1; b < RME7_SLOT_COUNT; b++) {
+            Rme7Slot x = (Rme7Slot)a, y = (Rme7Slot)b;
+            if (rme7_slot_operand(x) == RME7_OPERAND_NONE) continue;
+            if (rme7_slot_operand(x) != rme7_slot_operand(y)) continue;
+            if (out != nullptr && n < max)
+                out[n] = (Rme7Edge){ RME7_EDGE_SHARES_OPERAND, x, y };
+            n++;
+        }
+    /* directional: what each slot is computed from */
+    for (int a = 0; a < RME7_SLOT_COUNT; a++) {
+        Rme7Slot x = (Rme7Slot)a, dep[RME7_SLOT_COUNT];
+        int k = rme7_slot_derives_from(x, dep, RME7_SLOT_COUNT);
+        for (int i = 0; i < k; i++) {
+            if (out != nullptr && n < max)
+                out[n] = (Rme7Edge){ RME7_EDGE_DERIVES, x, dep[i] };
+            n++;
+        }
+    }
+    return n;
+}
+
+int rme7_isolated_slots(Rme7Slot *out, int max) {
+    Rme7Edge e[RME7_SLOT_COUNT * RME7_SLOT_COUNT];
+    int m = rme7_format_edges(e, RME7_SLOT_COUNT * RME7_SLOT_COUNT);
+    int n = 0;
+    for (int a = 0; a < RME7_SLOT_COUNT; a++) {
+        Rme7Slot x = (Rme7Slot)a;
+        bool touched = false;
+        for (int i = 0; i < m; i++)
+            if (e[i].from == x || e[i].to == x) { touched = true; break; }
+        if (touched) continue;
+        if (out != nullptr && n < max) out[n] = x;
+        n++;
+    }
+    return n;
+}
+
 const char *rme7_operand_name(Rme7Operand operand) {
     switch (operand) {
     case RME7_OPERAND_NONE: return "none";

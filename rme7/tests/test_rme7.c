@@ -720,6 +720,55 @@ static void test_the_two_orderings_disagree(void) {
           "ungrounded order disagreeing with another, not a correction");
 }
 
+/* Is the recorded structure a tree, a graph, or something a nesting cannot
+ * express at all? Computed rather than asserted. */
+static void test_the_recorded_structure_is_a_disconnected_forest(void) {
+    Rme7Edge e[64];
+    int m = rme7_format_edges(e, 64);
+    check(m == 3, "the format records exactly three edges over seven slots");
+
+    bool shares = false, derives = false;
+    for (int i = 0; i < m; i++) {
+        if (e[i].kind == RME7_EDGE_SHARES_OPERAND) shares = true;
+        if (e[i].kind == RME7_EDGE_DERIVES) derives = true;
+    }
+    check(shares && derives,
+          "and the edges are HETEROGENEOUS: one symmetric, two directional");
+
+    /* Which slots any edge touches. */
+    bool touched[RME7_SLOT_COUNT] = { false };
+    for (int i = 0; i < m; i++) { touched[e[i].from] = true; touched[e[i].to] = true; }
+    int n_touched = 0;
+    for (int i = 0; i < RME7_SLOT_COUNT; i++) if (touched[i]) n_touched++;
+    check(n_touched == 4 && m == n_touched - 1,
+          "the connected part is four slots and three edges -- acyclic, so it "
+          "is a tree and not a graph: the graph reading was too generous");
+
+    Rme7Slot iso[RME7_SLOT_COUNT];
+    int k = rme7_isolated_slots(iso, RME7_SLOT_COUNT);
+    check(k == 3, "three slots participate in no recorded edge at all");
+    bool is_sigma = false, is_f = false, is_kappa = false;
+    for (int i = 0; i < k; i++) {
+        if (iso[i] == RME7_SIGMA) is_sigma = true;
+        if (iso[i] == RME7_F)     is_f = true;
+        if (iso[i] == RME7_KAPPA) is_kappa = true;
+    }
+    check(is_sigma && is_f && is_kappa,
+          "and they are Sigma, F and kappa");
+
+    /* So the objection to nesting is not cycles. It is that a nesting over
+     * all seven must invent an edge for each isolated slot -- and the cited
+     * tuple places exactly those three at its second position and its two
+     * deepest, so its shape is carried by the slots the format records
+     * nothing about. */
+    check(k >= 3,
+          "a nesting over all seven must invent at least three edges, and the "
+          "cited tuple's shape is carried by exactly those slots");
+    check(cited_tuple_depth(RME7_KAPPA) == 1 &&
+          cited_tuple_depth(RME7_SIGMA) == 4 && cited_tuple_depth(RME7_F) == 4,
+          "kappa second, Sigma and F deepest: the three unrecorded slots");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -1102,6 +1151,7 @@ int main(void) {
     test_equation_admission_is_enforced();
     test_compatibility_does_not_need_ancestry();
     test_the_two_orderings_disagree();
+    test_the_recorded_structure_is_a_disconnected_forest();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();

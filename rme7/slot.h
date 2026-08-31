@@ -82,6 +82,38 @@ typedef enum : uint8_t {
 } Rme7Operand;
 
 [[nodiscard]] Rme7Operand rme7_slot_operand(Rme7Slot slot);
+
+/* THE RECORDED RELATION GRAPH, over slots, at FORMAT level.
+ *
+ * Two edge kinds and they are not interchangeable: sharing an operand is
+ * symmetric and says two operators consume the same one-form; derivation is
+ * directional and says one is computed from another. A structure with
+ * heterogeneous edges cannot be collapsed into a single nesting without
+ * choosing one kind to be the hierarchy and demoting the other.
+ *
+ * Deliberately a separate type from the object-level Rme7RelationKind in
+ * proto.h. Those are relations a particular realization declares about
+ * itself; these are relations the canonical form records about the format.
+ * Conflating the two scopes is the error this audit keeps finding, so the
+ * types do not conflate them either. */
+typedef enum : uint8_t {
+    RME7_EDGE_SHARES_OPERAND,  /* symmetric: both consume the same one-form */
+    RME7_EDGE_DERIVES          /* directional: from is computed from to     */
+} Rme7EdgeKind;
+
+typedef struct {
+    Rme7EdgeKind kind;
+    Rme7Slot     from;
+    Rme7Slot     to;
+} Rme7Edge;
+
+/* Every edge the format records. Fills `out`, returns the count. */
+[[nodiscard]] int rme7_format_edges(Rme7Edge *out, int max);
+
+/* Slots participating in no recorded edge at all. A nesting over all seven
+ * must invent an edge for each of these, and inventing edges is exactly how a
+ * realization ordering becomes grammar. */
+[[nodiscard]] int rme7_isolated_slots(Rme7Slot *out, int max);
 [[nodiscard]] const char *rme7_operand_name(Rme7Operand operand);
 
 /* Custody. Exhibits may exhibit; they may not legislate. */
