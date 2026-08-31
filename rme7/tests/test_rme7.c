@@ -610,6 +610,49 @@ static void test_compatibility_does_not_need_ancestry(void) {
           "nor contract on a distinction no rung of the chain defines");
 }
 
+/* Two proposed orderings of the same seven slots, and how far apart they are.
+ *
+ * The tuple below is CITED REALIZATION DATA, not format structure. It is the
+ * prototype chain (J#, (kappa, (G~#, {gamma, (G#, {Sigma, F})}))) that R-11
+ * closed as realization-level: implementation order is not grammar order, and
+ * a dependency tuple belongs with the realization that produced it. It is
+ * encoded here only to MEASURE its distance from the staircase, never to rank
+ * anything -- nothing in the library reads it. */
+static int cited_tuple_depth(Rme7Slot s) {
+    switch (s) {
+    case RME7_J_SHARP:       return 0;
+    case RME7_KAPPA:         return 1;
+    case RME7_G_TILDE_SHARP: return 2;
+    case RME7_GAMMA:         return 3;
+    case RME7_G_SHARP:       return 3;
+    case RME7_SIGMA:         return 4;
+    case RME7_F:             return 4;
+    }
+    return -1;
+}
+
+static void test_the_two_orderings_disagree(void) {
+    int inversions = 0;
+    for (int a = 0; a < RME7_SLOT_COUNT; a++)
+        for (int b = 0; b < RME7_SLOT_COUNT; b++) {
+            Rme7Slot x = (Rme7Slot)a, y = (Rme7Slot)b;
+            if (rme7_slot_tier(x) < rme7_slot_tier(y) &&
+                cited_tuple_depth(x) > cited_tuple_depth(y)) inversions++;
+        }
+    check(inversions == 6,
+          "the staircase and the cited prototype chain disagree on six "
+          "ordered pairs: they are not two views of one order");
+
+    check(rme7_slot_tier(RME7_KAPPA) == 3 && cited_tuple_depth(RME7_KAPPA) == 1,
+          "kappa is late in the staircase and early in the chain");
+    check(rme7_slot_tier(RME7_SIGMA) == 1 && cited_tuple_depth(RME7_SIGMA) == 4,
+          "Sigma is early in the staircase and deepest in the chain");
+
+    check(rme7_structure_basis(RME7_STRUCT_RANK_ORDER) == RME7_BASIS_STIPULATED,
+          "the staircase order is itself stipulated -- so this is one "
+          "ungrounded order disagreeing with another, not a correction");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -990,6 +1033,7 @@ int main(void) {
     test_contingent_refutation_licenses_nothing();
     test_equation_admission_is_enforced();
     test_compatibility_does_not_need_ancestry();
+    test_the_two_orderings_disagree();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
