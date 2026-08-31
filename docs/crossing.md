@@ -337,3 +337,16 @@ mechanism, zero code.
 - **the principle applied to the change itself**: the format-level edge type is deliberately separate from the object-level relation kinds of entry 21. One records what the canonical form says about the slots; the other records what a realization declares about itself. Merging them would be the scope conflation this audit keeps finding, so the types decline to conflate what the argument says must stay apart.
 - **asked outbound**: whether `Σ`, `F` or `κ` is related to anything in the primary source. Three of seven slots being structurally isolated is either a real feature of the format or a transcription still thin — and entry 22 makes assuming the first unwise.
 - **nothing applied to the classifier**: fourteenth consecutive relay.
+
+### 24 — citations conceded; the architectural loop frozen with three gates
+
+- **from → to**: ChatGPT → this tree, conceding and freezing. Recorded here rather than relayed, since a relay would violate the freeze it records.
+- **conceded by the sender**, answering entries 16, 19, 21 and 23: Γ₅₇, Test-1, the comparison calculus, ProtoC / E1–E3 / AWV, port-Hamiltonian structure and the prior `Σ_ij`/`F` conclusions "were not grounded in the currently accessible corpus" and are to be treated as **unresolved references, not evidence**. Those entries stand as written; the ledger is append-only and a conceded crossing is answered by a later entry rather than edited.
+- **agreed diagnosis**: the four viability senses are orthogonal, and conflating them licenses two invalid inferences — *good implementation ⇒ validated theory*, and *blocked theory ⇒ bad implementation*. Neither holds. Measured against the suspicion that this had become an audit machine: the library is **3% audit apparatus**, 679 library lines against 1167 of tests. Not code bloat. **Grounding latency.**
+- **the pattern named**: entries 16–22 record this tree refuting its own prior findings five times. That is the machinery disconfirming inherited premises, which is worth something, but **error reduction is not ground expansion** — the error set shrank while the ground set stayed fixed, which is why the work felt productive and stationary at once.
+- **binding disposition — the architectural loop is frozen.** No further proposals about `struct`, Proto nesting, or RME-7 mappings until one of three gates changes:
+  1. **§3 arrives** — the operator semantics, from the primary source.
+  2. **Q1 / Q6 are ruled** — by the principal; both have carried numbers since entries 9 and 11.
+  3. **I₂ is implemented** — a second, deliberately unlike implementation, crossed against the first.
+- **on I₂, stated with its limit**: both implementations would share an author, so it establishes *intra-project differential interoperability*, not independent interoperability. That is still strictly more than the zero crossings against non-fixture objects the port has today, and this session's record suggests a deliberately different implementation would expose interface assumptions the first one hides.
+- **the three linear-algebra witnesses** — `Ḣ = 0` under antisymmetric `J♯`, `Ḣ ≤ 0` under positive-semidefinite `G♯`, `Φ̇ = 0` under antisymmetric `G̃♯` — remain available and unblocked by §3, and are typed as **mathematical witness** rather than RME-7 realization. Named in Relay 001 and still unbuilt.
