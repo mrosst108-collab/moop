@@ -40,6 +40,7 @@ void rme7_actor_generate_system_root(const Rme7Actor *actor,
     memcpy(out->slots, actor->slots, sizeof out->slots);
     out->exhibits = rme7_profile_empty();
     out->contracts = rme7_profile_empty();
+    out->relation_count = 0;
 }
 
 void rme7_proto_generate_user_root(const Rme7Proto *system_root,
@@ -57,6 +58,7 @@ void rme7_proto_generate_user_root(const Rme7Proto *system_root,
     memcpy(out->slots, system_root->slots, sizeof out->slots);
     out->exhibits = rme7_profile_empty();
     out->contracts = rme7_profile_empty();
+    out->relation_count = 0;
 }
 
 bool rme7_proto_generate(const Rme7Proto *generator,
@@ -73,6 +75,7 @@ bool rme7_proto_generate(const Rme7Proto *generator,
     clear_slots(out->slots);
     out->exhibits = rme7_profile_empty();
     out->contracts = rme7_profile_empty();
+    out->relation_count = 0;
     return true;
 }
 
@@ -105,9 +108,46 @@ Rme7Profile rme7_proto_contracts(const Rme7Proto *proto) {
     return proto->contracts;
 }
 
+bool rme7_proto_relate(Rme7Proto *proto, Rme7RelationKind kind,
+                       Rme7Slot from, Rme7Slot to) {
+    assert(proto != nullptr && from < RME7_SLOT_COUNT && to < RME7_SLOT_COUNT);
+    if (proto->relation_count >= RME7_MAX_RELATIONS) return false;
+    /* an object cannot relate what it does not offer */
+    if (!rme7_profile_exhibits(proto->contracts, from) ||
+        !rme7_profile_exhibits(proto->contracts, to)) return false;
+    proto->relations[proto->relation_count++] =
+        (Rme7Relation){ .kind = kind, .from = from, .to = to };
+    return true;
+}
+
+int rme7_proto_relations(const Rme7Proto *proto, Rme7Relation *out, int max) {
+    assert(proto != nullptr);
+    for (int i = 0; i < proto->relation_count && i < max; i++)
+        if (out != nullptr) out[i] = proto->relations[i];
+    return proto->relation_count;
+}
+
+static bool declares(const Rme7Proto *p, Rme7Relation r) {
+    for (int i = 0; i < p->relation_count; i++) {
+        Rme7Relation q = p->relations[i];
+        if (q.kind != r.kind) continue;
+        if (q.from == r.from && q.to == r.to) return true;
+        /* coupling is symmetric */
+        if (r.kind == RME7_REL_COUPLES && q.from == r.to && q.to == r.from)
+            return true;
+    }
+    return false;
+}
+
 bool rme7_proto_compatible(const Rme7Proto *a, const Rme7Proto *b) {
     if (a == nullptr || b == nullptr) return false;
-    return a->contracts.bits == b->contracts.bits;   /* lineage not consulted */
+    if (a->contracts.bits != b->contracts.bits) return false;  /* the sort */
+    /* and the structure: each must declare what the other declares */
+    for (int i = 0; i < a->relation_count; i++)
+        if (!declares(b, a->relations[i])) return false;
+    for (int i = 0; i < b->relation_count; i++)
+        if (!declares(a, b->relations[i])) return false;
+    return true;   /* lineage still not consulted */
 }
 
 void rme7_proto_unexhibit(Rme7Proto *proto, Rme7Slot slot) {

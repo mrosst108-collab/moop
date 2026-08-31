@@ -603,6 +603,49 @@ static void test_compatibility_does_not_need_ancestry(void) {
     check(!rme7_proto_compatible(&dormant, &weather),
           "and a wider contract is a different structural offer");
 
+    /* A contract is a SORT. Two objects can offer the same slots and relate
+     * them differently, and comparing bitsets alone cannot tell them apart --
+     * which is the error this predicate committed until relations existed. */
+    Rme7Proto ra, rb;
+    (void)rme7_proto_generate(&rootA, &ra, "same offer, coupled");
+    (void)rme7_proto_generate(&rootB, &rb, "same offer, uncoupled");
+    for (int i = 0; i < 4; i++) {
+        (void)rme7_proto_exhibit(&ra, four[i]);
+        (void)rme7_proto_exhibit(&rb, four[i]);
+    }
+    check(rme7_proto_contracts(&ra).bits == rme7_proto_contracts(&rb).bits,
+          "two objects offering exactly the same slots");
+    check(rme7_proto_relate(&ra, RME7_REL_COUPLES, RME7_SIGMA, RME7_G_SHARP),
+          "one of them declares its Sigma coupled to its G#");
+    check(!rme7_proto_compatible(&ra, &rb),
+          "and they are NOT compatible: identical sorts, different structures");
+    check(rme7_proto_relate(&rb, RME7_REL_COUPLES, RME7_G_SHARP, RME7_SIGMA),
+          "the other declares the same coupling, written the other way round");
+    check(rme7_proto_compatible(&ra, &rb),
+          "now compatible -- coupling is symmetric, so the order of naming "
+          "is not part of the structure");
+
+    /* Directional relations are not symmetric, and must not be matched as if. */
+    Rme7Proto da, db;
+    (void)rme7_proto_generate(&rootA, &da, "derives one way");
+    (void)rme7_proto_generate(&rootB, &db, "derives the other");
+    for (int i = 0; i < 4; i++) {
+        (void)rme7_proto_exhibit(&da, four[i]);
+        (void)rme7_proto_exhibit(&db, four[i]);
+    }
+    check(rme7_proto_relate(&da, RME7_REL_DERIVES, RME7_SIGMA, RME7_G_SHARP) &&
+          rme7_proto_relate(&db, RME7_REL_DERIVES, RME7_G_SHARP, RME7_SIGMA),
+          "each declares a derivation, in opposite directions");
+    check(!rme7_proto_compatible(&da, &db),
+          "and they are not compatible: derivation is directional");
+
+    /* An object cannot relate what it does not offer. */
+    Rme7Proto nooffer;
+    (void)rme7_proto_generate(&rootA, &nooffer, "offers four");
+    for (int i = 0; i < 4; i++) (void)rme7_proto_exhibit(&nooffer, four[i]);
+    check(!rme7_proto_relate(&nooffer, RME7_REL_COUPLES, RME7_SIGMA, RME7_F),
+          "nor relate a slot it does not contract on");
+
     /* An object cannot contract on a slot the format never gave it. */
     Rme7Proto orphan = { .name = "no format", .layer = RME7_LAYER_USER,
                          .parent = nullptr };

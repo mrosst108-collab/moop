@@ -61,6 +61,30 @@ typedef struct {
     const Rme7Proto *proto;  /* set iff kind == RME7_ORIGIN_PROTO */
 } Rme7Origin;
 
+/* PER-OBJECT RELATIONS.
+ *
+ * The format records relations between slots (gamma derives from G# and G~#).
+ * An object needs to record relations of its own: in THIS realization, this
+ * slot derives from that one, or these two must co-occur. Without them a
+ * contract says only which slots are offered, and a set of offered slots is a
+ * SORT -- which the audit has repeatedly established is not a structure.
+ *
+ * The two kinds are the two the format already types. No third kind is
+ * introduced: an `admits` relation would duplicate kappa, which is the
+ * admissibility structure itself. */
+typedef enum : uint8_t {
+    RME7_REL_DERIVES,   /* from is computed from to; directional */
+    RME7_REL_COUPLES    /* from and to must co-occur; symmetric  */
+} Rme7RelationKind;
+
+typedef struct {
+    Rme7RelationKind kind;
+    Rme7Slot from;
+    Rme7Slot to;
+} Rme7Relation;
+
+#define RME7_MAX_RELATIONS 8
+
 /* Per-object payload. NEVER delegated -- there is deliberately no resolve
  * function for it. Purpose is i-indexed and never shared by default; two
  * objects that agreed a purpose by inheritance would be one object. */
@@ -90,6 +114,8 @@ struct Rme7Proto {
     Rme7Origin       origin;  /* generation; immutable after birth  */
     Rme7SlotDecl     slots[RME7_SLOT_COUNT];  /* definitions; delegable   */
     Rme7Profile      contracts;                /* offered; local only      */
+    Rme7Relation     relations[RME7_MAX_RELATIONS];  /* declared; local only */
+    int              relation_count;
     Rme7Profile      exhibits;                 /* evidence; local only     */
     Rme7Payload      payload;                  /* value; local only        */
     Rme7Rung         declared;
@@ -131,9 +157,26 @@ void rme7_proto_unexhibit(Rme7Proto *proto, Rme7Slot slot);
 [[nodiscard]] bool rme7_proto_contract(Rme7Proto *proto, Rme7Slot slot);
 [[nodiscard]] Rme7Profile rme7_proto_contracts(const Rme7Proto *proto);
 
-/* Two objects are structurally compatible when their contracts agree. Note
- * what this does NOT consult: lineage. Interoperability does not require
- * common ancestry, and this is the predicate that says so. */
+
+/* Declare a relation this object's realization holds. Refused for a slot the
+ * object does not contract on -- an object cannot relate what it does not
+ * offer -- and when the table is full. */
+[[nodiscard]] bool rme7_proto_relate(Rme7Proto *proto, Rme7RelationKind kind,
+                                     Rme7Slot from, Rme7Slot to);
+[[nodiscard]] int  rme7_proto_relations(const Rme7Proto *proto,
+                                        Rme7Relation *out, int max);
+
+/* Two objects are structurally compatible when their contracts agree AND the
+ * relations they declare agree. Note what this does NOT consult: lineage.
+ * Interoperability does not require common ancestry, and this is the
+ * predicate that says so.
+ *
+ * Relation EQUALITY is the conservative reading. A weaker sufficient condition
+ * may exist -- compatibility might only require that neither declares a
+ * relation the other contradicts -- and establishing which is correct needs a
+ * composition semantics this layer does not have. Equality is chosen because
+ * it cannot silently admit an incompatible pair, and the choice is recorded
+ * rather than left implicit. */
 [[nodiscard]] bool rme7_proto_compatible(const Rme7Proto *a, const Rme7Proto *b);
 
 /* Resolve a slot DEFINITION by delegation. Returns nullptr when no rung of
