@@ -11,8 +11,20 @@ you have silently asserted a dependency order. So the rule for this module is
     a class may subclass another only when a recorded property distinguishes
     the child from its siblings.
 
-Three such properties exist, all read off the canonical form or the retrieved
-ontology:
+The seven are typed PLACEHOLDERS in a structural grammar, not operators whose
+mathematics is settled. This module realizes the grammar's type distinctions;
+it does not implement ASDG and does not claim to know what J# ultimately is.
+The question a class answers is never "what is this operator?" but "what
+recorded property distinguishes the thing in this position from the things in
+the others?"
+
+That distinction is what makes an unresolved placeholder acceptable. Where the
+recorded properties do not separate two leaves, the two leaves stay
+unseparated, and the module says so. Inventing a distinction to complete the
+partition would be worse than carrying the collision.
+
+THE STRUCTURAL SIGNATURE -- three properties, recorded in this repository's
+carried source (``prompts/asdg-rme7.md`` section 2, S_v5):
 
     KIND      operator / admissibility / invariant
               -- an additive term, a gate, or something in no equation at all.
@@ -26,25 +38,29 @@ ontology:
                  not. That is a relation among the drift operators written
                  into the equation itself.
 
-    INDEX     diagonal, off-diagonal
-              -- Sigma_ii . dW_i against Sigma_ij(X_j -> X_i) . dW_ij. Also
-                 written into the form.
+Over the eight leaves those three yield SIX classes, not eight. Two pairs
+collide, and both collisions are ACCEPTED rather than repaired:
 
-Those four are RECORDED. They are not enough. Grouping the seven leaves by
-kind, position and operand alone leaves two pairs indistinguishable -- J# from
-G#, and Sigma_ii from Sigma_ij -- so a fifth discriminant is needed for the
-last split, and only one is available:
+    J# == G#          both operators, both drift of X, both consuming dH
+    Sigma_ii == Sigma_ij   both operators, both diffusion of X, both on dW
 
-    ALGEBRA   antisymmetric, positive semidefinite
-              -- DERIVED, not recorded. It follows from the recorded removal
-                 witnesses (Hdot = 0 for J#, Hdot < 0 for G#) because
-                 <v, Mv> = 0 for all v iff M is antisymmetric, and <v, Mv> >= 0
-                 iff M is positive semidefinite. The witness is the ground; the
-                 algebraic form is what the witness entails.
+PENDING REFINEMENTS -- properties that would separate them, each carried with
+its source and status, and none of them structural:
 
-The distinction between the four and the fifth is kept because it is exactly
-the distinction between a property the format states and one an argument
-supplies, and collapsing them would let a derivation pass as a record.
+    INDEX     diagonal / off-diagonal.  Source: S_C1.  Status: STIPULATED.
+              Written in the count-aligned variant, ABSENT from S_v5. See
+              section 2.1 of the spec: no property reads RECORDED against S_C1
+              while its provenance stands.
+
+    ALGEBRA   antisymmetric / positive semidefinite.  Status: DERIVED.
+              Entailed by the recorded removal witnesses (Hdot = 0 for J#,
+              Hdot < 0 for G#) because <v, Mv> = 0 for all v iff M is
+              antisymmetric and >= 0 iff M is positive semidefinite. The
+              witness is the ground; the algebraic form is what it entails.
+
+Keeping the three apart from the two is the whole point: it is the difference
+between a property the format states, one another source states, and one an
+argument supplies. Collapsing them would let a derivation pass as a record.
 
 What is deliberately absent: no leaf primitive subclasses another. J# is not
 a parent of G#. The hierarchy branches on properties, never on one primitive
@@ -107,10 +123,12 @@ class Algebra(Enum):
 
 
 class Primitive(ABC):
-    """A typed format-level slot.
+    """A typed format-level PLACEHOLDER in the grammar.
 
-    Seven concrete leaves descend from here, and no leaf descends from
-    another.
+    Eight concrete leaves descend from here -- the seven slots, with Sigma
+    carrying two instance forms -- and no leaf descends from another. A leaf
+    names a position in the format; it does not claim settled semantics for
+    what occupies that position.
     """
 
     SYMBOL: ClassVar[str] = "?"
@@ -124,15 +142,37 @@ class Primitive(ABC):
     #: What the ALGEBRA is derived from. Empty when none is declared.
     ALGEBRA_FROM_WITNESS: ClassVar[str] = ""
 
+    #: Non-structural properties, each with the source that carries it and
+    #: its custody status. Neither may be read as RECORDED against S_v5.
+    PENDING: ClassVar[dict[str, tuple[str, str]]] = {
+        "INDEX":   ("S_C1", "STIPULATED"),
+        "ALGEBRA": ("removal witnesses", "DERIVED"),
+    }
+
+    @classmethod
+    def structural_signature(cls) -> tuple:
+        """The three properties recorded in S_v5.
+
+        This does NOT separate all eight leaves, and is not meant to. Two
+        pairs collide; see ``Primitive.PENDING``.
+        """
+        return (cls.KIND, cls.POSITION, cls.OPERAND)
+
     @classmethod
     def discriminants(cls) -> tuple:
-        """The tuple that must be unique across the seven leaves."""
+        """The structural signature with every pending refinement applied.
+
+        Separates all eight -- but only by importing two properties this
+        repository does not record. Use ``structural_signature`` for what the
+        grammar actually distinguishes today.
+        """
         return (cls.KIND, cls.POSITION, cls.OPERAND, cls.INDEX, cls.ALGEBRA)
 
     @classmethod
-    def recorded_discriminants(cls) -> tuple:
-        """The four the format states. Deliberately excludes ALGEBRA."""
-        return (cls.KIND, cls.POSITION, cls.OPERAND, cls.INDEX)
+    def pending_refinements(cls) -> dict[str, tuple[object, str, str]]:
+        """Property -> (value, source, status), for the non-structural two."""
+        return {name: (getattr(cls, name), src, status)
+                for name, (src, status) in Primitive.PENDING.items()}
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return f"{type(self).__name__}({self.SYMBOL})"
@@ -227,7 +267,7 @@ class PurposeDrift(DriftOperator):
 class ConservativeTransport(EnergyDrift):
     """J#. Circulates without converging."""
 
-    WARRANT = "ALGEBRA (derived): antisymmetric, so Hdot = 0 -- it conserves H"
+    WARRANT = "ALGEBRA (pending, derived): antisymmetric, so Hdot = 0 -- it\n        conserves H. Not structural: J# and G# are one class under the\n        recorded signature, and that collision is carried, not repaired."
     ALGEBRA_FROM_WITNESS = "Hdot = 0: conservative structure loses its office"
     SYMBOL = "J#"
     NAME = "conservative transport"
@@ -237,7 +277,7 @@ class ConservativeTransport(EnergyDrift):
 class DissipativeDescent(EnergyDrift):
     """G#. The only slot whose office is convergence."""
 
-    WARRANT = "ALGEBRA (derived): positive semidefinite, so Hdot <= 0"
+    WARRANT = "ALGEBRA (pending, derived): positive semidefinite, so Hdot <= 0.\n        Not structural: see ConservativeTransport."
     ALGEBRA_FROM_WITNESS = "Hdot < 0: no dedicated convergent office"
     SYMBOL = "G#"
     NAME = "dissipative descent"
@@ -247,7 +287,7 @@ class DissipativeDescent(EnergyDrift):
 class TeleologicalConfinement(PurposeDrift):
     """G~#. Confines without converging; never a gradient descent."""
 
-    WARRANT = "ALGEBRA (derived): antisymmetric, so Phidot = 0 -- confines"
+    WARRANT = "ALGEBRA (pending, derived): antisymmetric, so Phidot = 0 --\n        confines. Separated from the J#/G# pair structurally, by OPERAND."
     ALGEBRA_FROM_WITNESS = "Phidot = 0: confinement collapses into descent"
     SYMBOL = "G~#"
     NAME = "teleological confinement"
@@ -257,7 +297,7 @@ class TeleologicalConfinement(PurposeDrift):
 class SelfNoise(DiffusionOperator):
     """Sigma_ii. Intrinsic stochastic exploration."""
 
-    WARRANT = "INDEX: the diagonal instance, i to i"
+    WARRANT = "INDEX (pending, stipulated): the diagonal instance, i to i.\n        Written in S_C1, absent from S_v5, so this is an instance placeholder\n        whose distinguishing property this repository does not record."
     INDEX = Index.DIAGONAL
     SYMBOL = "Sigma_ii"
     NAME = "stochastic injection"
@@ -272,7 +312,7 @@ class Channel(DiffusionOperator):
     instances -- which a flat enumeration cannot.
     """
 
-    WARRANT = "INDEX: the off-diagonal instance, j to i"
+    WARRANT = "INDEX (pending, stipulated): the off-diagonal instance, j to i.\n        Same custody as SelfNoise."
     INDEX = Index.OFF_DIAGONAL
     SYMBOL = "Sigma_ij"
     NAME = "typed coupling"

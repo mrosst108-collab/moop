@@ -87,18 +87,43 @@ class TestDiscriminantsActuallySeparate(unittest.TestCase):
             g[key(c)].append(c.SYMBOL)
         return [m for m in g.values() if len(m) > 1]
 
-    def test_the_four_recorded_properties_leave_one_collision(self):
-        """kind, position, operand and index separate six of seven. They do
-        NOT separate J# from G#: both are operators, both stand in the drift
-        of X, both consume dH, and neither carries an object index."""
-        collisions = self._group(lambda c: c.recorded_discriminants())
-        self.assertEqual(collisions, [["J#", "G#"]])
+    def test_the_structural_signature_leaves_two_collisions_standing(self):
+        """The three recorded properties yield SIX classes over eight leaves,
+        and that is the correct answer, not a defect. J# and G# are one class;
+        Sigma_ii and Sigma_ij are one class. A grammar of typed placeholders is
+        not obliged to separate every placeholder, and inventing a property to
+        force the partition would be worse than carrying the collision."""
+        collisions = self._group(lambda c: c.structural_signature())
+        self.assertEqual(sorted(collisions),
+                         [["J#", "G#"], ["Sigma_ii", "Sigma_ij"]])
+        classes = {c.structural_signature() for c in LEAVES}
+        self.assertEqual(len(classes), 6)
+        self.assertEqual(len(LEAVES), 8)
 
-    def test_the_derived_fifth_completes_the_separation(self):
-        """Only the algebraic form tells J# from G#, and it is DERIVED from
-        the recorded removal witnesses rather than recorded itself:
-        <v, Mv> = 0 for all v iff M is antisymmetric; >= 0 iff M is PSD."""
+    def test_separating_them_requires_importing_two_non_recorded_properties(self):
+        """Applying both pending refinements separates all eight -- at the cost
+        of one property this repository does not record (INDEX, stipulated
+        against S_C1) and one it derives rather than reads (ALGEBRA)."""
         self.assertEqual(self._group(lambda c: c.discriminants()), [])
+        pend = p.Primitive.PENDING
+        self.assertEqual(pend["INDEX"], ("S_C1", "STIPULATED"))
+        self.assertEqual(pend["ALGEBRA"], ("removal witnesses", "DERIVED"))
+
+    def test_no_pending_refinement_is_reported_as_recorded(self):
+        """The custody rule of spec section 2.1, executed: neither pending
+        property may claim RECORDED status from inside the implementation."""
+        for _name, (_v, _src, status) in \
+                p.ConservativeTransport.pending_refinements().items():
+            self.assertNotEqual(status, "RECORDED")
+        # And the signature genuinely excludes them: two leaves that differ
+        # ONLY in a pending property must be structurally indistinguishable.
+        self.assertNotEqual(p.SelfNoise.INDEX, p.Channel.INDEX)
+        self.assertEqual(p.SelfNoise.structural_signature(),
+                         p.Channel.structural_signature())
+        self.assertNotEqual(p.ConservativeTransport.ALGEBRA,
+                            p.DissipativeDescent.ALGEBRA)
+        self.assertEqual(p.ConservativeTransport.structural_signature(),
+                         p.DissipativeDescent.structural_signature())
 
     def test_every_derived_algebra_names_its_witness(self):
         """A derivation that does not say what it derives from is a
@@ -109,7 +134,7 @@ class TestDiscriminantsActuallySeparate(unittest.TestCase):
             else:
                 self.assertTrue(cls.ALGEBRA_FROM_WITNESS,
                                 f"{cls.__name__} declares an algebra with no witness")
-                self.assertIn("derived", cls.WARRANT)
+                self.assertIn("pending", cls.WARRANT)
 
     def test_the_colliding_pair_is_the_metriplectic_pair(self):
         """The pair the recorded properties cannot separate is the same pair
