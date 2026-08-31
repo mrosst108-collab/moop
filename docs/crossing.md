@@ -591,3 +591,24 @@ mechanism, zero code.
 - **what the NO_BLANK verdicts demonstrated**: the five ranking functions were left homeless *by design* — the converter said "this is an observation and therefore does not belong in a dynamical blank." That is the first concrete evidence in this ledger that the placement machinery is doing something other than semantic name-matching, since name-matching would have filed `hot` into an operator blank on sight.
 - **frozen**: `reddit7/` stops here. No Reddit implementation, no further mechanism extraction, no change to the stencils to accommodate the losses. The boundary was found cleanly and the next thing to resolve is not another mechanism — it is what a grounded §4 is licensed to say about these losses, before deciding whether the RME-7 target needs anything beyond the canonical form.
 - **standing**: G_prov, Q1, Q6, **Q7**, §3 and §4 all open. Entry 24's freeze holds. C at 172; `rme7py` at 72; `reddit7` at 14.
+
+### 45 — the blank-by-blank placement, at the level the gate permits
+
+- **from → to**: the principal → this tree. The next artifact was named as *the ASDG formulation of Reddit*. Built instead: the blank-by-blank placement at **role-plus-constraint** level, declared as such.
+- **why the substitution**: §4 is `[unpopulated]`, so an "ASDG formulation" would require inventing the grammar's primitives and composition rules and then formulating Reddit inside the invention — the reconstruction the spec's preamble prohibits, and the same refusal already made for `mechanism.py` two entries earlier. Taking it back because the next step wanted it would be the retrospective inflation entry 42 exists to prevent.
+- **what the spec licensed instead**: §5 defines two correspondence levels and requires declaring which. The principal's four questions — occupant, why here, what property permits it, what is lost — are answerable at **role-plus-constraint** without §3 or §4. Writing `J♯` for Reddit and asserting the equation is **generator-equation** level, which §2's gate forbids while §3 is unpopulated. §6 records the precedent: a prior case established at role-plus-constraint with generator-equation left unestablished.
+- **built**: `reddit7/PLACEMENT.md`, guarded by 7 tests (`reddit7` now at 21). Every blank of both forms asked and answered; the guard asserts no blank is named that a stencil lacks, that the level is declared and the higher one refused, that the ASDG name is refused in the document itself, that the constructed occupant is flagged at the point of placement rather than in a footnote, that the two Σ losses stay separate in prose as well as in code, and that every citation resolves to the extracted mechanism.
+- **the result survives the finer pass**, which is the point of running it:
+
+  | | S_v5 | S_C1 |
+  |---|---|---|
+  | placed on an **extracted** occupant | 1 (`v6`) | 0 |
+  | placed on a **constructed** occupant | 1 (`v2`) | 1 (`c2`) |
+  | lossy | 0 | 1 (`c5`) |
+  | candidate, not placed | 2 | 1 |
+  | inactive | 3 | 2 |
+
+  Of everything extracted from the archive, **exactly one element takes a blank cleanly** — `κ_change` at `v6`, and in one form only. The drift group is filled by the occupant the ruling constructed.
+- **two blanks left empty for reasons worth recording**: `c3`/`v3` names moderation as a *candidate* for the confinement office and refuses it — confinement without convergence is the office, and the archive implements moderation as discrete removal, which is a jump. `v5` is left empty because the position itself is disputed: filling S_v5's `F`-in-the-state-equation blank would take a side in G_prov.
+- **what generator-equation level would need and this does not have**: what `H` and `Φ` *are* for Reddit, which one-form each operator consumes, and whether the equations hold. All three wait on §3.
+- **standing**: G_prov, Q1, Q6, Q7, §3, §4 open. `reddit7` frozen at the boundary as entry 44 recorded; this is the placement pass that freeze permitted, not a resumption. C 172; `rme7py` 72; `reddit7` 21.
