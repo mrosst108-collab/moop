@@ -235,7 +235,7 @@ Rme7Warrant rme7_structure_warrant(Rme7Structure structure) {
         /* relax the tier-0 rule and see whether the legal SET changes */
         uint64_t relaxed = rme7_wellformed_signature(ranks, false);
         return relaxed != baseline ? RME7_WARRANT_DEMONSTRATED
-                                   : RME7_WARRANT_REFUTED;
+                                   : RME7_WARRANT_REFUTED_STRUCTURALLY;
     }
     case RME7_STRUCT_RANK_ORDER: {
         /* Swap two ranks. The COUNT is invariant under any permutation --
@@ -247,31 +247,55 @@ Rme7Warrant rme7_structure_warrant(Rme7Structure structure) {
         permuted[RME7_F] = a;
         uint64_t swapped = rme7_wellformed_signature(permuted, true);
         return swapped != baseline ? RME7_WARRANT_DEMONSTRATED
-                                   : RME7_WARRANT_REFUTED;
+                                   : RME7_WARRANT_REFUTED_STRUCTURALLY;
     }
     case RME7_STRUCT_BIT_POSITION:
-        /* Refuted by construction: rme7_wellformed_under takes no bit
-         * assignment, so relabelling bits cannot reach any legal set. */
-        return RME7_WARRANT_REFUTED;
-    default:
-        /* kind, equation admission, the biconditional and gamma's derivation
-         * are compile-time tables. Their consequentiality is still a claim. */
+        /* Structural: rme7_wellformed_under enumerates over slot sets and
+         * takes no bit assignment, so relabelling bits is unreachable in
+         * principle rather than merely unused. */
+        return RME7_WARRANT_REFUTED_STRUCTURALLY;
+
+    /* Contingent. Traced through the sources: rme7_slot_kind is read by one
+     * assertion inside rme7_slot_is_dynamical and nowhere else;
+     * rme7_slot_admits only by that same function; rme7_slot_derives_from only
+     * by rme7_slot_is_primitive and rme7_slot_order_grounded, which are audit
+     * machinery. Nothing that classifies a profile, types a claim or crosses a
+     * channel branches on any of them. That is this layer being thin, and says
+     * nothing whatever about the format. */
+    case RME7_STRUCT_KIND_PARTITION:
+    case RME7_STRUCT_EQUATION_ADMISSION:
+    case RME7_STRUCT_OPERATOR_BICONDITIONAL:
+    case RME7_STRUCT_GAMMA_DERIVATION:
+        return RME7_WARRANT_REFUTED_CONTINGENTLY;
+
+    case RME7_STRUCT_COUPLING:
+        /* An empty relation has nothing to perturb. */
         return RME7_WARRANT_ASSERTED;
     }
+    return RME7_WARRANT_ASSERTED;
 }
 
 const char *rme7_warrant_name(Rme7Warrant warrant) {
     switch (warrant) {
-    case RME7_WARRANT_DEMONSTRATED: return "demonstrated by perturbation";
-    case RME7_WARRANT_REFUTED:      return "refuted: perturbing it changes nothing";
-    case RME7_WARRANT_ASSERTED:     return "asserted: not perturbable in process";
+    case RME7_WARRANT_DEMONSTRATED:
+        return "demonstrated by perturbation";
+    case RME7_WARRANT_REFUTED_STRUCTURALLY:
+        return "refuted structurally: no operation could read it";
+    case RME7_WARRANT_REFUTED_CONTINGENTLY:
+        return "refuted contingently: nothing here reads it yet";
+    case RME7_WARRANT_ASSERTED:
+        return "asserted: nothing to perturb";
     }
     return "unknown";
 }
 
 bool rme7_structure_consequential(Rme7Structure structure) {
-    /* Derived from the warrant, not declared. */
-    if (rme7_structure_warrant(structure) == RME7_WARRANT_REFUTED) return false;
+    /* Derived from the warrant, not declared -- and ONLY a structural
+     * refutation may make a structure non-consequential. A contingent one is
+     * a fact about this layer, so it is treated as consequential, which keeps
+     * a thin implementation from arguing its way into a smaller format. */
+    if (rme7_structure_warrant(structure) == RME7_WARRANT_REFUTED_STRUCTURALLY)
+        return false;
     switch (structure) {
     /* Alter the kind and a slot's admissible role changes: substitution and
      * interpretation both move. */

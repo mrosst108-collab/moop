@@ -214,10 +214,35 @@ typedef enum : uint8_t {
  * defects below are DEMONSTRATED, so the verdict does not rest on anyone's
  * judgement, and the structures that remain merely asserted are all
  * recoverable and therefore cannot be defects whatever their warrant. */
+/* THE SCOPE LIMIT, which is not optional to state.
+ *
+ * A perturbation measures consequentiality RELATIVE TO THE OPERATIONS THIS
+ * IMPLEMENTATION PROVIDES. An incomplete implementation refutes a structure
+ * merely by not consuming it yet, and reading that as a fact about the format
+ * would be the failure this whole audit exists to prevent -- deleting a real
+ * distinction because a partial realization happens to ignore it.
+ *
+ * So refutation splits, and the split is load-bearing:
+ *
+ *   STRUCTURALLY refuted -- no operation COULD read it. Well-formedness
+ *   enumerates over slot sets, so no assignment of bits to slots is reachable
+ *   even in principle. This licenses a conclusion about the format.
+ *
+ *   CONTINGENTLY refuted -- no operation HERE reads it. The kind partition and
+ *   equation admission are consumed by one assertion and by the audit itself;
+ *   nothing that classifies a profile, types a claim, or crosses a channel
+ *   branches on either. This licenses NOTHING about the format. It is a fact
+ *   about this layer's incompleteness.
+ *
+ * Only a structural refutation may make a structure non-consequential.
+ * Contingent refutation is treated as consequential-until-shown-otherwise,
+ * deliberately, so that a thin implementation cannot argue its way into a
+ * smaller format. */
 typedef enum : uint8_t {
-    RME7_WARRANT_DEMONSTRATED,  /* perturbed; a licensed operation changed   */
-    RME7_WARRANT_REFUTED,       /* perturbed; nothing changed                */
-    RME7_WARRANT_ASSERTED       /* fixed at compile time; not perturbable here */
+    RME7_WARRANT_DEMONSTRATED,           /* perturbed; a licensed operation changed */
+    RME7_WARRANT_REFUTED_STRUCTURALLY,   /* no operation could read it              */
+    RME7_WARRANT_REFUTED_CONTINGENTLY,   /* no operation here reads it yet          */
+    RME7_WARRANT_ASSERTED                /* nothing to perturb                      */
 } Rme7Warrant;
 
 [[nodiscard]] Rme7Warrant rme7_structure_warrant(Rme7Structure structure);

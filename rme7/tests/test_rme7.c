@@ -467,8 +467,9 @@ static void test_warrant_by_perturbation(void) {
           "every asserted structure is recoverable, so the hand-written "
           "judgement is off the load-bearing path entirely");
 
-    check(rme7_structure_warrant(RME7_STRUCT_BIT_POSITION) == RME7_WARRANT_REFUTED,
-          "bit position is refuted rather than merely unlisted");
+    check(rme7_structure_warrant(RME7_STRUCT_BIT_POSITION) ==
+          RME7_WARRANT_REFUTED_STRUCTURALLY,
+          "bit position is refuted structurally, not merely unlisted");
 
     /* Relaxing tier 0 while KEEPING lower-rank completeness gives 11, not the
      * 35 an earlier relay reported: that figure assumed completeness was
@@ -476,6 +477,36 @@ static void test_warrant_by_perturbation(void) {
     check(rme7_wellformed_under(ranks, false) == 11,
           "relaxing tier 0 alone admits 11 profiles, not 35 -- the earlier "
           "figure assumed a second relaxation nobody specified");
+}
+
+/* The scope limit: a perturbation measures consequentiality relative to the
+ * operations THIS implementation provides, and a thin implementation must not
+ * be able to argue its way into a smaller format. */
+static void test_contingent_refutation_licenses_nothing(void) {
+    /* Traced through the sources: kind is read by one assertion, admits by the
+     * function containing it, derives_from by the audit machinery. Nothing
+     * that classifies a profile, types a claim or crosses a channel branches
+     * on any of them. */
+    const Rme7Structure contingent[] = {
+        RME7_STRUCT_KIND_PARTITION, RME7_STRUCT_EQUATION_ADMISSION,
+        RME7_STRUCT_OPERATOR_BICONDITIONAL, RME7_STRUCT_GAMMA_DERIVATION };
+    for (size_t i = 0; i < sizeof contingent / sizeof *contingent; i++) {
+        check(rme7_structure_warrant(contingent[i]) ==
+              RME7_WARRANT_REFUTED_CONTINGENTLY,
+              "this layer reads it nowhere that decides composition");
+        /* and the refutation must NOT make it non-consequential */
+        check(rme7_structure_consequential(contingent[i]),
+              "a contingent refutation licenses nothing about the format");
+    }
+
+    /* Only the structural refutation does. */
+    check(!rme7_structure_consequential(RME7_STRUCT_BIT_POSITION),
+          "only a structural refutation makes a structure non-consequential");
+
+    /* And the verdict is unmoved: five structures refuted in some sense, and
+     * the defect count is still exactly the two demonstrated ones. */
+    check(rme7_defects(nullptr, 0) == 2,
+          "reclassifying four warrants changes no verdict");
 }
 
 static void test_refusals_and_delta(void) {
@@ -855,6 +886,7 @@ int main(void) {
     test_the_provenance_ledger();
     test_the_architectural_test();
     test_warrant_by_perturbation();
+    test_contingent_refutation_licenses_nothing();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
