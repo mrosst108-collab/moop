@@ -552,3 +552,19 @@ mechanism, zero code.
 - **its warrant, and its limit**: supported by arm 1 against arm 2 — 41 fills producing one primitive without vocabulary, against 28 fills all in-vocabulary with it (entries 37, 38). That is evidence for *this* format under *these* conditions, not a theorem about minimal formats. It is a claim about what minimality does not buy, which is weaker and safer than a claim about what it costs.
 - **why it matters to the premise**: this project chose RME-7 for "maximally expressive minimal form". The sequence shows minimality and self-instruction are separable properties, so the format is not failing when it needs a vocabulary alongside it — it is being asked for a responsibility it was never designed to carry. The `ASDG → RME-7 → stencil → construction` split is cleaner for keeping them apart.
 - **standing**: no gate moved. G_prov, Q1 and §3 open as recorded in entry 40; entry 24's freeze intact. The next legitimate move is source grounding, a ruling, or an explicitly authorized redesign of the interface/enforcement boundary — not further construction.
+
+### 42 — what this document actually demonstrated about itself
+
+- **from → to**: the principal → this tree. Recorded because the flattering version of this claim would, read cold in six months, become a claim about the code.
+- **not demonstrated**: *the system detects and records its own ungrounded interpretations.* Nothing in `rme7/` or `rme7py/` audits for that. No test would have flagged any of the errors below.
+- **demonstrated**: *an append-only record, a second implementation, and executed crossings can expose errors that self-audit of a single implementation failed to expose.* Every catch came from outside the thing that was wrong:
+  - `κ > 0` — a type error in this document's own methodology table, surviving internal handling until an external text contradicted it.
+  - the **perturbation** compared cardinality where it needed extension; the defect was in the test's conception of what it measured, so no run of that test could find it.
+  - `J♯ ≡ G♯` — **nineteen** rounds of C-against-C auditing did not expose an enum-induced collision. A second implementation did, on its first pass (entry 25).
+  - `Σ_ii` — called an implementation capability defect (entry 26), reclassified as faithful transcription of a narrower recorded form once provenance was examined (entry 27).
+  - **misplacement** — declared *unrepresentable* (entry 32) until an executed run put `F` in a diffusion blank (entry 38).
+  - **G_prov's behavioural argument** — apparently supported by one arm, withdrawn by the next (entries 37, 38).
+- **the two claims, kept apart**: **self-consistency does not imply correctness**; and independent crossing plus execution plus append-only provenance yields *additional opportunities for error discovery* — opportunities, not detection.
+- **"independent" stays modest**: the two implementations were written inside one project by one author. What was shown is **independent representational failure modes within the crossing pair**, not independence in any statistical or institutional sense. Entry 25 recorded that limit at the time and it holds for everything since.
+- **the correct reading of the port**: it was not demonstrated to be an automated truth detector. It was demonstrated to **create new surfaces on which disagreements become observable.** That is a weaker property and the one the evidence supports.
+- **standing**: no gate moved. Closing entry for the sequence.
