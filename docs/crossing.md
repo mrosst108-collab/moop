@@ -61,6 +61,30 @@ The ledger is **append-only**: a refuted entry is answered by a later
 correcting entry, never edited. The path — including wrong turns — is
 the record.
 
+## Never port a hierarchy; port the discriminants
+
+A second rule, earned rather than proposed. When one organization builds a
+second implementation of a format the first already implements, the temptation
+is to translate the first implementation's structure — its class tree, its
+enum, its nesting. Do not.
+
+> **Port the warranted discriminants and relations. Let each implementation
+> derive its own hierarchy.**
+
+The reason is that translating a hierarchy reproduces its blind spots. Porting
+the discriminants lets the implementations differ, and *the difference becomes
+diagnostic*: where they diverge, the question is whether the divergence is
+semantic — one can express a recorded distinction the other cannot — or merely
+representational, in which case both realize the same specification.
+
+This is the crossing port's own law applied to implementations rather than
+claims. A hierarchy carries a sender's structure across whole; discriminants
+must be re-derived by the receiver, and what cannot be re-derived shows up as
+a gap instead of being silently inherited. Ledger entries 25 and 26 are the
+evidence: one run of a second implementation against the shared discriminants
+found two defects that nineteen relays of auditing the first against itself
+had not.
+
 ## RME-7 as the port's type system
 
 Each axis owns one non-overlapping job at the boundary:
@@ -360,3 +384,12 @@ mechanism, zero code.
 - **the separation, and its basis**: what tells them apart follows from the removal witnesses already in `slot.c` — `⟨v, Mv⟩ = 0` for all v iff antisymmetric, `≥ 0` iff positive semidefinite, so `Hdot = 0` gives J♯ its form and `Hdot < 0` gives G♯ its own. Added to both implementations and marked **DERIVED**, not recorded: the witness is the ground, the algebra is entailed, and collapsing the two would let a derivation pass as a record. Ledger now ten claims — 4 recorded, 2 derived, 2 stipulated, 1 layout, 1 absent.
 - **a second, benign divergence**: the two implementations disagree on what the leaves are. C has seven slots with Σ's instances pushed into `channel.h`; Python has eight leaf classes, splitting `Sigma_ii` from `Sigma_ij` under one `DiffusionOperator`. Both preserve 5 + 1 + 1 at slot level, so the divergence is about where the instance distinction lives rather than what it is. Recorded, not resolved.
 - **what the gate bought, stated plainly**: one run of a second implementation against the first found a defect nineteen relays of auditing the first against itself did not. That is the argument for I₂ in one sentence, and it is now evidence rather than a proposal.
+
+### 26 — the Sigma divergence is semantic, not representational
+
+- **from → to**: `rme7py/` → `rme7/`, continuing entry 25 under the same gate.
+- **the question**: entry 25 recorded that the two implementations disagree on what the leaves are — C keeps seven slots with Σ's instances in `channel.h`, Python has eight leaf classes splitting `Sigma_ii` from `Sigma_ij`. Is that divergence semantic or merely representational?
+- **derivation**: **semantic.** The canonical form writes Σ twice — `Σ_ii ∘ dW_i`, intrinsic stochastic exploration, and `Σ_ij(X_j → X_i) ∘ dW_ij`, the route between objects. The C layer models only the second. `rme7_channel_contracted` requires `i != j`, which is correct for a channel since a self-crossing is not a crossing — but the diagonal term is then represented **nowhere**, rather than elsewhere. Searched: no self-noise concept, and no index discriminant at slot level.
+- **why the implementations diverge here**: the distinction is **instance-level, not slot-level**. Σ-the-slot carries both indices depending on the instance. Python can hold it in a class hierarchy because its leaves are instances; C's leaves are slots, so it would need an instance layer it does not have. So `slot ontology ≠ instance taxonomy` is not a stylistic difference between the two — it is why one can express a recorded distinction and the other cannot.
+- **consequences**: not fixed, because the fix is an instance layer rather than a transcription, and that is a design change rather than a defect repair. Asserted instead, so the omission stays visible rather than being rediscovered: a self-channel is refused where the same three stages between two objects are accepted, and Σ names its operand while naming no index.
+- **standing**: the C layer models half of Σ, knowingly, and now says so.

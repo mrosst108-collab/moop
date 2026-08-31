@@ -799,6 +799,49 @@ static void test_the_enum_was_hiding_a_collision(void) {
           "format states");
 }
 
+/* What the second implementation exposed about this one's Sigma.
+ *
+ * The canonical form writes Sigma twice: Sigma_ii . dW_i, intrinsic
+ * stochastic exploration, and Sigma_ij(X_j -> X_i) . dW_ij, the route between
+ * objects. This layer models only the second. A channel requires i != j --
+ * correct for a channel, since a self-crossing is not a crossing -- but the
+ * diagonal term is then represented NOWHERE, rather than elsewhere.
+ *
+ * The distinction is instance-level, not slot-level: Sigma-the-slot carries
+ * both indices depending on the instance. Python can hold it in a class
+ * hierarchy because its leaves are instances; this layer's leaves are slots,
+ * so it would need an instance layer it does not have. That is why the two
+ * implementations diverge here, and the divergence is semantic rather than
+ * representational -- one can express a recorded distinction and the other
+ * cannot.
+ *
+ * Asserted so the omission stays visible instead of being rediscovered. */
+static bool d_translate(const Rme7Claim *f, Rme7Claim *l, void *c)
+{ (void)c; *l = *f; return true; }
+static Rme7Verdict d_admit(const Rme7Claim *l, void *c)
+{ (void)l; (void)c; return RME7_ADMITTED; }
+static bool d_assimilate(const Rme7Claim *l, void *c)
+{ (void)l; (void)c; return true; }
+
+static void test_the_diagonal_instance_is_out_of_scope(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto i;
+    (void)rme7_proto_generate(&l.userroot, &i, "an object");
+
+    Rme7Channel self = { .translate = d_translate, .admit = d_admit,
+                         .assimilate = d_assimilate, .from = &i, .to = &i };
+    Rme7Channel other = self; other.to = &l.userroot;
+    check(!rme7_channel_contracted(&self) && rme7_channel_contracted(&other),
+          "a self-channel is refused where the same stages between two objects "
+          "are accepted: Sigma_ii is not a crossing");
+
+    check(rme7_slot_operand(RME7_SIGMA) == RME7_OPERAND_DW,
+          "Sigma names its operand but not its index");
+    check(rme7_slot_algebra(RME7_SIGMA) == RME7_ALGEBRA_NONE,
+          "and declares no algebraic form, so nothing here distinguishes the "
+          "diagonal instance from the off-diagonal one");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -1172,6 +1215,7 @@ int main(void) {
     test_every_tier_boundary_is_grounded();
     test_tier_zero_splits_by_operand();
     test_the_enum_was_hiding_a_collision();
+    test_the_diagonal_instance_is_out_of_scope();
     test_the_recorded_coupling_spans_two_of_three();
     test_co_location_is_not_coupling();
     test_the_order_itself_is_ungrounded();
