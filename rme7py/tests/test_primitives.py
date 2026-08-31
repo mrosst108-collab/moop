@@ -77,6 +77,52 @@ class TestHierarchyIsWarranted(unittest.TestCase):
         self.assertNotIn(p.ConservativeTransport, p.PathDependence.DERIVES_FROM)
 
 
+class TestDiscriminantsActuallySeparate(unittest.TestCase):
+    """Do the recorded properties GENERATE the leaves, or only most of them?"""
+
+    def _group(self, key):
+        from collections import defaultdict
+        g = defaultdict(list)
+        for c in LEAVES:
+            g[key(c)].append(c.SYMBOL)
+        return [m for m in g.values() if len(m) > 1]
+
+    def test_the_four_recorded_properties_leave_one_collision(self):
+        """kind, position, operand and index separate six of seven. They do
+        NOT separate J# from G#: both are operators, both stand in the drift
+        of X, both consume dH, and neither carries an object index."""
+        collisions = self._group(lambda c: c.recorded_discriminants())
+        self.assertEqual(collisions, [["J#", "G#"]])
+
+    def test_the_derived_fifth_completes_the_separation(self):
+        """Only the algebraic form tells J# from G#, and it is DERIVED from
+        the recorded removal witnesses rather than recorded itself:
+        <v, Mv> = 0 for all v iff M is antisymmetric; >= 0 iff M is PSD."""
+        self.assertEqual(self._group(lambda c: c.discriminants()), [])
+
+    def test_every_derived_algebra_names_its_witness(self):
+        """A derivation that does not say what it derives from is a
+        stipulation wearing a derivation's clothes."""
+        for cls in LEAVES:
+            if cls.ALGEBRA is p.Algebra.NONE:
+                self.assertEqual(cls.ALGEBRA_FROM_WITNESS, "")
+            else:
+                self.assertTrue(cls.ALGEBRA_FROM_WITNESS,
+                                f"{cls.__name__} declares an algebra with no witness")
+                self.assertIn("derived", cls.WARRANT)
+
+    def test_the_colliding_pair_is_the_metriplectic_pair(self):
+        """The pair the recorded properties cannot separate is the same pair
+        the equation groups by shared operand -- conservative plus dissipative,
+        both acting on H."""
+        self.assertIs(p.ConservativeTransport.OPERAND, p.Operand.DH)
+        self.assertIs(p.DissipativeDescent.OPERAND, p.Operand.DH)
+        self.assertTrue(issubclass(p.ConservativeTransport, p.EnergyDrift))
+        self.assertTrue(issubclass(p.DissipativeDescent, p.EnergyDrift))
+        self.assertNotEqual(p.ConservativeTransport.ALGEBRA,
+                            p.DissipativeDescent.ALGEBRA)
+
+
 class TestWitnesses(unittest.TestCase):
     """Three rows of the removal matrix, executed rather than tabulated."""
 

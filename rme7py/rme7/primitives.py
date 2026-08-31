@@ -26,6 +26,26 @@ ontology:
                  not. That is a relation among the drift operators written
                  into the equation itself.
 
+    INDEX     diagonal, off-diagonal
+              -- Sigma_ii . dW_i against Sigma_ij(X_j -> X_i) . dW_ij. Also
+                 written into the form.
+
+Those four are RECORDED. They are not enough. Grouping the seven leaves by
+kind, position and operand alone leaves two pairs indistinguishable -- J# from
+G#, and Sigma_ii from Sigma_ij -- so a fifth discriminant is needed for the
+last split, and only one is available:
+
+    ALGEBRA   antisymmetric, positive semidefinite
+              -- DERIVED, not recorded. It follows from the recorded removal
+                 witnesses (Hdot = 0 for J#, Hdot < 0 for G#) because
+                 <v, Mv> = 0 for all v iff M is antisymmetric, and <v, Mv> >= 0
+                 iff M is positive semidefinite. The witness is the ground; the
+                 algebraic form is what the witness entails.
+
+The distinction between the four and the fifth is kept because it is exactly
+the distinction between a property the format states and one an argument
+supplies, and collapsing them would let a derivation pass as a record.
+
 What is deliberately absent: no leaf primitive subclasses another. J# is not
 a parent of G#. The hierarchy branches on properties, never on one primitive
 depending on another, because the dependency orderings on record disagree
@@ -65,6 +85,14 @@ class Operand(Enum):
     NONE = "not applied to a one-form"
 
 
+class Index(Enum):
+    """Diagonal or off-diagonal. Recorded in the canonical form."""
+
+    DIAGONAL = "Sigma_ii: i to i"
+    OFF_DIAGONAL = "Sigma_ij: j to i"
+    NOT_INDEXED = "carries no object index pair"
+
+
 class Algebra(Enum):
     """The algebraic property that gives an operator its office.
 
@@ -91,7 +119,20 @@ class Primitive(ABC):
     KIND: ClassVar[Kind | None] = None
     POSITION: ClassVar[Position | None] = None
     OPERAND: ClassVar[Operand] = Operand.NONE
+    INDEX: ClassVar[Index] = Index.NOT_INDEXED
     ALGEBRA: ClassVar[Algebra] = Algebra.NONE
+    #: What the ALGEBRA is derived from. Empty when none is declared.
+    ALGEBRA_FROM_WITNESS: ClassVar[str] = ""
+
+    @classmethod
+    def discriminants(cls) -> tuple:
+        """The tuple that must be unique across the seven leaves."""
+        return (cls.KIND, cls.POSITION, cls.OPERAND, cls.INDEX, cls.ALGEBRA)
+
+    @classmethod
+    def recorded_discriminants(cls) -> tuple:
+        """The four the format states. Deliberately excludes ALGEBRA."""
+        return (cls.KIND, cls.POSITION, cls.OPERAND, cls.INDEX)
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return f"{type(self).__name__}({self.SYMBOL})"
@@ -186,7 +227,8 @@ class PurposeDrift(DriftOperator):
 class ConservativeTransport(EnergyDrift):
     """J#. Circulates without converging."""
 
-    WARRANT = "ALGEBRA: antisymmetric, so Hdot = 0 -- it conserves H"
+    WARRANT = "ALGEBRA (derived): antisymmetric, so Hdot = 0 -- it conserves H"
+    ALGEBRA_FROM_WITNESS = "Hdot = 0: conservative structure loses its office"
     SYMBOL = "J#"
     NAME = "conservative transport"
     ALGEBRA = Algebra.ANTISYMMETRIC
@@ -195,7 +237,8 @@ class ConservativeTransport(EnergyDrift):
 class DissipativeDescent(EnergyDrift):
     """G#. The only slot whose office is convergence."""
 
-    WARRANT = "ALGEBRA: positive semidefinite, so Hdot <= 0 -- it descends H"
+    WARRANT = "ALGEBRA (derived): positive semidefinite, so Hdot <= 0"
+    ALGEBRA_FROM_WITNESS = "Hdot < 0: no dedicated convergent office"
     SYMBOL = "G#"
     NAME = "dissipative descent"
     ALGEBRA = Algebra.POSITIVE_SEMIDEFINITE
@@ -204,7 +247,8 @@ class DissipativeDescent(EnergyDrift):
 class TeleologicalConfinement(PurposeDrift):
     """G~#. Confines without converging; never a gradient descent."""
 
-    WARRANT = "ALGEBRA: antisymmetric, so Phidot = 0 -- it confines, not descends"
+    WARRANT = "ALGEBRA (derived): antisymmetric, so Phidot = 0 -- confines"
+    ALGEBRA_FROM_WITNESS = "Phidot = 0: confinement collapses into descent"
     SYMBOL = "G~#"
     NAME = "teleological confinement"
     ALGEBRA = Algebra.ANTISYMMETRIC
@@ -213,7 +257,8 @@ class TeleologicalConfinement(PurposeDrift):
 class SelfNoise(DiffusionOperator):
     """Sigma_ii. Intrinsic stochastic exploration."""
 
-    WARRANT = "INSTANCE: the diagonal instance, i to i"
+    WARRANT = "INDEX: the diagonal instance, i to i"
+    INDEX = Index.DIAGONAL
     SYMBOL = "Sigma_ii"
     NAME = "stochastic injection"
 
@@ -227,7 +272,8 @@ class Channel(DiffusionOperator):
     instances -- which a flat enumeration cannot.
     """
 
-    WARRANT = "INSTANCE: the off-diagonal instance, j to i"
+    WARRANT = "INDEX: the off-diagonal instance, j to i"
+    INDEX = Index.OFF_DIAGONAL
     SYMBOL = "Sigma_ij"
     NAME = "typed coupling"
 

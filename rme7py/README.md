@@ -27,13 +27,36 @@ same one-form, `G̃♯(dΦ)` does not.
 
 A hierarchy over the seven slots is exactly where an implementation
 convenience becomes grammar: pick a nesting and you have silently asserted a
-dependency order. Three properties are recorded, and every branch uses one:
+dependency order.
 
-| property | values | source |
-|---|---|---|
-| **kind** | operator · admissibility · invariant | the retrieved ontology |
-| **position** | drift of X · diffusion of X · drift of θ | the canonical form |
-| **operand** | `dH` · `dΦ` · `dW` | the canonical form |
+**Four properties are recorded, and they are not enough.**
+
+| property | values | source | basis |
+|---|---|---|---|
+| **kind** | operator · admissibility · invariant | the retrieved ontology | recorded |
+| **position** | drift of X · diffusion of X · drift of θ | the canonical form | recorded |
+| **operand** | `dH` · `dΦ` · `dW` | the canonical form | recorded |
+| **index** | diagonal · off-diagonal | the canonical form | recorded |
+| **algebra** | antisymmetric · positive semidefinite | the removal witnesses | **derived** |
+
+Grouping the seven leaves by the four recorded properties leaves **exactly one
+collision: `J♯` and `G♯`.** Both are operators, both stand in the drift of `X`,
+both consume `dH`, and neither carries an object index. Nothing the format
+*states* tells them apart.
+
+Only the fifth separates them, and it is **derived rather than recorded** — it
+follows from the recorded removal witnesses, since `⟨v, Mv⟩ = 0` for all `v`
+iff `M` is antisymmetric and `⟨v, Mv⟩ ≥ 0` iff `M` is positive semidefinite.
+The witness is the ground; the algebraic form is what the witness entails.
+
+That distinction is kept rather than smoothed over, because it is the
+difference between a property the format states and one an argument supplies,
+and collapsing them would let a derivation pass as a record. A test asserts
+that every class declaring an algebra names the witness it derives from.
+
+Worth noticing which pair it is: `J♯` and `G♯` are also the pair the equation
+groups by shared operand, and the pair a metriplectic system consists of.
+Their whole distinction is carried by their witnesses.
 
 Every class states its own `WARRANT`, and a test fails if any class merely
 inherits its parent's — so nothing enters the hierarchy without saying why.
