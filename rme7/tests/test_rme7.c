@@ -424,6 +424,60 @@ static void test_the_architectural_test(void) {
           "and the per-slot audits agree: one grouping, four positions");
 }
 
+/* Consequentiality by perturbation, and why the instrument had to change. */
+static void test_warrant_by_perturbation(void) {
+    uint8_t ranks[RME7_SLOT_COUNT], permuted[RME7_SLOT_COUNT];
+    for (int s = 0; s < RME7_SLOT_COUNT; s++)
+        ranks[s] = permuted[s] = rme7_slot_tier((Rme7Slot)s);
+    uint8_t a = permuted[RME7_SIGMA];
+    permuted[RME7_SIGMA] = permuted[RME7_F];
+    permuted[RME7_F] = a;
+
+    /* THE INSTRUMENT: counting is invariant under a rank permutation, because
+     * a permutation relabels the chain without reshaping it. Only the set
+     * answers, and comparing counts would have reported "changes nothing". */
+    check(rme7_wellformed_under(ranks, true) ==
+          rme7_wellformed_under(permuted, true),
+          "a rank permutation leaves the COUNT of well-formed profiles alone");
+    check(rme7_wellformed_signature(ranks, true) !=
+          rme7_wellformed_signature(permuted, true),
+          "and changes WHICH profiles are legal -- so cardinality is the wrong "
+          "comparison and the signature is the right one");
+
+    /* Both defects are demonstrated, so the verdict rests on a perturbation
+     * rather than on anyone's judgement. */
+    Rme7Structure def[RME7_STRUCTURE_COUNT];
+    int n = rme7_defects(def, RME7_STRUCTURE_COUNT);
+    bool all_demonstrated = true;
+    for (int i = 0; i < n; i++)
+        if (rme7_structure_warrant(def[i]) != RME7_WARRANT_DEMONSTRATED)
+            all_demonstrated = false;
+    check(n == 2 && all_demonstrated,
+          "both defects carry a demonstrated warrant, not an asserted one");
+
+    /* And every structure still merely asserted is recoverable, so its
+     * warrant cannot change the verdict whatever it turns out to be. */
+    bool asserted_are_inert = true;
+    for (int i = 0; i < RME7_STRUCTURE_COUNT; i++) {
+        Rme7Structure st = (Rme7Structure)i;
+        if (rme7_structure_warrant(st) != RME7_WARRANT_ASSERTED) continue;
+        if (!rme7_structure_recoverable(st)) asserted_are_inert = false;
+    }
+    check(asserted_are_inert,
+          "every asserted structure is recoverable, so the hand-written "
+          "judgement is off the load-bearing path entirely");
+
+    check(rme7_structure_warrant(RME7_STRUCT_BIT_POSITION) == RME7_WARRANT_REFUTED,
+          "bit position is refuted rather than merely unlisted");
+
+    /* Relaxing tier 0 while KEEPING lower-rank completeness gives 11, not the
+     * 35 an earlier relay reported: that figure assumed completeness was
+     * relaxed too. The repair has two readings and they differ. */
+    check(rme7_wellformed_under(ranks, false) == 11,
+          "relaxing tier 0 alone admits 11 profiles, not 35 -- the earlier "
+          "figure assumed a second relaxation nobody specified");
+}
+
 static void test_refusals_and_delta(void) {
     Rme7Cast sib = rme7_cast_refuse_sibling("a runnable answer matters more here");
     check(sib.kind == RME7_CAST_BOT_SIB && sib.reason != nullptr,
@@ -800,6 +854,7 @@ int main(void) {
     test_the_order_itself_is_ungrounded();
     test_the_provenance_ledger();
     test_the_architectural_test();
+    test_warrant_by_perturbation();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();

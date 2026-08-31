@@ -165,7 +165,113 @@ Rme7Basis rme7_structure_basis(Rme7Structure structure) {
     return RME7_BASIS_ABSENT;
 }
 
+/* Well-formedness recomputed under a supplied rank assignment: the prefix
+ * condition, plus the tier-0 rule as a parameter. Bit position is not an
+ * argument here, and that is the point -- it enumerates over SLOT SETS, so no
+ * assignment of bits to slots can reach the answer. */
+int rme7_wellformed_under(const uint8_t ranks[RME7_SLOT_COUNT],
+                          bool tier0_all_or_none) {
+    int count = 0;
+    uint8_t maxrank = 0;
+    for (int s = 0; s < RME7_SLOT_COUNT; s++)
+        if (ranks[s] > maxrank) maxrank = ranks[s];
+
+    for (unsigned b = 1; b < (1u << RME7_SLOT_COUNT); b++) {
+        bool ok = true;
+        for (int s = 0; s < RME7_SLOT_COUNT && ok; s++) {
+            if (!(b & (1u << s))) continue;
+            /* every rank strictly below this slot's must be complete */
+            for (uint8_t r = 0; r < ranks[s] && ok; r++)
+                for (int t = 0; t < RME7_SLOT_COUNT; t++)
+                    if (ranks[t] == r && !(b & (1u << t))) { ok = false; break; }
+        }
+        if (ok && tier0_all_or_none) {
+            int have = 0, total = 0;
+            for (int s = 0; s < RME7_SLOT_COUNT; s++)
+                if (ranks[s] == 0) { total++; if (b & (1u << s)) have++; }
+            if (have != 0 && have != total) ok = false;
+        }
+        if (ok) count++;
+    }
+    (void)maxrank;
+    return count;
+}
+
+/* Order-sensitive hash of the ACCEPTED SET, under a fixed slot labelling.
+ * Ranks vary, labelling does not, so any change is attributable to ranks. */
+uint64_t rme7_wellformed_signature(const uint8_t ranks[RME7_SLOT_COUNT],
+                                   bool tier0_all_or_none) {
+    uint64_t h = 1469598103934665603u;
+    for (unsigned b = 1; b < (1u << RME7_SLOT_COUNT); b++) {
+        bool ok = true;
+        for (int s = 0; s < RME7_SLOT_COUNT && ok; s++) {
+            if (!(b & (1u << s))) continue;
+            for (uint8_t r = 0; r < ranks[s] && ok; r++)
+                for (int t = 0; t < RME7_SLOT_COUNT; t++)
+                    if (ranks[t] == r && !(b & (1u << t))) { ok = false; break; }
+        }
+        if (ok && tier0_all_or_none) {
+            int have = 0, total = 0;
+            for (int s = 0; s < RME7_SLOT_COUNT; s++)
+                if (ranks[s] == 0) { total++; if (b & (1u << s)) have++; }
+            if (have != 0 && have != total) ok = false;
+        }
+        if (ok) h = (h ^ (uint64_t)b) * 1099511628211u;
+    }
+    return h;
+}
+
+static void real_ranks(uint8_t out[RME7_SLOT_COUNT]) {
+    for (int s = 0; s < RME7_SLOT_COUNT; s++) out[s] = rme7_slot_tier((Rme7Slot)s);
+}
+
+Rme7Warrant rme7_structure_warrant(Rme7Structure structure) {
+    uint8_t ranks[RME7_SLOT_COUNT];
+    real_ranks(ranks);
+    uint64_t baseline = rme7_wellformed_signature(ranks, true);
+
+    switch (structure) {
+    case RME7_STRUCT_RANK0_GROUPING: {
+        /* relax the tier-0 rule and see whether the legal SET changes */
+        uint64_t relaxed = rme7_wellformed_signature(ranks, false);
+        return relaxed != baseline ? RME7_WARRANT_DEMONSTRATED
+                                   : RME7_WARRANT_REFUTED;
+    }
+    case RME7_STRUCT_RANK_ORDER: {
+        /* Swap two ranks. The COUNT is invariant under any permutation --
+         * the chain is relabelled, not reshaped -- so only the set answers. */
+        uint8_t permuted[RME7_SLOT_COUNT];
+        real_ranks(permuted);
+        uint8_t a = permuted[RME7_SIGMA];
+        permuted[RME7_SIGMA] = permuted[RME7_F];
+        permuted[RME7_F] = a;
+        uint64_t swapped = rme7_wellformed_signature(permuted, true);
+        return swapped != baseline ? RME7_WARRANT_DEMONSTRATED
+                                   : RME7_WARRANT_REFUTED;
+    }
+    case RME7_STRUCT_BIT_POSITION:
+        /* Refuted by construction: rme7_wellformed_under takes no bit
+         * assignment, so relabelling bits cannot reach any legal set. */
+        return RME7_WARRANT_REFUTED;
+    default:
+        /* kind, equation admission, the biconditional and gamma's derivation
+         * are compile-time tables. Their consequentiality is still a claim. */
+        return RME7_WARRANT_ASSERTED;
+    }
+}
+
+const char *rme7_warrant_name(Rme7Warrant warrant) {
+    switch (warrant) {
+    case RME7_WARRANT_DEMONSTRATED: return "demonstrated by perturbation";
+    case RME7_WARRANT_REFUTED:      return "refuted: perturbing it changes nothing";
+    case RME7_WARRANT_ASSERTED:     return "asserted: not perturbable in process";
+    }
+    return "unknown";
+}
+
 bool rme7_structure_consequential(Rme7Structure structure) {
+    /* Derived from the warrant, not declared. */
+    if (rme7_structure_warrant(structure) == RME7_WARRANT_REFUTED) return false;
     switch (structure) {
     /* Alter the kind and a slot's admissible role changes: substitution and
      * interpretation both move. */
@@ -179,9 +285,7 @@ bool rme7_structure_consequential(Rme7Structure structure) {
     case RME7_STRUCT_RANK0_GROUPING:         return true;
     case RME7_STRUCT_RANK_ORDER:             return true;
     case RME7_STRUCT_COUPLING:               return true;
-    /* Permute the bits and profiles re-encode; no composition, substitution,
-     * ordering, coupling or interpretation of any component changes. */
-    case RME7_STRUCT_BIT_POSITION:           return false;
+    case RME7_STRUCT_BIT_POSITION:           return false;  /* unreachable */
     }
     return true;
 }

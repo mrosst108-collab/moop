@@ -202,10 +202,41 @@ typedef enum : uint8_t {
  * it says nothing about whether the claim is carried. A defect is the
  * conjunction -- consequential AND not recoverable.
  *
- * CUSTODY NOTE. Recoverability is checked; consequentiality is a JUDGEMENT
- * encoded here, not derived from anything. It is exposed as its own predicate
- * precisely so it can be disputed per structure rather than buried inside a
- * verdict. */
+ * WARRANT, not assertion. Consequentiality is no longer a hand-written column.
+ * Where a structure can be perturbed in process, the format PERTURBS IT AND
+ * LOOKS: alter the structure, recompute which profiles are well formed, and
+ * see whether a licensed operation changed. A structure whose alteration
+ * changes nothing is refuted, not merely unlisted.
+ *
+ * That matters beyond tidiness. A format that declares which distinctions
+ * about itself are consequential is certifying its own criteria of failure.
+ * Demonstration removes the declaration from the load-bearing path: the two
+ * defects below are DEMONSTRATED, so the verdict does not rest on anyone's
+ * judgement, and the structures that remain merely asserted are all
+ * recoverable and therefore cannot be defects whatever their warrant. */
+typedef enum : uint8_t {
+    RME7_WARRANT_DEMONSTRATED,  /* perturbed; a licensed operation changed   */
+    RME7_WARRANT_REFUTED,       /* perturbed; nothing changed                */
+    RME7_WARRANT_ASSERTED       /* fixed at compile time; not perturbable here */
+} Rme7Warrant;
+
+[[nodiscard]] Rme7Warrant rme7_structure_warrant(Rme7Structure structure);
+[[nodiscard]] const char *rme7_warrant_name(Rme7Warrant warrant);
+
+/* The perturbation instrument, exposed so the demonstrations can be re-run
+ * rather than believed. `rme7_wellformed_under` counts the well-formed
+ * non-empty profiles under a supplied rank assignment and tier-0 rule.
+ *
+ * COUNT IS THE WRONG COMPARISON and the signature exists because of it. A
+ * permutation of the ranks relabels which slot sits at which position while
+ * preserving the chain, so it leaves the COUNT identical and changes WHICH
+ * profiles are legal. Comparing cardinalities reports such a permutation as
+ * having changed nothing, which is false. Compare the signature. */
+[[nodiscard]] int rme7_wellformed_under(const uint8_t ranks[RME7_SLOT_COUNT],
+                                        bool tier0_all_or_none);
+[[nodiscard]] uint64_t rme7_wellformed_signature(const uint8_t ranks[RME7_SLOT_COUNT],
+                                                 bool tier0_all_or_none);
+
 [[nodiscard]] bool rme7_structure_consequential(Rme7Structure structure);
 [[nodiscard]] bool rme7_structure_recoverable(Rme7Structure structure);
 [[nodiscard]] bool rme7_structure_defective(Rme7Structure structure);
