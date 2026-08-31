@@ -37,6 +37,15 @@ Rme7Typing rme7_claim_typing_in(const Rme7Claim *claim, const Rme7Proto *receive
 
     if (!claim->concerns_slot) return RME7_TYPING_OK;   /* payload-only */
 
+    /* The format's most-emphasized rule, finally enforced where claims cross:
+     * a slot may be placed only in an equation that admits it. F in the state
+     * equation turns generator change into state forcing; kappa or gamma in
+     * either turns a gate or an invariant into a term. Recorded as a typed
+     * property since the first commit and, until now, read by nothing. */
+    if (claim->equation != RME7_EQ_NONE &&
+        (rme7_slot_admits(claim->slot) & claim->equation) != claim->equation)
+        return RME7_TYPING_WRONG_EQUATION;
+
     /* A distinction the receiver's chain never defines means nothing here,
      * under either reading of what a port certifies. */
     if (!rme7_proto_defines(receiver, claim->slot))
@@ -71,6 +80,7 @@ const char *rme7_typing_name(Rme7Typing typing) {
     case RME7_TYPING_UNDEFINED_SLOT:       return "concerns a slot the receiver does not define";
     case RME7_TYPING_RUNG_ABOVE_RECEIVER:  return "made above the receiver's rung";
     case RME7_TYPING_UNEXHIBITED_SLOT:     return "understood but not instantiated by the receiver";
+    case RME7_TYPING_WRONG_EQUATION:       return "places the slot in an equation it does not admit";
     case RME7_TYPING_LEGISLATES:           return "purports to legislate";
     }
     return "unknown";

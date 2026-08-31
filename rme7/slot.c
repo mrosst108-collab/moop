@@ -262,8 +262,25 @@ Rme7Warrant rme7_structure_warrant(Rme7Structure structure) {
      * machinery. Nothing that classifies a profile, types a claim or crosses a
      * channel branches on any of them. That is this layer being thin, and says
      * nothing whatever about the format. */
+    case RME7_STRUCT_EQUATION_ADMISSION: {
+        /* Now consumed: claim typing refuses a slot placed in an equation it
+         * does not admit. The table is consequential iff it distinguishes
+         * slots for that test -- F does not admit the state equation and J#
+         * does, so two otherwise identical claims type differently. The
+         * companion half, that the typing predicate actually branches on it,
+         * is asserted in the test suite where channel.h is in scope. */
+        bool f_state  = (rme7_slot_admits(RME7_F) & RME7_EQ_STATE) != 0;
+        bool j_state  = (rme7_slot_admits(RME7_J_SHARP) & RME7_EQ_STATE) != 0;
+        return f_state != j_state ? RME7_WARRANT_DEMONSTRATED
+                                  : RME7_WARRANT_REFUTED_STRUCTURALLY;
+    }
+
+    /* Still contingent -- but for a known reason now, and it is not thinness.
+     * kind and admits are biconditional (rme7_slot_is_dynamical asserts it),
+     * so consuming both would be redundant: enforcing equation admission
+     * already enforces the partition. Non-use by REDUNDANCY, which licenses
+     * nothing about the format either. */
     case RME7_STRUCT_KIND_PARTITION:
-    case RME7_STRUCT_EQUATION_ADMISSION:
     case RME7_STRUCT_OPERATOR_BICONDITIONAL:
     case RME7_STRUCT_GAMMA_DERIVATION:
         return RME7_WARRANT_REFUTED_CONTINGENTLY;

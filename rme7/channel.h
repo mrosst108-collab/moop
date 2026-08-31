@@ -36,6 +36,8 @@ typedef struct {
     bool        concerns_slot;  /* false: a payload-only claim */
     Rme7Slot    slot;           /* meaningful iff concerns_slot */
     Rme7Rung    rung;           /* the rung at which the sender made it */
+    Rme7Equation equation;      /* which equation it places the slot in;
+                                 * RME7_EQ_NONE = the claim does not say */
     Rme7Custody custody;        /* how grounded at the sender */
     bool        legislates;     /* claims grammar-level force; always refused */
     const void *content;        /* opaque: the semantics are not the port's */
@@ -49,6 +51,7 @@ typedef enum : uint8_t {
     RME7_TYPING_UNDEFINED_SLOT,      /* the receiver's chain does not define it */
     RME7_TYPING_RUNG_ABOVE_RECEIVER, /* it cites distinctions the receiver lacks */
     RME7_TYPING_UNEXHIBITED_SLOT,    /* defined, understood, and not instantiated */
+    RME7_TYPING_WRONG_EQUATION,      /* places the slot in an equation it does not admit */
     RME7_TYPING_LEGISLATES           /* no custody grade licenses this */
 } Rme7Typing;
 

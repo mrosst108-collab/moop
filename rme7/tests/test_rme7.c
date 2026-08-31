@@ -488,7 +488,7 @@ static void test_contingent_refutation_licenses_nothing(void) {
      * that classifies a profile, types a claim or crosses a channel branches
      * on any of them. */
     const Rme7Structure contingent[] = {
-        RME7_STRUCT_KIND_PARTITION, RME7_STRUCT_EQUATION_ADMISSION,
+        RME7_STRUCT_KIND_PARTITION,
         RME7_STRUCT_OPERATOR_BICONDITIONAL, RME7_STRUCT_GAMMA_DERIVATION };
     for (size_t i = 0; i < sizeof contingent / sizeof *contingent; i++) {
         check(rme7_structure_warrant(contingent[i]) ==
@@ -507,6 +507,54 @@ static void test_contingent_refutation_licenses_nothing(void) {
      * the defect count is still exactly the two demonstrated ones. */
     check(rme7_defects(nullptr, 0) == 2,
           "reclassifying four warrants changes no verdict");
+}
+
+/* The format's most-emphasized rule, enforced at the port. */
+static void test_equation_admission_is_enforced(void) {
+    Ladder l; build_ladder(&l);
+    Rme7Proto i;
+    (void)rme7_proto_generate(&l.userroot, &i, "receiver");
+    (void)rme7_proto_exhibit(&i, RME7_J_SHARP);
+    (void)rme7_proto_exhibit(&i, RME7_G_SHARP);
+    (void)rme7_proto_exhibit(&i, RME7_G_TILDE_SHARP);
+    (void)rme7_proto_exhibit(&i, RME7_SIGMA);
+    (void)rme7_proto_exhibit(&i, RME7_F);
+
+    /* Same claim shape, two slots, one equation. Only the admission table
+     * differs between them -- which is the demonstration that the table is
+     * consequential rather than decorative. */
+    Rme7Claim j_in_state = { .concerns_slot = true, .slot = RME7_J_SHARP,
+                             .rung = RME7_RUNG_4, .equation = RME7_EQ_STATE };
+    Rme7Claim f_in_state = j_in_state; f_in_state.slot = RME7_F;
+
+    check(rme7_claim_typing(&j_in_state, &i) == RME7_TYPING_OK,
+          "J# may be placed in the state equation");
+    check(rme7_claim_typing(&f_in_state, &i) == RME7_TYPING_WRONG_EQUATION,
+          "F may not: generator change is not state forcing, and the port "
+          "now refuses the claim rather than carrying it");
+
+    Rme7Claim f_in_generator = f_in_state; f_in_generator.equation = RME7_EQ_GENERATOR;
+    check(rme7_claim_typing(&f_in_generator, &i) == RME7_TYPING_OK,
+          "and F in the generator equation is fine");
+
+    /* A gate and an invariant are terms in neither. */
+    Rme7Claim kappa_term = j_in_state; kappa_term.slot = RME7_KAPPA;
+    Rme7Claim gamma_term = j_in_state; gamma_term.slot = RME7_GAMMA;
+    gamma_term.equation = RME7_EQ_GENERATOR;
+    check(rme7_claim_typing(&kappa_term, &i) == RME7_TYPING_WRONG_EQUATION &&
+          rme7_claim_typing(&gamma_term, &i) == RME7_TYPING_WRONG_EQUATION,
+          "kappa and gamma are terms in neither equation");
+
+    /* A claim that does not name an equation is unaffected. */
+    Rme7Claim silent = j_in_state; silent.equation = RME7_EQ_NONE;
+    check(rme7_claim_typing(&silent, &i) == RME7_TYPING_OK,
+          "a claim that says nothing about placement is not second-guessed");
+
+    /* The warrant follows: equation admission is now consumed by a licensed
+     * operation, so its perturbation is informative. */
+    check(rme7_structure_warrant(RME7_STRUCT_EQUATION_ADMISSION) ==
+          RME7_WARRANT_DEMONSTRATED,
+          "equation admission moves from contingently refuted to demonstrated");
 }
 
 static void test_refusals_and_delta(void) {
@@ -887,6 +935,7 @@ int main(void) {
     test_the_architectural_test();
     test_warrant_by_perturbation();
     test_contingent_refutation_licenses_nothing();
+    test_equation_admission_is_enforced();
     test_refusals_and_delta();
     test_delta_on_a_proto();
     test_purpose_is_never_shared();
