@@ -83,6 +83,30 @@ typedef enum : uint8_t {
 
 [[nodiscard]] Rme7Operand rme7_slot_operand(Rme7Slot slot);
 
+/* The algebraic form, and it is DERIVED rather than recorded.
+ *
+ * Found by a second implementation, not by this one. Grouping the seven slots
+ * by every property this layer records leaves J# and G# identical: both
+ * operators, both in the drift of X, both consuming dH. They differ by enum
+ * constant, office prose and witness prose, and by nothing typed. The enum
+ * made them distinct by construction, so nothing here ever asked what
+ * separates them -- a sort standing in for a structure, one level up from
+ * where that error was found before.
+ *
+ * What separates them follows from the removal witnesses already in this file:
+ * <v, Mv> = 0 for all v iff M is antisymmetric, and >= 0 iff M is positive
+ * semidefinite. So Hdot = 0 gives J# its form and Hdot < 0 gives G# its own.
+ * The witness is recorded; the algebra is entailed. The two are kept apart
+ * because collapsing them would let a derivation pass as a record. */
+typedef enum : uint8_t {
+    RME7_ALGEBRA_NONE,
+    RME7_ALGEBRA_ANTISYMMETRIC,        /* M^T = -M; conserves its operand   */
+    RME7_ALGEBRA_POSITIVE_SEMIDEFINITE /* x^T M x >= 0; dissipates its operand */
+} Rme7Algebra;
+
+[[nodiscard]] Rme7Algebra rme7_slot_algebra(Rme7Slot slot);
+[[nodiscard]] const char *rme7_algebra_name(Rme7Algebra algebra);
+
 /* THE RECORDED RELATION GRAPH, over slots, at FORMAT level.
  *
  * Two edge kinds and they are not interchangeable: sharing an operand is
@@ -250,9 +274,10 @@ typedef enum : uint8_t {
     RME7_STRUCT_RANK_ORDER,
     RME7_STRUCT_COUPLING,
     RME7_STRUCT_BIT_POSITION,
-    RME7_STRUCT_OPERAND                  /* what the operator is applied to */
+    RME7_STRUCT_OPERAND,                 /* what the operator is applied to */
+    RME7_STRUCT_ALGEBRA                  /* the form entailed by the witness */
 } Rme7Structure;
-#define RME7_STRUCTURE_COUNT 9
+#define RME7_STRUCTURE_COUNT 10
 
 /* THE ARCHITECTURAL TEST, mechanized.
  *

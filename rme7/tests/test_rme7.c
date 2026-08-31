@@ -387,10 +387,10 @@ static void test_the_provenance_ledger(void) {
     for (int i = 0; i < RME7_STRUCTURE_COUNT; i++)
         n[rme7_structure_basis((Rme7Structure)i)]++;
 
-    check(n[RME7_BASIS_RECORDED] == 4 && n[RME7_BASIS_DERIVED] == 1 &&
+    check(n[RME7_BASIS_RECORDED] == 4 && n[RME7_BASIS_DERIVED] == 2 &&
           n[RME7_BASIS_STIPULATED] == 2 && n[RME7_BASIS_LAYOUT] == 1 &&
           n[RME7_BASIS_ABSENT] == 1,
-          "nine structural claims: 4 recorded, 1 derived, 2 stipulated, "
+          "ten structural claims: 4 recorded, 2 derived, 2 stipulated, "
           "1 layout, 1 absent");
 
     check(rme7_structure_basis(RME7_STRUCT_RANK0_GROUPING) == RME7_BASIS_STIPULATED &&
@@ -513,7 +513,7 @@ static void test_contingent_refutation_licenses_nothing(void) {
     const Rme7Structure contingent[] = {
         RME7_STRUCT_KIND_PARTITION,
         RME7_STRUCT_OPERATOR_BICONDITIONAL, RME7_STRUCT_GAMMA_DERIVATION,
-        RME7_STRUCT_OPERAND };
+        RME7_STRUCT_OPERAND, RME7_STRUCT_ALGEBRA };
     for (size_t i = 0; i < sizeof contingent / sizeof *contingent; i++) {
         check(rme7_structure_warrant(contingent[i]) ==
               RME7_WARRANT_REFUTED_CONTINGENTLY,
@@ -767,6 +767,36 @@ static void test_the_recorded_structure_is_a_disconnected_forest(void) {
     check(cited_tuple_depth(RME7_KAPPA) == 1 &&
           cited_tuple_depth(RME7_SIGMA) == 4 && cited_tuple_depth(RME7_F) == 4,
           "kappa second, Sigma and F deepest: the three unrecorded slots");
+}
+
+/* Found by a second implementation, not by this one: grouping the slots by
+ * every property this layer RECORDS leaves a pair indistinguishable. The enum
+ * had been making them distinct by construction, so nothing ever asked. */
+static void test_the_enum_was_hiding_a_collision(void) {
+    int recorded_only = 0, with_algebra = 0;
+    Rme7Slot ca = RME7_J_SHARP, cb = RME7_J_SHARP;
+    for (int a = 0; a < RME7_SLOT_COUNT; a++)
+        for (int b = a + 1; b < RME7_SLOT_COUNT; b++) {
+            Rme7Slot x = (Rme7Slot)a, y = (Rme7Slot)b;
+            bool same = rme7_slot_kind(x) == rme7_slot_kind(y) &&
+                        rme7_slot_admits(x) == rme7_slot_admits(y) &&
+                        rme7_slot_operand(x) == rme7_slot_operand(y);
+            if (!same) continue;
+            recorded_only++; ca = x; cb = y;
+            if (rme7_slot_algebra(x) == rme7_slot_algebra(y)) with_algebra++;
+        }
+    check(recorded_only == 1 && ca == RME7_J_SHARP && cb == RME7_G_SHARP,
+          "exactly one pair is identical on every recorded property, and it "
+          "is J# and G#: a sort standing in for a structure");
+    check(with_algebra == 0,
+          "the derived algebra separates them, and nothing else does");
+    check(rme7_slot_algebra(RME7_J_SHARP) == RME7_ALGEBRA_ANTISYMMETRIC &&
+          rme7_slot_algebra(RME7_G_SHARP) == RME7_ALGEBRA_POSITIVE_SEMIDEFINITE,
+          "antisymmetric against positive semidefinite, each entailed by its "
+          "own removal witness");
+    check(rme7_structure_basis(RME7_STRUCT_ALGEBRA) == RME7_BASIS_DERIVED,
+          "and the algebra is recorded as DERIVED, not as a property the "
+          "format states");
 }
 
 static void test_refusals_and_delta(void) {
@@ -1141,6 +1171,7 @@ int main(void) {
     test_only_one_slot_is_independently_withholdable();
     test_every_tier_boundary_is_grounded();
     test_tier_zero_splits_by_operand();
+    test_the_enum_was_hiding_a_collision();
     test_the_recorded_coupling_spans_two_of_three();
     test_co_location_is_not_coupling();
     test_the_order_itself_is_ungrounded();
