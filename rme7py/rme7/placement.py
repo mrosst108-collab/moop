@@ -151,3 +151,86 @@ class Grammar:
 
     def constraints(self) -> list[str]:
         return [p.constraint() for p in self.ports]
+
+
+# --------------------------------------------------------------------------
+# Partial realization. A problem need not exercise every port.
+# --------------------------------------------------------------------------
+
+#: The seven format-level slots, in the order the format names them, paired
+#: with the port each one lands in. J# and G# share a port: that is the
+#: entry-29 collision, and it is what makes the fibre below larger than one.
+SLOT_TO_PORT: tuple[tuple[str, str], ...] = (
+    ("J#",    "state.drift_X.dH"),
+    ("G#",    "state.drift_X.dH"),
+    ("G~#",   "state.drift_X.dPhi"),
+    ("Sigma", "state.diffusion_X.dW"),
+    ("F",     "generator.drift_theta"),
+    ("kappa", "governance"),
+    ("gamma", "relation"),
+)
+
+
+class Realization:
+    """One problem's placement. Unused ports are INACTIVE, never filled.
+
+    A problem may exercise any subset of the format. The correct output for
+    an unexercised port is that it is inactive -- not a plausible occupant
+    invented to complete the picture. ``occupy`` is the only way a port
+    becomes active, and it requires an actual term.
+    """
+
+    def __init__(self, name: str = "realization") -> None:
+        self.name = name
+        self.grammar = Grammar()
+
+    def occupy(self, term: Term) -> Port:
+        return self.grammar.place(term)
+
+    def profile(self) -> tuple[bool, ...]:
+        """Port activation, in the grammar's port order."""
+        return tuple(bool(p.held) for p in self.grammar.ports)
+
+    def inactive(self) -> list[str]:
+        return [p.path for p in self.grammar.ports if not p.held]
+
+    def report(self) -> dict[str, object]:
+        """Occupied ports with their occupants; inactive ports named as such.
+
+        Silence is not an option: every port appears, and an unexercised one
+        says ``inactive`` rather than being omitted and later mistaken for an
+        oversight.
+        """
+        out: dict[str, object] = {}
+        for p in self.grammar.ports:
+            out[p.path] = sorted(t.label for t in p.held) if p.held \
+                else "inactive"
+        return out
+
+
+def port_profile(active_slots: frozenset[str]) -> tuple[str, ...]:
+    """Map a seven-slot activation onto the ports it lights up.
+
+    Not injective. ``{J#}``, ``{G#}`` and ``{J#, G#}`` all light exactly
+    ``state.drift_X.dH`` and are the same object at this layer.
+    """
+    unknown = active_slots - {s for s, _ in SLOT_TO_PORT}
+    if unknown:
+        raise Refused(f"not format-level slots: {sorted(unknown)}")
+    return tuple(sorted({path for slot, path in SLOT_TO_PORT
+                         if slot in active_slots}))
+
+
+def profile_fibres() -> dict[tuple[str, ...], int]:
+    """How many of the 128 slot activations each port profile cannot tell
+    apart. The measurement Q1 would have to be decided somewhere other than
+    here: a layer that cannot separate J# from G# cannot rule on whether a
+    G#-only profile is well formed."""
+    from itertools import combinations
+    slots = [s for s, _ in SLOT_TO_PORT]
+    fibres: dict[tuple[str, ...], int] = {}
+    for r in range(len(slots) + 1):
+        for combo in combinations(slots, r):
+            key = port_profile(frozenset(combo))
+            fibres[key] = fibres.get(key, 0) + 1
+    return fibres

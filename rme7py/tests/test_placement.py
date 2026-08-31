@@ -140,5 +140,69 @@ class TestRecovery(unittest.TestCase):
         self.assertEqual(len(exact), 4)
 
 
+class TestPartialRealization(unittest.TestCase):
+    """A problem need not exercise every port, and must not pretend to."""
+
+    def test_an_unexercised_port_reports_inactive_rather_than_vanishing(self):
+        """Silence would let an unused port be mistaken for an oversight. A
+        realization that uses two ports still reports all six."""
+        r = pl.Realization("conservative-dissipative, no noise")
+        r.occupy(pl.Term("J#", Kind.OPERATOR, Position.DRIFT_X, Operand.DH))
+        r.occupy(pl.Term("G#", Kind.OPERATOR, Position.DRIFT_X, Operand.DH))
+        rep = r.report()
+        self.assertEqual(len(rep), 6)
+        self.assertEqual(rep["state.drift_X.dH"], ["G#", "J#"])
+        self.assertEqual(
+            sorted(k for k, v in rep.items() if v == "inactive"),
+            ["generator.drift_theta", "governance", "relation",
+             "state.diffusion_X.dW", "state.drift_X.dPhi"])
+
+    def test_a_port_cannot_be_activated_without_a_term(self):
+        """There is no way to mark a port occupied except by placing
+        something in it, so an invented occupant has to be invented out
+        loud rather than asserted as a flag."""
+        r = pl.Realization()
+        self.assertEqual(r.profile(), (False,) * 6)
+        self.assertEqual(len(r.inactive()), 6)
+
+
+class TestQ1CannotBeDecidedHere(unittest.TestCase):
+    """What the placement layer says about the tier-0 question, which is
+    that it is not the layer to say it."""
+
+    def test_the_slot_to_port_map_is_not_injective(self):
+        """J#-only, G#-only and both-together light exactly one port and are
+        the same object at this layer."""
+        one = pl.port_profile(frozenset({"J#"}))
+        two = pl.port_profile(frozenset({"G#"}))
+        both = pl.port_profile(frozenset({"J#", "G#"}))
+        self.assertEqual(one, ("state.drift_X.dH",))
+        self.assertEqual(one, two)
+        self.assertEqual(one, both)
+
+    def test_one_hundred_twenty_eight_activations_collapse_to_sixty_four(self):
+        """Half the resolution is gone, and exactly where the collision is:
+        32 port profiles stand for one slot activation each, and 32 stand
+        for three."""
+        from collections import Counter
+        f = pl.profile_fibres()
+        self.assertEqual(sum(f.values()), 128)
+        self.assertEqual(len(f), 64)
+        self.assertEqual(dict(Counter(f.values())), {1: 32, 3: 32})
+
+    def test_the_disputed_case_is_indistinguishable_from_its_sibling(self):
+        """Q1 asks whether a G#-only profile is well formed. A layer that
+        cannot separate G#-only from J#-only cannot answer that, so no
+        well-formedness rule is implemented here and none is imported."""
+        self.assertEqual(pl.port_profile(frozenset({"G#"})),
+                         pl.port_profile(frozenset({"J#"})))
+        self.assertFalse(hasattr(pl.Grammar, "well_formed"))
+        self.assertFalse(hasattr(pl.Realization, "well_formed"))
+
+    def test_a_non_slot_is_refused_rather_than_ignored(self):
+        with self.assertRaises(pl.Refused):
+            pl.port_profile(frozenset({"J#", "Theta"}))
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
