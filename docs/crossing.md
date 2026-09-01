@@ -641,3 +641,23 @@ mechanism, zero code.
 - **the requirement, on work not yet built**: **the eventual system must not depend on a model voluntarily respecting a constraint that an interface can enforce.** Entries 37-39 established the finding — no vocabulary yielded one primitive in 41 fills, supplied vocabulary yielded ten, and a printed acceptance set was violated outright twice by blanks that listed their own permitted symbols. This turns that finding into a constraint on the design rather than leaving it as a measurement. It does not decide *where* enforcement lives; entry 40 recorded that as a separate apparatus question, and it stays open.
 - **what the blank-filling interface is for, stated once**: a **compression interface** — warranted objects arriving from a formulation are placed into fixed positions — not a prompt for free-form symbolic generation. Arm 1 is what the second reading produces: 22 invented symbols and one primitive.
 - **standing**: unchanged. §3 and §4 open with criteria; G_prov, Q1, Q6, Q7 open. C 172; `rme7py` 75; `reddit7` 21.
+
+### 49 — §3 as an adversarial source, and the independence condition on it
+
+- **from → to**: the principal → this tree. Two things: a condition on when §3 counts as grounded, and the standing that the current artifacts hold until then.
+- **the independence condition, and it is the sharp one**: **a source-grounded §3 exists only when its semantic claims and their admissible witnesses have been established independently of the artifacts they are being used to audit.** This is `prompts/rosst-cp-v6.md` §0 — no authority to self-certify — applied to the gate rather than to an output. It rules out the specific move this tree could most plausibly make: reconstructing §3 from what `rme7/`, `rme7py/` and `reddit7/` already assume, then using it to confirm them. That §3 would be authority wearing a source's clothes, and it would pass every test now in the tree.
+- **the reversal in what §3 is for**: it is **not** being introduced to complete the framework. It is introduced as a source **permitted to invalidate** what has been built. What each standing commitment is exposed to:
+
+  | commitment | what §3 may do to it |
+  |---|---|
+  | `RME7_STRUCT_ALGEBRA` = `DERIVED` (e25) | confirm · reclassify as recorded · invalidate the derivation |
+  | `F ∈ dθ` (e28: supported by no single source) | establish · relocate · leave unresolved |
+  | `Σ_ii` / `Σ_ij` split (e29: `STIPULATED`) | ground · collapse · contradict |
+  | Q1 prefix rule (e33) | support · modify · overturn |
+  | Q7 single-κ composition (e44) | establish whether composition is legitimate |
+  | `κ_change → v6` (e45) | confirm · refine · **withdraw** |
+  | the Reddit placement (e43, e45) | not privileged at all |
+
+- **the κ_change case is the test of whether this is meant**: it is the only clean extracted occupant in the ledger and the best result the Reddit crossing produced. It is **expendable**. If §3 says the semantic type is not what the placement assumed, the clean crossing goes, and that is the method working rather than failing. An artifact that cannot be lost was never being audited.
+- **standing until then**: `reddit7` is a **mechanism-extraction and placement experiment**, not an ASDG realization, and must not be described as one. Everything in entries 43-48 is provisional in that concrete sense.
+- **no gate moved**: §3, §4, G_prov, Q1, Q6, Q7 open. C 172; `rme7py` 75; `reddit7` 21.
