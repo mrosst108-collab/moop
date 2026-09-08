@@ -313,6 +313,35 @@ Falsified if a correct rank requires a matrix or any read of a second
 track's contents outside the port; if a new slot appears; or if the
 port cannot carry rank without a second two-track function.
 
+**Outcome: held.** `follow`/`unfollow` change `Rules.subs` on the user's
+own track through `f` under `kappa` (another user is refused; a
+self-loop is an ordinary edge). `pagerank` sets `alpha`, `tolerance`,
+`rounds` in `Ranking` on the site track through `f`, refused for anyone
+but the site and for values out of range; `rules` preserves them. Rank is
+a third translation of `reddit_port`, `REDDIT_RANK`: the sender's `share`
+is summed into the receiver's `incoming`, no receiver gate. `rank` in the
+driver runs the rounds as `all K` runs its loop: one track at a time sets
+its share (rank over its subscription count, or rank over N when it has
+none, spread uniformly) and ports it; then each track settles from its
+own `incoming` alone, damped, plus the teleport share. Stops at the
+tolerance or the round limit and says which.
+
+Acceptance: on the frozen four-user graph the distributed result equals
+an independent PageRank reference, written separately in awk inside the
+test script, to four decimals; ranks sum to one; the static checks still
+find one two-track function and six slots. Behavior as predicted: a
+subscription change moves no rank until the next `rank`; with the round
+limit at one, a two-hop effect is absent and appears at two.
+
+Pressure observed, recorded as evidence and not acted on: carrying rank
+through the one port function leaves three of its parameters unused
+(`id`, `user`, `now`) and puts the sender's per-edge export in a field
+the driver sets (`share`). That is the fourth material through the same
+signature — crosspost, aggregate, profile, rank — and it is the first
+concrete data on what a port contract would have to hold in common. It
+is the trigger the relay called Build C; measuring it comes before
+drawing it.
+
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
 

@@ -31,6 +31,7 @@ constexpr size_t REDDIT_POSTS = 64;
 constexpr size_t REDDIT_TEXT  = 96;
 constexpr size_t REDDIT_NAME  = 24;
 constexpr size_t REDDIT_MODS  = 4;
+constexpr size_t REDDIT_SUBS  = 8;   /* subscriptions a user may hold */
 constexpr unsigned REDDIT_SITE = 0;  /* the site's own identity: admin */
 
 /* A node of X. Posts and comments are the same kind of node: a comment
@@ -56,10 +57,18 @@ typedef struct {
                               under it; -1 for none. Changed by f. */
     int banned;            /* a rule about one user: nothing of theirs is
                               admitted here; -1 for none. Changed by f. */
+    unsigned subs[REDDIT_SUBS]; /* on a user's track: whom this user
+                              authorizes to carry their rank (delegation);
+                              a subscription is the user's act on their own
+                              theta, through f under kappa */
+    size_t nsubs;
 } Rules;
 
 typedef struct {
     double half_life;      /* seconds for hot to halve */
+    double alpha;          /* delegation: damping; on the site track */
+    double tolerance;      /* delegation: stop when total change is below */
+    size_t rounds;         /* delegation: round limit */
 } Ranking;
 
 typedef struct Track Track;
@@ -70,6 +79,10 @@ struct Track {
     Post posts[REDDIT_POSTS];
     size_t nposts;
     unsigned next_id;
+    /* X on a user's track — rank, produced only by the port: what arrived
+     * this round (incoming), what the driver set as this track's export
+     * per edge (share), and the settled value (rank) */
+    double rank, incoming, share;
 
     /* θ — generator */
     Rules rules;
@@ -110,10 +123,14 @@ bool reddit_vote(Track *t, int id, int delta);
  *                 top-level node marked with its origin — because an
  *                 aggregate (r/all, a profile) shows what was said, not
  *                 where it hung.
+ *   REDDIT_RANK   delegation: the sender's `share` of rank crosses and
+ *                 is summed into the receiver's `incoming`. `id` and
+ *                 `user` are unused. No receiver-side gate: a delegate
+ *                 cannot refuse (README, prediction 4).
  * The gate is the receiver's rules (allow_crosspost, then the rules
  * themselves); the adapter enters it as a post of `to`. Refused,
  * touching nothing, if any step refuses. */
-typedef enum { REDDIT_FRESH, REDDIT_CARRY } Translation;
+typedef enum { REDDIT_FRESH, REDDIT_CARRY, REDDIT_RANK } Translation;
 
 bool reddit_port(const Track *from, int id, Track *to, unsigned user,
                  time_t now, Translation how);

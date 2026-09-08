@@ -8,8 +8,8 @@
 #                                                        `show` every track named in (N, M]; write the artifact
 set -e
 classify() { case "$1" in
-    post|comment|vote|cross|all|profile) echo sigma ;;
-    rules|lock|ban) echo F ;;
+    post|comment|vote|cross|all|profile|rank) echo sigma ;;
+    rules|lock|ban|follow|unfollow|pagerank) echo F ;;
     sub) echo structural ;;
     tick) echo clock ;;
     show|sweep|gamma) echo operation ;;

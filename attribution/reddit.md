@@ -27,6 +27,12 @@ line is classified by what it does, and the classification is fixed:
 
 Session control (`save`, `help`, `quit`) is never in a transcript.
 
+*Correction after the freeze (delegation, README prediction 4):* commands
+added later are classified by the same rule — `follow`, `unfollow`,
+`pagerank` set θ and are **F**; `rank` produces X_u through ports and is
+**Σ**. `corners-reddit.sh` carries the same table. The contract's
+definitions are otherwise unchanged.
+
 ## X and θ, operationally
 
 **X_Reddit** — per track: the nodes (`posts[]`, `nposts`, `next_id`), i.e.

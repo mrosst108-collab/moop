@@ -4,6 +4,10 @@
 
 static int failures;
 
+/* a Ranking with the delegation parameters at their defaults: f refuses
+ * a Ranking with rounds == 0 or alpha outside [0, 1] */
+#define RANKING(h) ((Ranking){ .half_life = (h), .alpha = 0.85, .tolerance = 1e-6, .rounds = 100 })
+
 static void check(bool ok, const char *desc)
 {
     printf("%s - %s\n", ok ? "ok  " : "FAIL", desc);
@@ -77,7 +81,7 @@ int main(void)
     check(!a.f(&a, 99, loose, a.ranking) && a.rules.max_title == 4 &&
           same_posts(&a, &snap),
           "kappa: a non-moderator's f is refused and theta is unchanged");
-    check(!a.f(&a, 1, loose, (Ranking){ .half_life = 0 }) && a.rules.max_title == 4,
+    check(!a.f(&a, 1, loose, RANKING(0)) && a.rules.max_title == 4,
           "f: out-of-range theta is refused as a whole");
 
     /* the port: translate, gate, adapt; refused leaves the target unchanged */
@@ -104,7 +108,7 @@ int main(void)
     for (int i = 0; i < 20; i++) reddit_vote(&b, 0, 7);
     b.gsharp(&b, 5000); b.jsharp(&b);
     b.f(&b, 2, (Rules){ .max_title = 10, .min_hot = 1, .allow_crosspost = false, .locked = -1, .banned = -1 },
-        (Ranking){ .half_life = 1 });
+        RANKING(1));
     reddit_sweep(&b);
     a.gsharp(&a, 5000); a.jsharp(&a);
     check(same_posts(&a, &a0),
@@ -116,7 +120,7 @@ int main(void)
     c.sigma(&c, 1, -1, "old", 0);
     c.sigma(&c, 1, -1, "new", 7000);
     c.f(&c, 1, (Rules){ .max_title = 40, .min_hot = 0.5, .allow_crosspost = true, .locked = -1, .banned = -1 },
-        (Ranking){ .half_life = 3600 });
+        RANKING(3600));
     snap = c;
     size_t g = reddit_gamma(&c, 7200);
     check(g == 1 && same_posts(&c, &snap),
@@ -318,5 +322,25 @@ int main(void)
           "the ban touches no profile content until subreddits re-export");
     check(reddit_sweep(&s1) == 2 && reddit_find(&s1, 0) == nullptr,
           "sweep applies the ban to what they already wrote there, cascading");
+    /* delegation — the frozen prediction 4: rank crosses only through the port */
+    Track ua, ub;
+    reddit_track_init(&ua, "u1", 1);
+    reddit_track_init(&ub, "u2", 2);
+    Rules sub = ua.rules; sub.subs[0] = 2; sub.nsubs = 1;
+    check(!ua.f(&ua, 2, sub, ua.ranking) && ua.rules.nsubs == 0,
+          "kappa: only the user may change whom they delegate to");
+    check(ua.f(&ua, 1, sub, ua.ranking) && ua.rules.nsubs == 1 && ua.rules.subs[0] == 2,
+          "f: a subscription is the user's own theta");
+    Rules self = ua.rules; self.subs[1] = 1; self.nsubs = 2;
+    check(ua.f(&ua, 1, self, ua.ranking) && ua.rules.nsubs == 2,
+          "self-subscription is an ordinary edge");
+    ua.rank = 0.5; ua.share = 0.25; ub.incoming = 0.0;
+    check(reddit_port(&ua, -1, &ub, 0, 0, REDDIT_RANK) && ub.incoming == 0.25 &&
+          reddit_port(&ua, -1, &ub, 0, 0, REDDIT_RANK) && ub.incoming == 0.5,
+          "port: the rank translation sums the sender's share into the receiver");
+    Ranking bad = ua.ranking; bad.alpha = 1.5;
+    check(!ua.f(&ua, 1, ua.rules, bad) && ua.ranking.alpha == 0.85,
+          "f: alpha outside [0,1] is refused");
+
     return failures;
 }

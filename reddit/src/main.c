@@ -27,6 +27,16 @@
  *                               through the port, then ranked by itself
  *   sweep SUB                   drop what the rules no longer admit
  *   gamma SUB                   how path-dependent the rules are now
+ *   follow USER TARGET          F under κ on uUSER's θ: USER delegates
+ *                               their rank to TARGET (transitively)
+ *   unfollow USER TARGET        the reverse
+ *   pagerank ADMIN ALPHA TOL ROUNDS
+ *                               F under κ on the site's θ: the delegation
+ *                               parameters
+ *   rank                        run the delegation rounds: every user track
+ *                               exports its share through the port, sums
+ *                               what arrived, damps; stops at tolerance or
+ *                               the round limit; ranks are stale until then
  *   help                        list the commands
  *   save FILE                   from now on, append every application
  *                               command to FILE before running it
@@ -56,6 +66,10 @@ static const struct { const char *name, *usage, *what; } commands[] = {
     { "all",     "all K",                               "rebuild r/all from every subreddit's top K" },
     { "sweep",   "sweep SUB",                           "drop what the rules no longer admit" },
     { "gamma",   "gamma SUB",                           "how many nodes' fate depends on decay running first" },
+    { "follow",  "follow USER TARGET",                  "USER delegates their rank to TARGET (their own theta, via f)" },
+    { "unfollow","unfollow USER TARGET",                "USER withdraws that delegation" },
+    { "pagerank","pagerank ADMIN ALPHA TOL ROUNDS",     "the site sets the delegation parameters" },
+    { "rank",    "rank",                                "run the delegation rounds through the port; ranks are stale until run" },
     { "help",    "help",                                "this list" },
     { "save",    "save FILE",                           "record every application command to FILE from now on" },
     { "quit",    "quit",                                "leave" },
@@ -133,7 +147,17 @@ static void show_rules(const Track *t)
            t->rules.locked, t->rules.banned);
     for (size_t i = 0; i < t->nmods; i++)
         printf("%su%u", i ? "," : "", t->mods[i]);
+    if (t->rules.nsubs) {
+        printf(" subs=");
+        for (size_t i = 0; i < t->rules.nsubs; i++)
+            printf("%su%u", i ? "," : "", t->rules.subs[i]);
+    }
+    if (t == &all)
+        printf(" alpha=%.2f tolerance=%g rounds=%zu", t->ranking.alpha,
+               t->ranking.tolerance, t->ranking.rounds);
     putchar('\n');
+    if (t->name[0] == 'u')
+        printf("  rank %.6f\n", t->rank);
 }
 
 static void show(Track *t)
@@ -250,6 +274,9 @@ static bool run(FILE *in)
             if (!t) { refuse("no such subreddit"); continue; }
             r.locked = t->rules.locked;
             r.banned = t->rules.banned;
+            r.nsubs = t->rules.nsubs;
+            memcpy(r.subs, t->rules.subs, sizeof r.subs);
+            k.alpha = t->ranking.alpha; k.tolerance = t->ranking.tolerance; k.rounds = t->ranking.rounds;
             if (!t->f(t, user, r, k)) refuse("not a moderator, or rules out of range");
         } else if (strcmp(cmd, "ban") == 0) {
             unsigned admin, user;
@@ -280,6 +307,61 @@ static bool run(FILE *in)
             }
             show(u);
             if (!replaying) printf("  karma %d\n", reddit_karma(u));
+        } else if (strcmp(cmd, "follow") == 0 || strcmp(cmd, "unfollow") == 0) {
+            unsigned user, target;
+            if (sscanf(rest, "%u %u", &user, &target) != 2) { refuse("follow USER TARGET"); continue; }
+            Track *u = profile_of(user), *v = profile_of(target);
+            if (!u || !v) { fprintf(stderr, "refused: capacity is %zu profiles\n", TRACKS); continue; }
+            Rules r = u->rules;
+            size_t k = 0;
+            while (k < r.nsubs && r.subs[k] != target) k++;
+            if (cmd[0] == 'f') {
+                if (k < r.nsubs) { refuse("already following"); continue; }
+                if (r.nsubs == REDDIT_SUBS) { fprintf(stderr, "refused: capacity is %zu subscriptions\n", REDDIT_SUBS); continue; }
+                r.subs[r.nsubs++] = target;
+            } else {
+                if (k == r.nsubs) { refuse("not following"); continue; }
+                for (; k + 1 < r.nsubs; k++) r.subs[k] = r.subs[k + 1];
+                r.nsubs--;
+            }
+            if (!u->f(u, user, r, u->ranking)) refuse("not a moderator");
+        } else if (strcmp(cmd, "pagerank") == 0) {
+            unsigned admin; Ranking k = all.ranking;
+            if (sscanf(rest, "%u %lf %lf %zu", &admin, &k.alpha, &k.tolerance, &k.rounds) != 4) { refuse("pagerank ADMIN ALPHA TOL ROUNDS"); continue; }
+            if (!all.f(&all, admin, all.rules, k)) refuse("not the site, or parameters out of range");
+        } else if (strcmp(cmd, "rank") == 0) {
+            /* power iteration as message passing. The loop is the driver's,
+             * like `all K`: one track at a time sets its share and ports it;
+             * each track then settles from its own incoming alone. */
+            size_t n = nusers;
+            if (n == 0) { refuse("nobody to rank"); continue; }
+            for (size_t i = 0; i < n; i++) users[i].rank = 1.0 / (double)n;
+            size_t round = 0; double change = 1.0;
+            while (round < all.ranking.rounds && change > all.ranking.tolerance) {
+                round++;
+                for (size_t i = 0; i < n; i++) users[i].incoming = 0.0;
+                for (size_t i = 0; i < n; i++) {
+                    Track *u = &users[i];
+                    if (u->rules.nsubs == 0) {        /* dangling: spread uniformly */
+                        u->share = u->rank / (double)n;
+                        for (size_t j = 0; j < n; j++) reddit_port(u, -1, &users[j], 0, now, REDDIT_RANK);
+                    } else {
+                        u->share = u->rank / (double)u->rules.nsubs;
+                        for (size_t k = 0; k < u->rules.nsubs; k++) {
+                            Track *v = profile_of(u->rules.subs[k]);
+                            if (v) reddit_port(u, -1, v, 0, now, REDDIT_RANK);
+                        }
+                    }
+                }
+                change = 0.0;
+                for (size_t i = 0; i < n; i++) {   /* each track settles from its own incoming */
+                    double next = all.ranking.alpha * users[i].incoming + (1.0 - all.ranking.alpha) / (double)n;
+                    change += next > users[i].rank ? next - users[i].rank : users[i].rank - next;
+                    users[i].rank = next;
+                }
+            }
+            if (!replaying) printf("rank: %zu rounds, change %g, %s\n", round, change,
+                                   change <= all.ranking.tolerance ? "converged" : "round limit");
         } else if (strcmp(cmd, "all") == 0) {
             size_t k;
             if (sscanf(rest, "%zu", &k) != 1) { refuse("all K"); continue; }

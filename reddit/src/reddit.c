@@ -83,7 +83,9 @@ static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
 {
     if (!t->kappa(t, user))
         return false;
-    if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT)
+    if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT ||
+        ranking.alpha < 0 || ranking.alpha > 1 || ranking.tolerance < 0 ||
+        ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS)
         return false;
     t->rules = rules;
     t->ranking = ranking;
@@ -99,7 +101,8 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
     t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
                         .allow_crosspost = true, .export_to_all = true,
                         .locked = -1, .banned = -1 };
-    t->ranking = (Ranking){ .half_life = 3600.0 };
+    t->ranking = (Ranking){ .half_life = 3600.0, .alpha = 0.85,
+                            .tolerance = 1e-6, .rounds = 100 };
     t->mods[0] = founder;
     t->nmods = 1;
     t->jsharp = sort_by_hot;
@@ -152,6 +155,11 @@ size_t reddit_sweep(Track *t)
 bool reddit_port(const Track *from, int id, Track *to, unsigned user,
                  time_t now, Translation how)
 {
+    if (how == REDDIT_RANK) {
+        /* translation: the sender's share; gate: none; adapter: summed */
+        to->incoming += from->share;
+        return true;
+    }
     const Post *src = reddit_find(from, id);
     if (src == nullptr)
         return false;

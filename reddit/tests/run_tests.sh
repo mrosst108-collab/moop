@@ -14,7 +14,7 @@ check "and that function is reddit_port" "1" "$(grep -cE '^bool reddit_port\(.*T
 check "theta has no comment-ranking parameter (field names)" "0" "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -cE '^ +(int|bool|double|size_t) [a-z_]*comment')"
 # the command language cannot drift from its own description
 check "help lists exactly the commands the dispatcher accepts" "$(grep -oE 'strcmp\(cmd, "[a-z]+"\)' src/main.c | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
-check "help runs and names every command" "17" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
+check "help runs and names every command" "21" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
 check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=-1 mods=u1$')"
 check "capacity is stated, not hidden" "1" "$(for i in $(seq 1 17); do echo "sub s$i 1"; done | { cat; echo quit; } | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 subreddits')"
 check "the slot set did not change: six slots, gamma measured" "6" "$(grep -cE '^    (void|bool) \(\*[a-z]+\)\(' src/rme7.h)"
@@ -105,5 +105,37 @@ check "restart from a saved transcript reproduces the session" "$direct" "$round
 check "replay is silent" "0" "$(printf 'quit\n' | "$BIN" "$T/hist.txt" 2>&1 | wc -c)"
 check "a missing transcript file is an error" "1" "$(printf 'quit\n' | "$BIN" "$T/none.txt" >/dev/null 2>&1; echo $?)"
 rm -rf "$T"
+
+# delegation: distributed power iteration equals an independent PageRank reference
+# graph: 1->2, 2->3, 1->4; 3 and 4 dangling; alpha 0.85, uniform teleport
+graph='follow 1 2
+follow 2 3
+follow 1 4
+rank
+show u1
+show u2
+show u3
+show u4'
+ours=$(printf '%s\nquit\n' "$graph" | "$BIN" 2>/dev/null | grep -oE '^  rank [0-9.]+' | awk '{printf "%.4f ", $2}')
+ref=$(awk 'BEGIN{ n=4; a=0.85
+  # adjacency: out[u]=list; dangling spread uniform; 100 rounds
+  out[1]="2 4"; out[2]="3"; out[3]=""; out[4]=""
+  for(i=1;i<=n;i++) r[i]=1/n
+  for(t=0;t<100;t++){ for(i=1;i<=n;i++) in_[i]=0
+    for(u=1;u<=n;u++){ m=split(out[u],d," "); if(m==0){ for(j=1;j<=n;j++) in_[j]+=r[u]/n } else { for(j=1;j<=m;j++) in_[d[j]]+=r[u]/m } }
+    for(i=1;i<=n;i++) r[i]=a*in_[i]+(1-a)/n }
+  for(i=1;i<=n;i++) printf "%.4f ", r[i] }')
+check "rank equals an independent PageRank reference to four decimals" "$ref" "$ours"
+check "rank reports convergence" "1" "$(printf '%s\nquit\n' "$graph" | "$BIN" 2>/dev/null | grep -c '^rank: [0-9]* rounds, change [0-9.e-]*, converged$')"
+check "ranks sum to one" "1.0000" "$(printf '%s\nquit\n' "$graph" | "$BIN" 2>/dev/null | grep -oE '^  rank [0-9.]+' | awk '{s+=$2} END{printf "%.4f", s}')"
+# stale until the next run; propagation one hop per round
+stale=$(printf '%s\nfollow 3 1\nshow u1\nrank\nshow u1\nquit\n' "$graph" | "$BIN" 2>/dev/null | grep -oE '^  rank [0-9.]+' | awk '{print $2}' | tail -2)
+check "a subscription change does not move rank until the next run" "yes" "$([ "$(echo "$stale" | sed -n 1p)" != "$(echo "$stale" | sed -n 2p)" ] && [ "$(echo "$stale" | sed -n 1p)" = "$(printf '%s\nquit\n' "$graph" | "$BIN" 2>/dev/null | grep -oE '^  rank [0-9.]+' | awk 'NR==1{print $2}')" ] && echo yes)"
+onehop=$(printf 'pagerank 0 0.85 0 1\nfollow 1 2\nfollow 2 3\nrank\nshow u3\nquit\n' | "$BIN" 2>/dev/null | grep -oE '^  rank [0-9.]+' | awk '{print $2}')
+twohop=$(printf 'pagerank 0 0.85 0 2\nfollow 1 2\nfollow 2 3\nrank\nshow u3\nquit\n' | "$BIN" 2>/dev/null | grep -oE '^  rank [0-9.]+' | awk '{print $2}')
+check "with one round, influence travels one hop; with two, further" "yes" "$([ "$onehop" != "$twohop" ] && echo yes)"
+check "pagerank parameters are the site's theta, shown on r/all" "1" "$(printf 'pagerank 0 0.5 0.001 7\nall 1\nquit\n' | "$BIN" 2>/dev/null | grep -c 'alpha=0.50 tolerance=0.001 rounds=7')"
+check "only the site may set them" "1" "$(printf 'pagerank 5 0.5 0.001 7\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
+check "only the user may change whom they follow" "1" "$(printf 'follow 1 2\nshow u1\nquit\n' | "$BIN" 2>/dev/null | grep -c 'subs=u2')"
 
 exit $fail
