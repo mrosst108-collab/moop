@@ -121,3 +121,11 @@ mechanism, zero code.
 - **criticism, assembled** (not adjudicated): (1) the operator count, above; (2) "block-diagonal offices" as a card condition against "permitted cross-sector relation sits in G̃♯" in Del(U₂) — consistent only if sector ≠ track, which nothing states; (3) Ψ appears in the canonical form and nowhere else; (4) κ inside Σ_ij gives a fail-only indicator a compositional role the local typing does not describe. Each is a question for the register, recorded here so it is not re-derived from memory later.
 - **a sequencing slip, recorded**: the code commit `a0a7faf` landed before this entry, against the G♯ row's letter (the entry precedes the commit). The derivation it encodes was done first; the record lagged by one commit in the same push. Entry 2 has the same shape. Not hidden, not repeated by choice.
 - **parked, correctly**: the G̃♯ verdict (`open` until the register rules on sector vs. track); the two `[pending]` items; Ψ; ρ_rel.
+
+
+### 4 — slots, not a classifier
+
+- **from → to**: the operator, in session → this tree.
+- **ruling**: "We don't need a classifier. We only need slots." The hosted verdict vocabulary from entry 3 (`admitted`/`refused`/`absent`/`open`) and an office table with executable constraints drafted after it are withdrawn; the seven primitives are bare protos filled by teaching (`prompts/parameterize-rme7.md`).
+- **status**: `re-derived` — the deletion test agrees: a slot's content is what is taught into it, and teaching already exists. The verdict enumeration remains valid as this entry's predecessor's record; it was machinery that duplicated a ruling the register owns.
+- **consequences**: the commit carrying this entry.

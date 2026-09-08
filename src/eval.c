@@ -28,7 +28,7 @@ static MoopProto world;
 static bool world_a[LEN_A], world_ma[LEN_A], world_b[LEN_B], world_mb[LEN_B];
 static MoopProtoMessage world_table[TABLE_CAP];
 
-/* the RME-7 framework: `port` and one proto per primitive, generated
+/* the RME-7 slots: `port` and one proto per primitive, generated
  * by the world (src/rme7.h) */
 static MoopRme7 framework;
 
@@ -129,7 +129,7 @@ void moop_eval_init(void)
     env_bind("world", 5, w);
     current_receiver = w;
 
-    /* the world generates the framework's ports and names them */
+    /* the world generates the slots and names them */
     moop_rme7_generate(&world, &framework, LEN_A, LEN_B);
     env_bind("port", 4, (MoopValue){ .kind = MOOP_VAL_PROTO,
                                      .proto = &framework.port });
@@ -137,7 +137,7 @@ void moop_eval_init(void)
         const char *name = moop_rme7_name((MoopRme7Primitive)i);
         env_bind(name, strlen(name),
                  (MoopValue){ .kind = MOOP_VAL_PROTO,
-                              .proto = &framework.ports[i] });
+                              .proto = &framework.slots[i] });
     }
 }
 

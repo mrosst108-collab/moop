@@ -250,13 +250,11 @@ space is realized below under the relay's grains without claiming the item is ra
 where it is located, what claims are licensed, what promotion would be a category error — object
 card, operation algebra, answerability domain, lifecycle with *located* before *warranted*.
 
-**How this tree realizes it** (`src/rme7.{h,c}`, `docs/model.md`): the port is not a new mechanism —
-moop's `<->` is already translate ∘ refuse ∘ deposit. The framework's handles are protos: the world
-generates `port`, which generates one proto per primitive, and `port` hosts four exclusive verdicts
-(`admitted` / `refused` / `absent` / `open`) answering whether a cross-track port of that primitive is
-admitted. Σ and κ admitted; G♯ refused (capture); J♯, F, γ absent; G̃♯ open. The derivation is the
-deletion test, recorded in the ledger. The verdicts are the negative space with both grains filled;
-`refused` vs `absent` is exactly the pending distinction, exercised without being ratified.
+**How this tree realizes it** (`src/rme7.{h,c}`, `docs/model.md`): as slots. The world generates
+`port`, which generates one empty proto per primitive; a coding LLM fills a slot by teaching it
+(`parameterize-rme7.md`). Nothing is hosted and nothing is decided in code. The verdict enumeration
+derived in the ledger entry (Σ, κ admitted; G♯ refused; J♯, F, γ absent; G̃♯ open) stands as a
+record there, not as machinery here.
 
 **Guards, verbatim:** object ≠ coordinate space ≠ representation format · representation format ≠
 quantitative realization · office ≠ carrier ≠ theory · localization ≠ derivation · exhibited ≠

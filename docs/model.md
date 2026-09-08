@@ -188,47 +188,21 @@ So the full object ladder is: actor (non-hereditary) → system root proto
 (delegation root, generative factory) → user root protos (roots of user
 delegation trees) → protos all the way down.
 
-## Ports: the RME-7 framework on the ladder
+## The RME-7 slots on the ladder
 
-RME-7 (`prompts/asdg-rme7.md`) writes one object as a *track* — state
-X and generator θ — and relates tracks only through *ports*,
-Σ_ij = adapter ∘ gate ∘ translation. moop already has that shape, and
-it is `<->`: `src/encode.c` translates a value onto tape cells, the
-size check refuses what does not fit (the gate), and the deposit or
-exchange is done with gates (the adapter). So the multi-track card
-adds no coupling mechanism here — the deletion test dissolves one.
-
-What it does add is the framework's *objects* (`src/rme7.{h,c}`): at
-startup the world generates a `port` proto, and `port` generates one
-proto per RME-7 primitive — `jsharp`, `gsharp`, `gtildesharp`,
-`sigma`, `f`, `kappa`, `gamma`. They are ordinary user-facing protos:
-bodies on the substrate (reversible and homoiconic by construction),
-hereditary children of `port`, seeded by MAYBE draws so the world can
-step back to before their birth, and addressable from the surface
-language (`p is a sigma`, `sigma mirrors box`).
-
-Each answers whether a cross-track port of its primitive is admitted.
-`port` hosts the verdict vocabulary once — `admitted`, `refused`,
-`absent`, `open` — and the primitives answer through delegation with
-the receiver as self; exactly one verdict is true per port, and the
-assignment is derived by the deletion test against the card
-(`docs/crossing.md`, entry 3):
-
-| primitive | a cross-track port would be… | verdict |
-|-----------|-------------------------------|---------|
-| Σ | the port itself | admitted |
-| κ | the gate factor of every port | admitted |
-| G♯ | one track's objective forming another's ends — *capture*, the framework's named failure condition | refused |
-| J♯ | shared circulation: the two tracks become one | absent |
-| F | dissolves: Σ_ij delivers into X_i and F_i picks it up, under κ | absent |
-| γ | derived, not an operator; nothing to carry | absent |
-| G̃♯ | block-diagonal by the card, yet the composite predicate permits cross-sector confinement | open |
-
-A port born from a primitive inherits its verdict; one born from `port`
-alone has no primitive and is `open`. The handlers read lineage and
-nothing else — no body is touched, so the bridge shape is untouched
-too. The framework is user-layer: a system-facing root refuses to
-generate it.
+RME-7 (`prompts/asdg-rme7.md`) has seven primitives. Each gets a
+*slot* (`src/rme7.{h,c}`): at startup the world generates a `port`
+proto, and `port` generates one proto per primitive — `jsharp`,
+`gsharp`, `gtildesharp`, `sigma`, `f`, `kappa`, `gamma`. A slot is an
+ordinary user-facing proto: a body on the substrate (reversible and
+homoiconic by construction), a hereditary child of `port`, seeded by
+MAYBE draws so the world can step back to before its birth, and
+addressable from the surface language. It hosts nothing. A slot is
+filled by teaching it (`sigma ask drive is ask maybe`), and until it is
+taught it honestly answers that nothing in its lineage hosts the
+message. Slots decide nothing: what a primitive *is* here is whatever
+was taught into it, and the spec's operator semantics stay unpopulated
+until a primary source supplies them.
 
 ## Open questions
 
@@ -247,4 +221,4 @@ generate it.
 - The G̃♯ port: the multi-track card keeps offices block-diagonal, but
   its composite predicate lets cross-sector relation sit in G̃♯. Whether
   sector and track coincide is the framework's ruling to make, not
-  ours; the port stays `open` until it does.
+  ours.
