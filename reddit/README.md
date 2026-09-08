@@ -62,6 +62,12 @@ Reuse has two grades: a second subsystem of this reddit is intra-domain; an
 independent domain on the same six slots without changing the discipline is
 what a framework claim waits for. Not claimed.
 
+The reddit side is closed. It demonstrated cross-track aggregation, recursive
+state without a new primitive, a second track kind determined by its feeding
+relation rather than by a new primitive, receiver-governed admission, derived
+γ, one port serving distinct aggregations, and the six-slot kernel unchanged
+throughout. Nothing further is to be added here in anticipation of reuse.
+
 ## Frozen predictions
 
 Written before the feature is built, so the outcome can falsify.
@@ -136,8 +142,12 @@ hot reply under a refused comment falls on the next pass. `sigma` gained
 a parent argument, the same slot admitting a post (-1) or a comment. A
 lock is `Rules.locked`, one field of θ changed through `f` under `kappa`,
 so a non-moderator cannot lock and a locked post refuses new comments
-while existing ones stay. The port refuses comments. `reddit_gamma`
-counts over the tree unchanged.
+while existing ones stay. The port refuses a comment under the crosspost
+translation — it would have no parent in another subreddit — but admits
+one into an aggregate under the carried translation, flattened and
+marked with its origin *(revised at 25b1b80; the original read "the port
+refuses comments", which users showed was compressed too far)*.
+`reddit_gamma` counts over the tree unchanged.
 
 Falsifiers, checked: no thread-level θ (θ gained one integer, no
 comment-ranking parameter — the shell tests grep the field names); no
