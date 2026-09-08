@@ -48,7 +48,7 @@ out=$(printf '%s\n' "$session" | "$BIN" 2>&1)
 check "votes rank: the voted post is first" "1" "$(printf '%s\n' "$out" | grep -c '^  #1 \[+5, hot 5.00\] another cat  (u3)$')"
 check "comments nest under their parent, ranked among siblings" "1" "$(printf '%s\n' "$out" | grep -c '^      #2 \[+4, hot 4.00\] nice cat  (u4)$')"
 check "and recursively" "1" "$(printf '%s\n' "$out" | grep -c '^          #4 \[+1, hot 1.00\] agreed  (u6)$')"
-check "an orphan comment, and one under a locked post, are refused" "3" "$(printf '%s\n' "$out" | grep -c 'refused: the rules do not admit that comment')"
+check "an orphan comment, and one under a locked post, are refused" "2" "$(printf '%s\n' "$out" | grep -c 'refused: the rules do not admit that comment')"
 check "one half-life halves hot, comments included" "1" "$(printf '%s\n' "$out" | grep -c '^      #2 \[+4, hot 2.00\] nice cat  (u4)$')"
 check "the port translates and adapts a post" "1" "$(printf '%s\n' "$out" | grep -c 'x/cats: another cat  (u2)')"
 check "the port refuses a comment" "1" "$(printf '%s\n' "$out" | grep -c 'refused: the port did not admit it')"

@@ -122,8 +122,32 @@ that is not the subreddit's), a second sort slot for the comment level, a
 tree-rewriting G̃♯, or a second two-track function. Either outcome is
 recorded here.
 
+**Outcome: held.** Comments are nodes of X with a stable id and a parent;
+the tree is carried by ids, so `jsharp`'s one permutation of the flat
+array orders siblings at every depth and the driver walks it. `gsharp` is
+unchanged and decays comments under the track's one half-life (a comment
+halves exactly as a post does). `gtildesharp` stayed a verdict on a
+`const` node — a comment additionally needs its parent present and not
+locked — and `reddit_sweep` cascades only by repeating that verdict: a
+hot reply under a refused comment falls on the next pass. `sigma` gained
+a parent argument, the same slot admitting a post (-1) or a comment. A
+lock is `Rules.locked`, one field of θ changed through `f` under `kappa`,
+so a non-moderator cannot lock and a locked post refuses new comments
+while existing ones stay. The port refuses comments. `reddit_gamma`
+counts over the tree unchanged.
+
+Falsifiers, checked: no thread-level θ (θ gained one integer, no
+comment-ranking parameter — the shell tests grep the field names); no
+second sort slot (six pointers, checked statically); no tree-rewriting
+G̃♯ (its signature is unchanged and `const`); no second two-track
+function (checked statically). The behavioral prediction held: a fresh
+comment clears the same `min_hot` as a fresh post, and a stale one falls
+to the same sweep.
+
 **3. users** — a second track kind carrying identity, without a new slot.
-Prediction to be frozen when comments is done.
+Prediction to be frozen next, derived from what comments showed: a
+thread was not a track because it has no θ of its own; a user has one
+(what they may do) and state (what they did), which may make a user one.
 
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
