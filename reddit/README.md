@@ -36,16 +36,28 @@ end); see the frozen prediction below and its outcome.
 the failure condition: no slot reads a second track, and the test "no
 capture" holds a track's ranking fixed through every act on another.
 
-## Status
+## Status (audit position)
 
-A tested architectural discipline with a candidate framework implementation.
-Not a framework: one consumer exists, and it is the program the shape was
-drawn from. The guarantee is
+RME-7 has demonstrated a viable architectural discipline here: its
+distinctions are operationally separable, testable, and detected at least
+one non-commuting interaction (decay against rules, counted by
+`reddit_gamma`). Its present implementation does not establish type-level
+enforcement (C23 cannot state `Writer(hot) = gsharp`; the guarantee is slot
+contract + tests + occupant discipline), semantic realization of the formal
+operators (the spec's §3 is unpopulated; every row is role-plus-constraint),
+or framework-level reuse (one consumer, the program the shape was drawn
+from).
 
-    compliance = slot contract + tests + occupant discipline
+The first falsification test, r/all, was frozen in advance and has run: the
+feature was built with each subreddit exporting through the port `Σ_ij`, no
+global read, and the discipline predicts an observable property of it —
+r/all is stale until rebuilt, never live. Cross-track relation is carried
+on the port, not on γ; γ is derived and measured, never a mediator.
+Comments and users next test recursive structure and a second track kind.
 
-C23 cannot state `Writer(hot) = gsharp` as a type; the tests hold it for the
-default occupants, and a swapped occupant must bring its own.
+Reuse has two grades: a second subsystem of this reddit is intra-domain; an
+independent domain on the same six slots without changing the discipline is
+what a framework claim waits for. Not claimed.
 
 ## Frozen predictions
 
