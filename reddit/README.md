@@ -342,6 +342,53 @@ concrete data on what a port contract would have to hold in common. It
 is the trigger the relay called Build C; measuring it comes before
 drawing it.
 
+**5. rank-weighted article ranking.**
+
+Two voting signals per node: the popular vote V (direct votes) and the
+rank-weighted vote W (attributed votes, each weighted by the voter's proxy
+rank). Ruled before any code:
+
+1. `vote` stays anonymous and counts in V only. `cast SUB USER ID DELTA` is
+   an attributed vote: it counts in V and records a ballot (voter, delta)
+   on the node. One ballot per voter per node. Existing transcripts stay
+   valid.
+2. W arrives through the port. `weigh SUB` rebuilds every node's W from
+   the voters' *current* ranks: for each ballot, the voter's track exports
+   its rank and the port adds it, signed by the ballot, to that node. No
+   subreddit reads a user track. W is stale until the next `weigh`.
+3. Normalize before combining: V̂ = V/N and Ŵ = W, N the number of user
+   tracks. Realized in vote units, which is the same ordering: the port
+   carries rank × N ("user-equivalents", an average user's authority is
+   one vote), and S = λ·V + (1−λ)·W in those units, decayed by the
+   track's half-life like V. λ = 1 reproduces today's ordering exactly.
+4. Both are exposed: `show` prints W on a node that has ballots and S
+   when λ ≠ 1. J♯ sorts on S; one sort, one key.
+5. **One-way dependency, frozen:** subscriptions → PageRank → voter
+   authority → article ranking, never back. A `cast` changes V and a
+   ballot and nothing else: it does not change any rank, does not
+   invalidate PageRank, and is not a delegation. `rank` processes
+   delegation; `weigh` processes the consequences of the resulting
+   authority; neither is triggered implicitly by the other or by voting.
+
+Realization clause: λ is the site's policy. Because J♯ and G♯ read one
+track, λ is held in each track's `Ranking` as the site's setting, changed
+only by `blend ADMIN SUB LAMBDA` through `f` under `kappa` with the site
+as the actor; `rules` preserves it. A moderator cannot set it.
+
+Prediction: rank-weighted ranking is computable with the voter's
+authority arriving through the port into the node it weights, W rebuilt
+and stale, no read of a user track by a subreddit, no new slot, no second
+two-track function; and the port's `id` and `user` parameters, unused by
+the rank translation, are used by this one.
+
+Behavioral consequences, observable: with λ = 1 the ordering is today's;
+with λ = 0 a node endorsed by one high-authority voter outranks a node
+with many anonymous votes; casting a vote leaves every rank unchanged; a
+`weigh` after a subscription change uses the old ranks until `rank` runs.
+
+Falsified if a subreddit must read a voter's rank directly, if a new slot
+appears, or if a second two-track function is needed.
+
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
 
