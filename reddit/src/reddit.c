@@ -84,7 +84,7 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
     memset(t, 0, sizeof *t);
     snprintf(t->name, sizeof t->name, "%s", name);
     t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
-                        .allow_crosspost = true };
+                        .allow_crosspost = true, .export_to_all = true };
     t->ranking = (Ranking){ .half_life = 3600.0 };
     t->mods[0] = founder;
     t->nmods = 1;
@@ -120,20 +120,39 @@ size_t reddit_sweep(Track *t)
 /* --- the port ------------------------------------------------------- */
 
 bool reddit_port(const Track *from, size_t i, Track *to, unsigned user,
-                 time_t now)
+                 time_t now, Translation how)
 {
-    if (i >= from->nposts || !to->rules.allow_crosspost)
+    if (i >= from->nposts)
         return false;
 
-    /* translation: the title carries its origin */
+    /* translation: the sender's side. It may decline. */
+    if (how == REDDIT_CARRY && !from->rules.export_to_all)
+        return false;
+    Post p = from->posts[i];
     char title[REDDIT_TEXT];
-    int n = snprintf(title, sizeof title, "x/%s: %s", from->name,
-                     from->posts[i].title);
+    int n = snprintf(title, sizeof title, "x/%s: %s", from->name, p.title);
     if (n < 0 || (size_t)n >= sizeof title)
         return false; /* would not fit: refused, not truncated */
+    strcpy(p.title, title);
+    p.author = user;
+    if (how == REDDIT_FRESH) {
+        p.votes = 1;
+        p.born = now;
+    }
+    p.hot = 0.0; /* the receiver's gsharp writes hot, nobody else */
 
-    /* gate, then adapter: it arrives as `user`'s post under `to`'s rules */
-    return to->sigma(to, user, title, now);
+    /* gate: the receiver's side */
+    if (!to->rules.allow_crosspost || to->nposts == REDDIT_POSTS)
+        return false;
+    Track judge = *to; /* hot under the receiver's own decay, on a copy */
+    judge.posts[judge.nposts++] = p;
+    judge.gsharp(&judge, now);
+    if (!to->gtildesharp(to, &judge.posts[judge.nposts - 1]))
+        return false;
+
+    /* adapter: it is the receiver's post now */
+    to->posts[to->nposts++] = judge.posts[judge.nposts - 1];
+    return true;
 }
 
 /* --- gamma ---------------------------------------------------------- */

@@ -27,7 +27,10 @@ no equation is claimed; each row is a test in `tests/test_reddit.c`.
 | `reddit_port` | `Σ_ij` = adapter ∘ gate ∘ translation | crosspost | the only two-track function; refusal leaves the target untouched |
 | `f` | generator self-modification | change rules and ranking | passes `kappa` first; never touches `X`; out-of-range refused whole |
 | `kappa` | integrity gate | is a moderator | fail-only; `allow_crosspost` is κ at the port |
-| `gamma` | derived, `[gsharp, gtildesharp]` | `reddit_gamma` | measured from a copy, changes nothing; counts posts whose fate depends on decay running first |
+| `gamma` | derived, `[gsharp, gtildesharp]` | `reddit_gamma` — not a slot | measured from a copy, changes nothing; counts posts whose fate depends on decay running first |
+
+r/all is an aggregate track fed through the port (`all K` in the front
+end); see the frozen prediction below and its outcome.
 
 **Capture** (`G♯_ij ≠ 0`, one track's objective forming another's ends) is
 the failure condition: no slot reads a second track, and the test "no
@@ -66,6 +69,21 @@ Falsified if the feature requires
 
 — any function that reads a second track's posts or scores, a new slot, or a
 second two-track function. Either outcome is recorded here.
+
+**Outcome: held.** r/all is a `Track` founded by the site, rebuilt by the
+driver (`all K` in `main.c`) from each subreddit's top K through
+`reddit_port` with the `REDDIT_CARRY` translation, then decayed and sorted
+by its own slots. What changed to make it work, all realization data:
+`Rules` gained `export_to_all` (θ), and the port gained a translation mode
+(fresh crosspost vs. carried votes). What did not change: the slot set
+(six function pointers; γ was never a slot, it is measured), and the count
+of two-track functions (one, checked statically by the shell tests). The
+opt-out landed where predicted, in the translation step. The receiver's
+gate is r/all's own `min_hot`. A feeder changed after a build does not
+change r/all until the next build: no live cross-track read exists.
+
+One correction to the prediction's wording: it said "seven slots"; the
+struct has six. The seventh primitive was measured from the start.
 
 **2. comments** — a hierarchical track structure, without a new slot.
 **3. users** — a second track kind carrying identity, without a new slot.

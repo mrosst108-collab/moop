@@ -43,7 +43,9 @@ typedef struct {
 typedef struct {
     size_t max_title;      /* confinement: titles this long or shorter */
     double min_hot;        /* confinement: posts stay while hot >= this */
-    bool allow_crosspost;  /* the port's gate on this track */
+    bool allow_crosspost;  /* the port's gate on this track (receiver side) */
+    bool export_to_all;    /* the port's translation from this track: a
+                              sender may decline to translate (opt-out) */
 } Rules;
 
 typedef struct {
@@ -80,13 +82,21 @@ void reddit_track_init(Track *t, const char *name, unsigned founder);
 /* Σ_ii, the other half: a vote on post i. Refused if i is out of range. */
 bool reddit_vote(Track *t, size_t i, int delta);
 
-/* Σ_ij — the port. Crosspost `from`'s post i into `to`, as `user`:
- * translation (the title is re-marked with its origin), gate (`to`'s
- * rules, including allow_crosspost), adapter (it enters `to` as a new
- * post of `user`). Refused, touching nothing, if the gate refuses. The
- * only function that takes two tracks. */
+/* Σ_ij — the port: translation, then gate, then adapter. The ONLY
+ * function that takes two tracks. Two translations (realization data,
+ * not a second port):
+ *   REDDIT_FRESH  a crosspost by `user`: the title carries its origin,
+ *                 the post starts over with one vote at `now`
+ *   REDDIT_CARRY  aggregation: votes and birth time travel with the
+ *                 post, so the receiver ranks it by its own decay; the
+ *                 sender's export_to_all must be on, or T declines
+ * The gate is the receiver's rules (allow_crosspost, then the rules
+ * themselves); the adapter enters it as a post of `to`. Refused,
+ * touching nothing, if any step refuses. */
+typedef enum { REDDIT_FRESH, REDDIT_CARRY } Translation;
+
 bool reddit_port(const Track *from, size_t i, Track *to, unsigned user,
-                 time_t now);
+                 time_t now, Translation how);
 
 /* Sweep: posts the rules no longer admit are dropped. Applies
  * gtildesharp to the current state; returns how many left. */

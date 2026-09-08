@@ -10,8 +10,10 @@
  *   tick SECONDS                time passes; every track decays (G♯)
  *   show SUB                    sort (J♯) and print
  *   cross FROM INDEX TO USER    Σ_ij: crosspost through the port
- *   rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS
+ *   rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT
  *                               F under κ: a moderator changes θ
+ *   all K                       r/all: rebuilt from every subreddit's top K
+ *                               through the port, then ranked by itself
  *   sweep SUB                   drop what the rules no longer admit
  *   gamma SUB                   how path-dependent the rules are now
  *   quit
@@ -21,6 +23,7 @@ constexpr size_t TRACKS = 16;
 static Track tracks[TRACKS];
 static size_t ntracks;
 static time_t now;
+static Track all; /* r/all: founded by the site (user 0), fed by ports */
 
 static Track *find(const char *name)
 {
@@ -48,6 +51,8 @@ static void refuse(const char *what)
 int main(void)
 {
     char line[256];
+    reddit_track_init(&all, "all", 0);
+    all.rules.export_to_all = false; /* it does not feed itself */
     while (fgets(line, sizeof line, stdin)) {
         line[strcspn(line, "\n")] = '\0';
         char cmd[16] = "", a[REDDIT_NAME] = "", b[REDDIT_NAME] = "";
@@ -91,17 +96,32 @@ int main(void)
             if (sscanf(rest, "%23s %zu %23s %u", a, &i, b, &user) != 4) { refuse("cross FROM INDEX TO USER"); continue; }
             Track *from = find(a), *to = find(b);
             if (!from || !to) { refuse("no such subreddit"); continue; }
-            if (!reddit_port(from, i, to, user, now)) refuse("the port did not admit it");
+            if (!reddit_port(from, i, to, user, now, REDDIT_FRESH)) refuse("the port did not admit it");
         } else if (strcmp(cmd, "rules") == 0) {
-            unsigned user; Rules r; Ranking k; int allow;
-            if (sscanf(rest, "%23s %u %zu %lf %lf %d", a, &user, &r.max_title,
-                       &r.min_hot, &k.half_life, &allow) != 6) {
-                refuse("rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS"); continue;
+            unsigned user; Rules r; Ranking k; int allow, export;
+            if (sscanf(rest, "%23s %u %zu %lf %lf %d %d", a, &user, &r.max_title,
+                       &r.min_hot, &k.half_life, &allow, &export) != 7) {
+                refuse("rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT"); continue;
             }
             r.allow_crosspost = allow != 0;
+            r.export_to_all = export != 0;
             Track *t = find(a);
             if (!t) { refuse("no such subreddit"); continue; }
             if (!t->f(t, user, r, k)) refuse("not a moderator, or rules out of range");
+        } else if (strcmp(cmd, "all") == 0) {
+            size_t k;
+            if (sscanf(rest, "%zu", &k) != 1) { refuse("all K"); continue; }
+            /* r/all is a track of its own, rebuilt from ports; the loop
+             * lives here, in the driver, never in the library */
+            all.nposts = 0;
+            for (size_t s = 0; s < ntracks; s++) {
+                Track *t = &tracks[s];
+                t->gsharp(t, now);
+                t->jsharp(t);
+                for (size_t i = 0; i < k && i < t->nposts; i++)
+                    reddit_port(t, i, &all, 0, now, REDDIT_CARRY);
+            }
+            show(&all);
         } else if (strcmp(cmd, "sweep") == 0) {
             if (sscanf(rest, "%23s", a) != 1) { refuse("sweep SUB"); continue; }
             Track *t = find(a);

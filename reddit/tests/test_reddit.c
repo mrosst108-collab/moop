@@ -81,21 +81,21 @@ int main(void)
           "f: out-of-range theta is refused as a whole");
 
     /* the port: translate, gate, adapt; refused leaves the target unchanged */
-    check(reddit_port(&b, 0, &a, 1, 300) == false && a.nposts == 4,
+    check(reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) == false && a.nposts == 4,
           "port: nothing to crosspost from an empty track");
     check(b.sigma(&b, 2, "woof", 300), "a post on the other track");
     snap = a;
-    check(!reddit_port(&b, 0, &a, 1, 300) && same_posts(&a, &snap),
+    check(!reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) && same_posts(&a, &snap),
           "port: the target's gate (max_title 4) refuses, target untouched");
     check(a.f(&a, 1, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true },
               a.ranking) &&
-          reddit_port(&b, 0, &a, 1, 300) &&
+          reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) &&
           strcmp(a.posts[a.nposts - 1].title, "x/dogs: woof") == 0 &&
           a.posts[a.nposts - 1].author == 1,
           "port: translated with its origin, admitted, adapted as the poster's");
     a.rules.allow_crosspost = false;
     snap = a;
-    check(!reddit_port(&b, 0, &a, 1, 301) && same_posts(&a, &snap),
+    check(!reddit_port(&b, 0, &a, 1, 301, REDDIT_FRESH) && same_posts(&a, &snap),
           "port: allow_crosspost is kappa at the port");
 
     /* no capture: nothing on b changes a's ranking, only the port can */
@@ -125,6 +125,65 @@ int main(void)
     check(reddit_sweep(&c) == 1 && c.nposts == 1 &&
           strcmp(c.posts[0].title, "new") == 0,
           "sweep: the rules, applied after decay, drop exactly that post");
+
+    /* r/all — the frozen prediction: an aggregate track fed only by ports */
+    Track r1, r2, all;
+    reddit_track_init(&r1, "one", 1);
+    reddit_track_init(&r2, "two", 2);
+    reddit_track_init(&all, "all", 0);
+    r1.sigma(&r1, 1, "small", 0);  reddit_vote(&r1, 0, 2);   /* 3 votes  */
+    r1.sigma(&r1, 1, "big", 0);    reddit_vote(&r1, 1, 20);  /* 21 votes */
+    r2.sigma(&r2, 2, "medium", 0); reddit_vote(&r2, 0, 9);   /* 10 votes */
+    r2.sigma(&r2, 2, "tiny", 0);                             /* 1 vote   */
+    Track *subs[] = { &r1, &r2 };
+    size_t fed = 0;
+    for (size_t s = 0; s < 2; s++) {
+        subs[s]->gsharp(subs[s], 100);
+        subs[s]->jsharp(subs[s]);
+        for (size_t i = 0; i < 1 && i < subs[s]->nposts; i++)
+            fed += reddit_port(subs[s], i, &all, 0, 100, REDDIT_CARRY);
+    }
+    all.gsharp(&all, 100);
+    all.jsharp(&all);
+    check(fed == 2 && all.nposts == 2 &&
+          strcmp(all.posts[0].title, "x/one: big") == 0 &&
+          strcmp(all.posts[1].title, "x/two: medium") == 0 &&
+          all.posts[0].votes == 21,
+          "r/all: fed top-1 of each track through the port, ranked by itself");
+    check(all.posts[0].hot > all.posts[1].hot && all.posts[0].hot <= 21.0,
+          "r/all: hot is the receiver's decay of carried votes");
+
+    /* no live cross-track read: changing a feeder changes nothing in all */
+    Track all0 = all;
+    reddit_vote(&r2, 0, 1000);
+    r2.gsharp(&r2, 100); r2.jsharp(&r2);
+    all.gsharp(&all, 100); all.jsharp(&all);
+    check(same_posts(&all, &all0),
+          "r/all: a feeder's change reaches it only through the next port");
+
+    /* the sender's opt-out lives in the translation */
+    r2.f(&r2, 2, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true,
+                          .export_to_all = false }, r2.ranking);
+    Track allx = all;
+    check(!reddit_port(&r2, 0, &all, 0, 100, REDDIT_CARRY) && same_posts(&all, &allx),
+          "r/all: an opted-out track declines to translate; all untouched");
+    check(reddit_port(&r2, 0, &r1, 5, 100, REDDIT_FRESH),
+          "opt-out is about aggregation: a user may still crosspost");
+
+    /* the receiver's gate: r/all's own rules decide admission */
+    all.f(&all, 0, (Rules){ .max_title = 40, .min_hot = 5.0, .allow_crosspost = true,
+                            .export_to_all = false }, all.ranking);
+    all.nposts = 0;
+    fed = 0;
+    for (size_t s = 0; s < 2; s++) {
+        subs[s]->rules.export_to_all = true;
+        for (size_t i = 0; i < subs[s]->nposts; i++)
+            fed += reddit_port(subs[s], i, &all, 0, 100, REDDIT_CARRY);
+    }
+    check(fed == 2 && all.nposts == 2,
+          "r/all: its min_hot gate refuses the cold posts (tiny, small, the crosspost)");
+    check(!reddit_port(&all, 0, &all, 0, 100, REDDIT_CARRY),
+          "r/all: does not feed itself");
 
     return failures;
 }
