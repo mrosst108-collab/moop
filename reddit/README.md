@@ -445,6 +445,49 @@ only rank leaves the node and user parameters unused. The signature fits
 the others as written. The evidence for a port contract has moved toward
 "the existing signature is the contract" and away from a new one.
 
+## Frozen decisions for a live service
+
+Three semantic decisions, fixed before any code, presupposing no host,
+no HTTP, no database, no storage abstraction, and not Build A. Anything
+that serves the reddit to more than one person is downstream of them.
+
+**1. Identity.** The identity supplied to κ is a principal established by
+the serving interface, not a number asserted in the command stream. The
+interface authenticates a principal and binds it to a user number before
+any application command is admitted; the command language does not
+establish identity. The reference CLI's asserted number remains valid as
+the *pre-authentication* reference mechanism and is never treated as
+authentication by a live interface. Clauses: the transcript records the
+*bound* number, so replay needs no identity system and never
+re-authenticates; κ's occupant (moderators, and the site) is unchanged,
+it only receives a number that was bound rather than typed; the site
+principal, user 0, is bound the same way from an operator credential
+and is never claimable from the command stream.
+
+**2. Transcript order.** The transcript is one total order of admitted
+command attempts, fixed by one serialized ingress. Every externally
+submitted command receives its position before it executes; commands
+execute atomically in that order; no concurrent execution may produce a
+state that this order cannot represent. Thus X_t, θ_t = Replay(transcript
+≤ t) holds for the live system exactly as for the reference. Clause: an
+attempt the rules refuse is still admitted to the order and recorded, as
+`save` records today, so a replay reproduces the refusal; "admitted"
+means placed in the order, not accepted by the rules.
+
+**3. Live time.** Wall time never replaces the virtual clock. The service
+holds a tick interval as θ of the site track and, at each interval,
+appends an ordinary `tick` line to the same serialized stream as every
+other command; replay never consults wall time and replays the recorded
+ticks. Clause: **downtime is not time** — a restart replays the
+transcript and resumes generating ticks from then; no `tick` is
+synthesized for the interval the service was down, so decay pauses while
+nobody could act, and restart reads no clock.
+
+Together: authenticated actor + serialized order + recorded ticks ⇒
+replayable state. When these are built, the code is small: the existing
+executor consuming a serialized, authenticated ingress, and a clock that
+emits `tick` lines. Nothing more is licensed by these freezes.
+
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
 
