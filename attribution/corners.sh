@@ -9,8 +9,13 @@ flags() { git -C "$R" show "$1:Makefile" 2>/dev/null | sed -n 's/^R_CFLAGS *= */
 corner() { # name, source commit, flags commit, defines
   w=$(mktemp -d); git -C "$R" show "$2:cJSON.c" > "$w/cJSON.c"; git -C "$R" show "$2:cJSON.h" > "$w/cJSON.h"
   if gcc $(flags "$3") $4 -w -c "$w/cJSON.c" -o "$w/cJSON.o" 2>/dev/null && gcc -O0 -w -I"$w" -c "$here/probe.c" -o "$w/probe.o" && gcc "$w/cJSON.o" "$w/probe.o" -lm -o "$w/probe"; then
-    timeout 5 "$w/probe" > "$w/out" 2>&1 || true
-    printf '%-10s %s  %s\n' "$1" "$(md5sum < "$w/out" | cut -c1-12)" "$(grep -E '^(num|str|depth)' "$w/out" | tr '\n\t' '| ' | sed 's/  */ /g' | cut -c1-160)"
+    # the hash is computed by the very expression sweep.sh uses, so a
+    # corner is comparable to record.tsv byte for byte; the text shown is
+    # a second, display-only run
+    h=$(timeout --preserve-status 5 "$w/probe" 2>&1 | md5sum | cut -c1-12)
+    timeout --preserve-status 5 "$w/probe" 2>&1 | cat > "$w/out" || true
+    printf '%-10s %s  %s\n' "$1" "$h" "$(grep -E '^(num|str|depth)' "$w/out" | tr '\n\t' '| ' | sed 's/  */ /g' | cut -c1-160)"
+    [ -n "$RAW" ] && sed 's/^/    | /' "$w/out"
   else printf '%-10s NOBUILD\n' "$1"; fi; rm -rf "$w"; }
 echo "flags(P)=[$(flags "$P")]"; echo "flags(E)=[$(flags "$E")]"
 corner "XP,tP" "$P" "$P" ""
