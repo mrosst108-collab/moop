@@ -97,8 +97,33 @@ change r/all until the next build: no live cross-track read exists.
 One correction to the prediction's wording: it said "seven slots"; the
 struct has six. The seventh primitive was measured from the start.
 
-**2. comments** — a hierarchical track structure, without a new slot.
+**2. comments (recursive structure).**
+
+A comment thread has no generator of its own: it inherits the subreddit's
+rules, ranking and moderators. So a thread is not a track. Prediction:
+
+    comments ⊂ X — the state becomes a tree (post → comments → replies)
+    and the same six slots act on the tree, per node, unchanged in kind
+
+Concretely: `jsharp` permutes siblings at every depth with one occupant
+(it may read depth, it may not be a second slot); `gsharp` is the sole
+writer of `hot` for comments too, under the subreddit's one half-life;
+`gtildesharp` is a verdict per node, never a tree rewrite; `sigma` is a
+comment arriving under a parent; `f` and `kappa` are untouched, and a
+thread lock is a change of θ (a rule about one post), not a thread-level
+generator; `reddit_gamma` counts over the tree with no new mechanism.
+There is no port for comments, because comments do not cross tracks.
+
+Behavioral consequences, observable: a comment obeys the same `min_hot`
+as a post, and there is no separate comment-ranking parameter in θ.
+
+Falsified if comments require a θ of their own (a thread-level generator
+that is not the subreddit's), a second sort slot for the comment level, a
+tree-rewriting G̃♯, or a second two-track function. Either outcome is
+recorded here.
+
 **3. users** — a second track kind carrying identity, without a new slot.
+Prediction to be frozen when comments is done.
 
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
