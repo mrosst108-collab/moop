@@ -1,0 +1,150 @@
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include "rme7.h"
+
+/* --- default occupants ------------------------------------------------ */
+
+/* jsharp: order by hot, descending. A permutation of X: nothing is
+ * created, dropped, or rewritten. */
+static void sort_by_hot(Track *t)
+{
+    for (size_t i = 1; i < t->nposts; i++) {
+        Post key = t->posts[i];
+        size_t j = i;
+        while (j > 0 && t->posts[j - 1].hot < key.hot) {
+            t->posts[j] = t->posts[j - 1];
+            j--;
+        }
+        t->posts[j] = key;
+    }
+}
+
+/* gsharp: exponential decay toward zero. The one place `hot` is
+ * written, and it only ever moves toward the fixed point. */
+static void decay(Track *t, time_t now)
+{
+    for (size_t i = 0; i < t->nposts; i++) {
+        Post *p = &t->posts[i];
+        double age = difftime(now, p->born);
+        if (age < 0)
+            age = 0;
+        p->hot = p->votes * exp2(-age / t->ranking.half_life);
+    }
+}
+
+/* gtildesharp: the rules. A verdict on a post; the post is const. */
+static bool admits(const Track *t, const Post *p)
+{
+    return strlen(p->title) <= t->rules.max_title &&
+           p->hot >= t->rules.min_hot;
+}
+
+/* sigma: a post arrives. It enters only if the rules admit it. */
+static bool post(Track *t, unsigned user, const char *title, time_t now)
+{
+    if (t->nposts == REDDIT_POSTS)
+        return false;
+    Post p = { .author = user, .votes = 1, .born = now, .hot = 1.0 };
+    if (strlen(title) >= sizeof p.title)
+        return false; /* refused, not truncated */
+    strcpy(p.title, title);
+    if (!t->gtildesharp(t, &p))
+        return false;
+    t->posts[t->nposts++] = p;
+    return true;
+}
+
+/* kappa: who may modify the generator — the moderators. */
+static bool is_mod(const Track *t, unsigned user)
+{
+    for (size_t i = 0; i < t->nmods; i++)
+        if (t->mods[i] == user)
+            return true;
+    return false;
+}
+
+/* f: change θ. Passes through kappa first; a refused change is no
+ * change. Never touches X. */
+static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
+{
+    if (!t->kappa(t, user))
+        return false;
+    if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT)
+        return false;
+    t->rules = rules;
+    t->ranking = ranking;
+    return true;
+}
+
+/* --- the track ----------------------------------------------------- */
+
+void reddit_track_init(Track *t, const char *name, unsigned founder)
+{
+    memset(t, 0, sizeof *t);
+    snprintf(t->name, sizeof t->name, "%s", name);
+    t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
+                        .allow_crosspost = true };
+    t->ranking = (Ranking){ .half_life = 3600.0 };
+    t->mods[0] = founder;
+    t->nmods = 1;
+    t->jsharp = sort_by_hot;
+    t->gsharp = decay;
+    t->gtildesharp = admits;
+    t->sigma = post;
+    t->f = adapt;
+    t->kappa = is_mod;
+}
+
+bool reddit_vote(Track *t, size_t i, int delta)
+{
+    if (i >= t->nposts)
+        return false;
+    t->posts[i].votes += delta;
+    return true;
+}
+
+size_t reddit_sweep(Track *t)
+{
+    size_t kept = 0, dropped = 0;
+    for (size_t i = 0; i < t->nposts; i++) {
+        if (t->gtildesharp(t, &t->posts[i]))
+            t->posts[kept++] = t->posts[i];
+        else
+            dropped++;
+    }
+    t->nposts = kept;
+    return dropped;
+}
+
+/* --- the port ------------------------------------------------------- */
+
+bool reddit_port(const Track *from, size_t i, Track *to, unsigned user,
+                 time_t now)
+{
+    if (i >= from->nposts || !to->rules.allow_crosspost)
+        return false;
+
+    /* translation: the title carries its origin */
+    char title[REDDIT_TEXT];
+    int n = snprintf(title, sizeof title, "x/%s: %s", from->name,
+                     from->posts[i].title);
+    if (n < 0 || (size_t)n >= sizeof title)
+        return false; /* would not fit: refused, not truncated */
+
+    /* gate, then adapter: it arrives as `user`'s post under `to`'s rules */
+    return to->sigma(to, user, title, now);
+}
+
+/* --- gamma ---------------------------------------------------------- */
+
+size_t reddit_gamma(const Track *t, time_t now)
+{
+    Track after = *t;      /* decay, then judge */
+    after.gsharp(&after, now);
+    size_t differ = 0;
+    for (size_t i = 0; i < t->nposts; i++)
+        differ += t->gtildesharp(t, &t->posts[i]) !=
+                  after.gtildesharp(&after, &after.posts[i]);
+    return differ;
+}

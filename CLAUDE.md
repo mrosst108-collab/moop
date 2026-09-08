@@ -78,6 +78,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `prompts/asdg-rme7.md` — the RME-7 specification as this tree holds it (PARTIAL: carried, relayed, and unpopulated sections are marked; the §3 gate stays down until operator semantics arrive from a primary source). `prompts/rosst-cp-v6.md` is the constitution that names it.
 - `docs/crossing.md` — the cross-repo interoperability port and its append-only ledger: claims from sibling projects (unicore) bind only when anchored in fetchable commits + content hashes and re-derived locally; everything else is testimony. Record every cross-repo exchange there.
 - `tests/` — see the test layers above.
+- `reddit/` — a reddit in C23 shaped by RME-7, independent of the interpreter: a track struct (state `X`, generator `θ`) with the seven primitives as slots (function pointers with default occupants), `reddit_port` as the only two-track function, and tests that hold each slot's constraint and no-capture. Own Makefile: `cd reddit && make test`. Its `README.md` carries the mapping at role-plus-constraint level.
 
 ## Surface syntax and the interpreter pipeline
 
