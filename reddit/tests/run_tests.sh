@@ -13,8 +13,8 @@ check "only the port takes two tracks" "1" "$(grep -cE '^[a-z_ ]*\(.*Track \*[a-
 check "and that function is reddit_port" "1" "$(grep -cE '^bool reddit_port\(.*Track \*from.*Track \*to' src/reddit.c)"
 check "theta has no comment-ranking parameter (field names)" "0" "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -cE '^ +(int|bool|double|size_t) [a-z_]*comment')"
 # the command language cannot drift from its own description
-check "help lists exactly the commands the dispatcher accepts" "$(grep -oE 'strcmp\(cmd, "[a-z]+"\)' src/main.c | grep -oE '"[a-z]+"' | tr -d '"' | sort | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
-check "help runs and names every command" "16" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
+check "help lists exactly the commands the dispatcher accepts" "$(grep -oE 'strcmp\(cmd, "[a-z]+"\)' src/main.c | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
+check "help runs and names every command" "17" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
 check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=-1 mods=u1$')"
 check "capacity is stated, not hidden" "1" "$(for i in $(seq 1 17); do echo "sub s$i 1"; done | { cat; echo quit; } | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 subreddits')"
 check "the slot set did not change: six slots, gamma measured" "6" "$(grep -cE '^    (void|bool) \(\*[a-z]+\)\(' src/rme7.h)"
@@ -80,4 +80,30 @@ check "theta_u has a consumer: the profile's min_hot hides cold nodes" "1" "$(pr
 check "a user originates nothing into their own track" "1" "$(printf '%s\n' "$out" | grep -c 'refused: no such subreddit')"
 check "ban: only the site" "1" "$(printf '%s\n' "$out" | grep -c 'refused: not the site')"
 check "runs replay exactly" "$out" "$(printf '%s\n' "$session" | "$BIN" 2>&1)"
+# persistence: the transcript is the input history, replayed exactly
+T=$(mktemp -d)
+hist='sub science 1
+post science 1 Water on Mars
+comment science 2 0 Source?
+vote science 0 4
+tick 3600
+rules science 1 50 0.5 3600 1 1
+lock science 1 0
+sub cats 3
+cross science 0 cats 3
+all 2
+profile 1 5'
+direct=$(printf '%s\nshow science\nshow cats\nquit\n' "$hist" | "$BIN" 2>/dev/null | sed -n '/^r\/science/,$p')
+printf '%s\n' "$hist" > "$T/hist.txt"
+fromfile=$(printf 'show science\nshow cats\nquit\n' | "$BIN" "$T/hist.txt" 2>/dev/null)
+check "a file replays to the same state as stdin" "$direct" "$fromfile"
+printf 'save %s\n%s\nhelp\nquit\n' "$T/saved.txt" "$hist" | "$BIN" >/dev/null 2>&1
+check "save records application commands only: no save, help, quit" "0" "$(grep -cE '^(save|help|quit)' "$T/saved.txt")"
+check "save records every application command" "$(printf '%s\n' "$hist" | wc -l)" "$(wc -l < "$T/saved.txt")"
+roundtrip=$(printf 'show science\nshow cats\nquit\n' | "$BIN" "$T/saved.txt" 2>/dev/null)
+check "restart from a saved transcript reproduces the session" "$direct" "$roundtrip"
+check "replay is silent" "0" "$(printf 'quit\n' | "$BIN" "$T/hist.txt" 2>&1 | wc -c)"
+check "a missing transcript file is an error" "1" "$(printf 'quit\n' | "$BIN" "$T/none.txt" >/dev/null 2>&1; echo $?)"
+rm -rf "$T"
+
 exit $fail

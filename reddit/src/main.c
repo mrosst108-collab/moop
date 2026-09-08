@@ -28,9 +28,14 @@
  *   sweep SUB                   drop what the rules no longer admit
  *   gamma SUB                   how path-dependent the rules are now
  *   help                        list the commands
+ *   save FILE                   from now on, append every application
+ *                               command to FILE before running it
  *   quit
  * The clock is virtual and starts at 0, so runs replay exactly: the
- * command stream on stdin is the session's transcript. */
+ * command stream on stdin is the session's transcript. `reddit FILE`
+ * replays FILE silently, then reads stdin — a restart. Session control
+ * (save, help, quit) is not part of the application history and is
+ * never recorded. */
 
 /* The command inventory, the source of `help`. The shell tests hold it
  * equal to what the dispatcher below actually accepts, so the language
@@ -52,8 +57,12 @@ static const struct { const char *name, *usage, *what; } commands[] = {
     { "sweep",   "sweep SUB",                           "drop what the rules no longer admit" },
     { "gamma",   "gamma SUB",                           "how many nodes' fate depends on decay running first" },
     { "help",    "help",                                "this list" },
+    { "save",    "save FILE",                           "record every application command to FILE from now on" },
     { "quit",    "quit",                                "leave" },
 };
+
+static FILE *transcript;   /* where application commands are recorded */
+static bool replaying;     /* a file is being replayed: effects, no output */
 
 constexpr size_t TRACKS = 16;
 static Track tracks[TRACKS];
@@ -131,6 +140,8 @@ static void show(Track *t)
 {
     t->gsharp(t, now);
     t->jsharp(t);
+    if (replaying)
+        return; /* the effects above happened; the observation is not repeated */
     printf("r/%s (%zu nodes, %zu mods)\n", t->name, t->nposts, t->nmods);
     show_rules(t);
     show_under(t, -1, 0);
@@ -138,15 +149,15 @@ static void show(Track *t)
 
 static void refuse(const char *what)
 {
-    fprintf(stderr, "refused: %s\n", what);
+    if (!replaying)
+        fprintf(stderr, "refused: %s\n", what);
 }
 
-int main(void)
+/* Run one stream of commands. Returns false on quit. */
+static bool run(FILE *in)
 {
     char line[256];
-    reddit_track_init(&all, "all", 0);
-    all.rules.export_to_all = false; /* it does not feed itself */
-    while (fgets(line, sizeof line, stdin)) {
+    while (fgets(line, sizeof line, in)) {
         line[strcspn(line, "\n")] = '\0';
         char cmd[16] = "", a[REDDIT_NAME] = "", b[REDDIT_NAME] = "";
         int consumed = 0;
@@ -154,9 +165,25 @@ int main(void)
             continue;
         const char *rest = line + consumed;
 
-        if (strcmp(cmd, "quit") == 0) {
-            break;
-        } else if (strcmp(cmd, "help") == 0) {
+        /* session control is not application history */
+        if (strcmp(cmd, "quit") == 0)
+            return false;
+        if (strcmp(cmd, "save") == 0) {
+            char path[200];
+            if (sscanf(rest, "%199s", path) != 1) { refuse("save FILE"); continue; }
+            if (transcript) fclose(transcript);
+            transcript = fopen(path, "a");
+            if (!transcript) refuse("cannot open that file");
+            continue;
+        }
+        if (strcmp(cmd, "help") != 0 && transcript && !replaying) {
+            fputs(line, transcript);
+            fputc('\n', transcript);
+            fflush(transcript);
+        }
+
+        if (strcmp(cmd, "help") == 0) {
+            if (replaying) continue;
             for (size_t i = 0; i < sizeof commands / sizeof commands[0]; i++)
                 printf("%-8s %-58s %s\n", commands[i].name, commands[i].usage, commands[i].what);
         } else if (strcmp(cmd, "sub") == 0) {
@@ -252,7 +279,7 @@ int main(void)
                                             now, REDDIT_CARRY);
             }
             show(u);
-            printf("  karma %d\n", reddit_karma(u));
+            if (!replaying) printf("  karma %d\n", reddit_karma(u));
         } else if (strcmp(cmd, "all") == 0) {
             size_t k;
             if (sscanf(rest, "%zu", &k) != 1) { refuse("all K"); continue; }
@@ -275,15 +302,33 @@ int main(void)
             Track *t = find(a);
             if (!t) { refuse("no such subreddit"); continue; }
             t->gsharp(t, now);
-            printf("dropped %zu\n", reddit_sweep(t));
+            size_t dropped = reddit_sweep(t);
+            if (!replaying) printf("dropped %zu\n", dropped);
         } else if (strcmp(cmd, "gamma") == 0) {
             if (sscanf(rest, "%23s", a) != 1) { refuse("gamma SUB"); continue; }
             Track *t = find(a);
             if (!t) { refuse("no such subreddit"); continue; }
-            printf("gamma %zu\n", reddit_gamma(t, now));
+            if (!replaying) printf("gamma %zu\n", reddit_gamma(t, now));
         } else {
             refuse("unknown command");
         }
     }
+    return true;
+}
+
+int main(int argc, char **argv)
+{
+    reddit_track_init(&all, "all", 0);
+    all.rules.export_to_all = false; /* it does not feed itself */
+    if (argc == 2) {
+        FILE *f = fopen(argv[1], "r");
+        if (!f) { perror(argv[1]); return 1; }
+        replaying = true;
+        run(f);            /* the history, re-executed: effects only */
+        replaying = false;
+        fclose(f);
+    }
+    run(stdin);
+    if (transcript) fclose(transcript);
     return 0;
 }

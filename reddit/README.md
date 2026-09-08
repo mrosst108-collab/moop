@@ -42,6 +42,13 @@ Everything refused says why on stderr (`refused: ...`). Limits are fixed
 and stated when hit: 16 subreddits, 16 profiles, 64 nodes per track, 4
 moderators, 95 characters of text.
 
+**Persistence is the transcript.** `save FILE` records every application
+command to FILE from then on, before it runs; `build/reddit FILE` replays
+FILE silently and then reads stdin, which is a restart. Session control
+(`save`, `help`, `quit`) is not application history and is never recorded.
+There is no other storage: because runs replay exactly, the input history
+*is* the state, and any earlier state is the same file cut short.
+
 ## The shape
 
 A subreddit is a **track**: state `X` (posts) and generator `θ` (rules,
