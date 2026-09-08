@@ -270,6 +270,49 @@ that a slot could consult to refuse it. And one export flag,
 r/all is absent from its authors' profiles too. Whether that is one
 decision or two is a θ design question, left open.
 
+**4. delegation (transitive proxy rank).**
+
+A subscription u → v means u authorizes v to carry u's ranking influence,
+transitively. Rank is PageRank over the subscription graph, with no
+content analysis of any kind. Prediction:
+
+    rank is computable with each user track exporting its rank through
+    the port and summing what arrives — power iteration as message
+    passing — with no global read of independent tracks' contents, no
+    new slot, and no second two-track function
+
+Concretely: a subscription is a field of θ_u, changed only through `f`
+under `kappa` with the user as their own moderator (so following is an F
+act, not a Σ act). Rank is a new material the port carries, a fourth
+translation of `reddit_port`; the receiver sums what arrives, applies
+damping and the teleport share itself, and the driver runs the rounds
+exactly as it runs `all K`. α, the tolerance and the round limit are θ of
+the site track (`all`), set through `f` by the site. The iteration
+converges, which is G♯'s office; nothing is added for it.
+
+Decisions made here rather than by the code: self-subscription is
+permitted (a self-loop is an ordinary edge; nothing is added to refuse
+it). A delegate cannot refuse being delegated to — rank has no
+receiver-side gate — because a subscription is the subscriber's act on
+their own θ; recorded as a political choice, open to reversal by a later
+ruling. A user with no subscriptions (dangling) spreads their rank
+uniformly, through ports, as standard PageRank does. Rank is state (X_u),
+produced only by ports, and never touches a subreddit's ordering in this
+step: content ranking by author rank is a separate later prediction.
+
+Behavioral consequences, observable: rank is stale between runs of the
+iteration; a subscription change propagates only through subsequent
+rounds, one hop per round; with the round limit at one, a two-hop effect
+does not appear.
+
+Acceptance: for a small frozen graph, the distributed result equals an
+independently computed PageRank reference to four decimals; the static
+checks still find one two-track function and six slots.
+
+Falsified if a correct rank requires a matrix or any read of a second
+track's contents outside the port; if a new slot appears; or if the
+port cannot carry rank without a second two-track function.
+
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
 
