@@ -47,6 +47,8 @@ The object ladder (`src/proto.{h,c}`): the system-facing actor generates the sys
 
 Preserve both rules when extending the object model: generation may cross the boundary (in that one shape); delegation never does.
 
+**The RME-7 ports ride the ladder** (`src/rme7.{h,c}`, rationale in `docs/model.md`): at startup the world generates a `port` proto, which generates one proto per RME-7 primitive (`jsharp gsharp gtildesharp sigma f kappa gamma`). They are ordinary user-facing protos — bodies on the substrate, hereditary, MAYBE-seeded — so the framework adds objects, not a coupling mechanism: cross-track coupling is already `<->` (translate ∘ refuse ∘ deposit = the card's adapter ∘ gate ∘ translation). `port` hosts four exclusive verdicts (`admitted`/`refused`/`absent`/`open`) that each primitive answers through delegation; the assignment table lives in `src/rme7.c` and is derived in `docs/crossing.md` entry 3. Handlers read lineage only, never a body. Don't give a port a second coupling path, and don't move the framework into the system layer (generation from a system-facing root is refused).
+
 When adding operators, put them in the layer that matches their information behavior: if it loses information it cannot be a gate; if it's self-inverse it belongs in `gates.{h,c}` and must be covered by a self-inverse test in `tests/test_core.c`.
 
 ## Commands
@@ -68,10 +70,11 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 ## Structure and state
 
-- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/encode.{h,c}` the value-onto-tapes encoding; `src/lexer.{h,c}`, `src/parser.{h,c}`, `src/eval.{h,c}` the interpreter pipeline.
+- `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/rme7.{h,c}` the RME-7 port protos on that ladder; `src/encode.{h,c}` the value-onto-tapes encoding; `src/lexer.{h,c}`, `src/parser.{h,c}`, `src/eval.{h,c}` the interpreter pipeline.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
+- `prompts/asdg-rme7.md` — the RME-7 specification as this tree holds it (PARTIAL: carried, relayed, and unpopulated sections are marked; the §3 gate stays down until operator semantics arrive from a primary source). `prompts/rosst-cp-v6.md` is the constitution that names it.
 - `docs/crossing.md` — the cross-repo interoperability port and its append-only ledger: claims from sibling projects (unicore) bind only when anchored in fetchable commits + content hashes and re-derived locally; everything else is testimony. Record every cross-repo exchange there.
 - `tests/` — see the test layers above.
 
@@ -93,6 +96,6 @@ Four relational operators. **Words are canonical** (Quorum-like vocabulary; natu
 
 At startup the evaluator builds the world as the model prescribes: static actor → system root → user-facing root proto, bound to the name `world`. Values are numbers, booleans, and proto references. `<->` lexes before `<-` (longest match); stray characters are lex errors, never guessed at.
 
-Current state: core, gates, logic, RAM, actors, protos, encoding, lexer, parser, and an evaluator with user-defined messages (single-line and indented-block bodies) and gate-backed bijections are implemented and tested — moop is a working prototype-based OOP language (article births, teaching, delegation, override, implicit receiver, late binding, word vocabulary, whitespace blocks) whose `mirrors` compiles to real gates. Interpreter bodies use 8/13-cell loops (values 0..255). Not implemented (and honestly erroring): number↔number bijections (definable invertible functions), running files, reflection (reading taught chains back as values), nested definitions inside blocks. The REPL deliberately reports what it cannot do rather than pretending — keep that honesty: never stub behavior in a way that silently looks functional.
+Current state: core, gates, logic, RAM, actors, protos, encoding, lexer, parser, and an evaluator with user-defined messages (single-line and indented-block bodies) and gate-backed bijections are implemented and tested — moop is a working prototype-based OOP language (article births, teaching, delegation, override, implicit receiver, late binding, word vocabulary, whitespace blocks) whose `mirrors` compiles to real gates, with the RME-7 port protos preopened in the world. Interpreter bodies use 8/13-cell loops (values 0..255). Not implemented (and honestly erroring): number↔number bijections (definable invertible functions), running files, reflection (reading taught chains back as values), nested definitions inside blocks. The REPL deliberately reports what it cannot do rather than pretending — keep that honesty: never stub behavior in a way that silently looks functional.
 
 Update this file as the interpreter grows (e.g., when the lexer/parser/evaluator land, document the pipeline and where each stage lives).

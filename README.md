@@ -87,6 +87,10 @@ exactly the identity/membership distinction English draws. There is no
 creation keyword. A trailing `is` opens an indented block; a blank line
 closes it.
 
+The world also preopens the RME-7 framework's ports as protos (`port`
+and one per primitive: `sigma ask admitted`, `gsharp ask refused`) —
+see [docs/model.md](docs/model.md).
+
 Prototype-based OOP works: teach a message with `receiver -> message is
 chain` (the body is stored as a chain — code as data — and runs at each
 send addressed to the receiver — headless chains like `ask maybe` speak to it), delegate up the lineage,

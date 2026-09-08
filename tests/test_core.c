@@ -8,6 +8,7 @@
 #include "logic.h"
 #include "parser.h"
 #include "ram.h"
+#include "rme7.h"
 #include "tapeloop.h"
 
 static int failures;
@@ -333,6 +334,99 @@ static void test_proto_generation(void)
           "generating costs the generator nothing irreversible");
 }
 
+static void test_rme7_ports(void)
+{
+    bool aa[5] = {1, 0, 1, 1, 0}, ab[7] = {0, 1, 1, 0, 1, 0, 1};
+    bool maa[5], mab[7];
+    MoopMessage atable[2];
+    MoopActor actor;
+    moop_actor_init(&actor, aa, maa, 5, ab, mab, 7, atable, 2);
+
+    bool sa[4], sb[5], msa[4], msb[5];
+    bool ua[4], ub[5], mua[4], mub[5];
+    MoopProtoMessage stable[2], utable[2];
+    MoopProto sysroot, uroot;
+    static MoopRme7 fw;
+
+    /* actor -> system root -> user root -> port -> the seven */
+    moop_actor_generate_root(&actor, &sysroot, sa, msa, 4, sb, msb, 5,
+                             stable, 2);
+    moop_proto_generate(&sysroot, &uroot, ua, mua, 4, ub, mub, 5,
+                        utable, 2);
+    bool ua0[4], ub0[5];
+    memcpy(ua0, ua, sizeof ua0);
+    memcpy(ub0, ub, sizeof ub0);
+
+    check(!moop_rme7_generate(&sysroot, &fw, 4, 5),
+          "the framework lives in the user layer: the system root refuses");
+    check(moop_rme7_generate(&uroot, &fw, 4, 5),
+          "the user root generates the framework");
+    check(fw.port.parent == &uroot && fw.port.facing == MOOP_FACING_USER,
+          "port is a hereditary child of the user root");
+
+    bool all_ports = true, all_bodies = true;
+    for (size_t i = 0; i < MOOP_RME7_PRIMITIVES; i++) {
+        all_ports = all_ports && fw.ports[i].parent == &fw.port;
+        all_bodies = all_bodies && fw.ports[i].core.a.len == 4 &&
+                     fw.ports[i].core.b.len == 5;
+    }
+    check(all_ports, "port generates one proto per primitive");
+    check(all_bodies, "every port proto is a body on the substrate");
+
+    /* verdicts: exactly one true per primitive, through delegation */
+    static const char *const words[MOOP_PORT_VERDICTS] = {
+        "admitted", "refused", "absent", "open"
+    };
+    bool one_each = true, as_assigned = true;
+    for (size_t i = 0; i < MOOP_RME7_PRIMITIVES; i++) {
+        int trues = 0;
+        for (size_t v = 0; v < MOOP_PORT_VERDICTS; v++) {
+            bool reply = false;
+            if (!moop_proto_send(&fw.ports[i], words[v], &reply))
+                one_each = false;
+            trues += reply;
+            if (reply != (moop_rme7_verdict((MoopRme7Primitive)i) == v))
+                as_assigned = false;
+        }
+        one_each = one_each && trues == 1;
+    }
+    check(one_each, "each port answers exactly one verdict");
+    check(as_assigned, "verdicts answer as the framework assigns them");
+
+    bool reply = false;
+    check(moop_proto_send(&fw.ports[MOOP_RME7_SIGMA], "admitted", &reply) && reply,
+          "sigma is the port: admitted");
+    check(moop_proto_send(&fw.ports[MOOP_RME7_GSHARP], "refused", &reply) && reply,
+          "a G-sharp port is capture: refused");
+    check(moop_proto_send(&fw.ports[MOOP_RME7_GAMMA], "absent", &reply) && reply,
+          "gamma is derived, not an operator: absent");
+    check(moop_proto_send(&fw.ports[MOOP_RME7_GTILDESHARP], "open", &reply) && reply,
+          "a G-tilde port awaits a ruling: open");
+
+    /* births from a primitive inherit its verdict; from port, none */
+    bool ca[4], cb[5], mca[4], mcb[5];
+    MoopProto child;
+    moop_proto_generate(&fw.ports[MOOP_RME7_SIGMA], &child,
+                        ca, mca, 4, cb, mcb, 5, NULL, 0);
+    check(moop_proto_send(&child, "admitted", &reply) && reply,
+          "a port born from sigma is a sigma port");
+    moop_proto_generate(&fw.port, &child, ca, mca, 4, cb, mcb, 5, NULL, 0);
+    check(moop_proto_send(&child, "open", &reply) && reply,
+          "a port born from port alone has no primitive: open");
+    MoopPortVerdict v;
+    check(!moop_rme7_verdict_of(&fw, &uroot, &v),
+          "outside the framework's lineage there is no verdict");
+
+    /* the framework's births are reversible for the generator: undo
+     * port's seed draws and the user root is back before the birth
+     * (the seven were drawn from port, not from the root) */
+    for (int i = 0; i < 4 + 5; i++)
+        moop_core_step_back(&uroot.core);
+    check(memcmp(ua, ua0, sizeof ua0) == 0 &&
+          memcmp(ub, ub0, sizeof ub0) == 0,
+          "generating the framework costs the root nothing irreversible");
+}
+
 static void test_lexer(void)
 {
     MoopLexer lx;
@@ -461,5 +555,6 @@ int main(void)
     test_encoding();
     test_actor();
     test_proto_generation();
+    test_rme7_ports();
     return failures;
 }

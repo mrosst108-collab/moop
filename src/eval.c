@@ -4,6 +4,7 @@
 #include "encode.h"
 #include "eval.h"
 #include "logic.h"
+#include "rme7.h"
 
 /* Loop lengths for interpreter-made protos: coprime, so an epoch
  * covers every alignment. 8 cells on loop A = values 0..255. */
@@ -26,6 +27,10 @@ static MoopProtoMessage sys_table[TABLE_CAP];
 static MoopProto world;
 static bool world_a[LEN_A], world_ma[LEN_A], world_b[LEN_B], world_mb[LEN_B];
 static MoopProtoMessage world_table[TABLE_CAP];
+
+/* the RME-7 framework: `port` and one proto per primitive, generated
+ * by the world (src/rme7.h) */
+static MoopRme7 framework;
 
 /* --- the environment: names are the mutable user-layer handle -------- */
 
@@ -123,6 +128,17 @@ void moop_eval_init(void)
     MoopValue w = { .kind = MOOP_VAL_PROTO, .proto = &world };
     env_bind("world", 5, w);
     current_receiver = w;
+
+    /* the world generates the framework's ports and names them */
+    moop_rme7_generate(&world, &framework, LEN_A, LEN_B);
+    env_bind("port", 4, (MoopValue){ .kind = MOOP_VAL_PROTO,
+                                     .proto = &framework.port });
+    for (size_t i = 0; i < MOOP_RME7_PRIMITIVES; i++) {
+        const char *name = moop_rme7_name((MoopRme7Primitive)i);
+        env_bind(name, strlen(name),
+                 (MoopValue){ .kind = MOOP_VAL_PROTO,
+                              .proto = &framework.ports[i] });
+    }
 }
 
 /* --- evaluation ------------------------------------------------------ */
