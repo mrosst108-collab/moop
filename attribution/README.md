@@ -123,4 +123,4 @@ the commands and their outputs, before any RME-7 code is written.
 
 ## Status
 
-Frozen. Baseline not yet executed. No RME-7 code exists.
+Frozen. Baseline executed and recorded in `baseline.md`: 45 of 49 answered; H1 refuted as stated. No RME-7 code exists yet.
