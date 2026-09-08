@@ -12,6 +12,9 @@ use). Provenance and status are the ledger's: `testimony` unless that entry says
 applies — anchored in the Rosst register unless marked `[pending]`; relays assemble and criticize,
 never adjudicate or promote.
 
+**[ruled]** — stated in session by the ratifying authority for this tree. Binds work here; it is not a
+claim about the primary ASDG source and is never promoted to `[carried]`.
+
 **[unpopulated]** — not supplied by any source available when this file was written. **Not omitted
 for brevity, and not to be filled in from memory by a reader.** The constitution's own rule applies
 here first: *reconstruction has a demonstrated failure record — invented levels, mistyped operators —
@@ -157,6 +160,11 @@ constraints, or perturbed by what isn't modelled:
 
 Use the format where it clarifies structure. Do not force a representation that adds no information.
 **No compliance is earned by using it, and no failure is implied by not using it.**
+
+**[ruled]** RME-7 is minimalistic: it introduces distinctions only where they carry information
+required by the problem; it does not impose arbitrary modularity or require every office to be
+instantiated. The objective is answerability gained per distinction introduced, not decomposition —
+which is why unused offices are expected, not merely allowed.
 
 ---
 

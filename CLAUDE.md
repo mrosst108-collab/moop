@@ -47,7 +47,7 @@ The object ladder (`src/proto.{h,c}`): the system-facing actor generates the sys
 
 Preserve both rules when extending the object model: generation may cross the boundary (in that one shape); delegation never does.
 
-**The RME-7 slots ride the ladder** (`src/rme7.{h,c}`, `docs/model.md`): at startup the world generates a `port` proto, which generates one proto per RME-7 primitive (`jsharp gsharp gtildesharp sigma f kappa gamma`). They are ordinary user-facing protos that host nothing — slots, filled by teaching from the surface language (`prompts/parameterize-rme7.md`). Don't host verdicts, classifiers, or office tables on them, and don't move them into the system layer (generation from a system-facing root is refused).
+**The RME-7 slots ride the ladder** (`src/rme7.{h,c}`, `docs/model.md`): at startup the world generates a `port` proto, which generates one proto per RME-7 primitive (`jsharp gsharp gtildesharp sigma f kappa gamma`). They are ordinary user-facing protos that host nothing — slots, filled by teaching from the surface language (`prompts/parameterize-rme7.md`). Don't host verdicts, classifiers, or office tables on them, and don't move them into the system layer (generation from a system-facing root is refused). RME-7 is minimalistic (`prompts/asdg-rme7.md` §7, ruled): a distinction is introduced only where it carries information the problem needs; unused offices are expected, and no office is instantiated for completeness.
 
 When adding operators, put them in the layer that matches their information behavior: if it loses information it cannot be a gate; if it's self-inverse it belongs in `gates.{h,c}` and must be covered by a self-inverse test in `tests/test_core.c`.
 
