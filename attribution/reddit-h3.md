@@ -109,5 +109,36 @@ transcript.
 
 ## Status
 
-Run. Contract unrevised. Two candidate corrections recorded for a future
-freeze; no further run until they are ruled on.
+    Phase 3 execution: CLOSED     Score: FROZEN (14/14, ρ_rel = 1.0)
+    Findings: OPEN                Method defects: OPEN
+    Rerun: NO                     New freeze: NOT YET
+
+The defects are adjudicated as questions before any Phase 3b is written,
+and a Phase 3b may not be warranted. The three questions, with the
+operator's positions stated for the adjudication to accept or refuse —
+positions, not rulings:
+
+1. **Does an arrival event require a different intervention geometry?**
+   Position: yes, and a smaller one. For a facet that pre-exists *n* the
+   2×2 grid stands. For an arrival facet, "X_old" has no referent — the
+   node does not exist before *n* — so the grid collapses to 1×2: keep
+   the arrival line and vary θ (H00 against H01). This narrows the
+   mapping's domain; it does not change what is asked.
+2. **Should event selection distinguish admitted F events from
+   effective ones?** Position: no change to selection, because
+   effectiveness cannot be known before the corners run and selecting on
+   it would be selecting on the outcome. Keep selecting admitted F lines
+   — the record's own notion — and add *inert* as a verdict the run can
+   return (H00 = H01 on X), reported under Q7 with the standing θ named.
+   Inertness is a result, not a filter.
+3. **Does either correction change the purpose or identity of the
+   original experiment?** Position: no. Correction 2 adds an outcome
+   category; correction 1 restricts an instrument's domain and supplies
+   a reduced grid for the cases outside it. Neither touches Q, the
+   rubric, or the cJSON result, which had no arrival facets and no inert
+   events. Both would be recorded as corrections to `h2.md`'s mapping
+   with the run that forced them cited, never as edits to it.
+
+The stronger result stands as stated above it: the reddit is now a test
+bed that can find limitations in the attribution protocol while the
+frozen result it was found on stays untouched.
