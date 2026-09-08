@@ -123,4 +123,7 @@ the commands and their outputs, before any RME-7 code is written.
 
 ## Status
 
-Frozen. Baseline executed and recorded in `baseline.md`: 45 of 49 answered; H1 refuted as stated. No RME-7 code exists yet.
+Frozen. Baseline executed (`baseline.md`): 45 of 49; H1 refuted as
+stated. H2 frozen (`h2.md`) then run (`corners.sh`): 49 of 49, the four
+recovered answers marked (identity) with discriminants observed;
+ρ_rel ≈ 1.089, the rubric's ceiling. Q was never altered.
