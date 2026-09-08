@@ -81,6 +81,8 @@ typedef struct {
     double lambda;         /* ordering: S = lambda*hot + (1-lambda)*heat.
                               The site's policy, held per track, set only
                               by the site (README, prediction 5) */
+    size_t interval;       /* live service: seconds of wall time per
+                              generated `tick`; on the site track */
 } Ranking;
 
 typedef struct Track Track;

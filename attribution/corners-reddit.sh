@@ -9,7 +9,7 @@
 set -e
 classify() { case "$1" in
     post|comment|vote|cast|cross|all|profile|rank|weigh) echo sigma ;;
-    rules|lock|ban|follow|unfollow|pagerank|blend) echo F ;;
+    rules|lock|ban|follow|unfollow|pagerank|blend|clock) echo F ;;
     sub) echo structural ;;
     tick) echo clock ;;
     show|sweep|gamma) echo operation ;;

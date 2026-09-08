@@ -93,7 +93,7 @@ static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
     if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT ||
         ranking.alpha < 0 || ranking.alpha > 1 || ranking.tolerance < 0 ||
         ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS ||
-        ranking.lambda < 0 || ranking.lambda > 1)
+        ranking.lambda < 0 || ranking.lambda > 1 || ranking.interval == 0)
         return false;
     t->rules = rules;
     t->ranking = ranking;
@@ -110,7 +110,8 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
                         .allow_crosspost = true, .export_to_all = true,
                         .locked = -1, .banned = -1 };
     t->ranking = (Ranking){ .half_life = 3600.0, .alpha = 0.85,
-                            .tolerance = 1e-6, .rounds = 100, .lambda = 1.0 };
+                            .tolerance = 1e-6, .rounds = 100, .lambda = 1.0,
+                            .interval = 60 };
     t->mods[0] = founder;
     t->nmods = 1;
     t->jsharp = sort_by_hot;

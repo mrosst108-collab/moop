@@ -13,8 +13,8 @@ check "only the port takes two tracks" "1" "$(grep -cE '^[a-z_ ]*\(.*Track \*[a-
 check "and that function is reddit_port" "1" "$(grep -cE '^bool reddit_port\(.*Track \*from.*Track \*to' src/reddit.c)"
 check "theta has no comment-ranking parameter (field names)" "0" "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -cE '^ +(int|bool|double|size_t) [a-z_]*comment')"
 # the command language cannot drift from its own description
-check "help lists exactly the commands the dispatcher accepts" "$(grep -oE 'strcmp\(cmd, "[a-z]+"\)' src/main.c | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
-check "help runs and names every command" "24" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
+check "help lists exactly the commands the dispatcher accepts" "$(sed -n '/^static bool execute/,/^static bool run/p' src/main.c | grep -oE 'strcmp\(cmd, "[a-z]+"\)' | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
+check "help runs and names every command" "25" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
 check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=-1 mods=u1$')"
 check "capacity is stated, not hidden" "1" "$(for i in $(seq 1 17); do echo "sub s$i 1"; done | { cat; echo quit; } | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 subreddits')"
 check "the slot set did not change: six slots, gamma measured" "6" "$(grep -cE '^    (void|bool) \(\*[a-z]+\)\(' src/rme7.h)"
@@ -184,5 +184,37 @@ eq=0; for d in ../attribution/h3-E13 ../attribution/h3-E19; do
     { for t in $tracks; do echo "show $t"; done; echo quit; } | "$BIN" "$d/$h.txt" 2>&1 | diff -q - "$d/$h.obs" >/dev/null && eq=$((eq+1))
   done; done
 check "the binary reproduces the eight committed corner observations" "8" "$eq"
+
+# the live ingress: identity bound at the socket, one serialized order,
+# wall time as recorded ticks, downtime is not time
+T=$(mktemp -d); S="$T/sock"; printf 'tk-site-8f3 0\ntk-alice-2c1 1\ntk-bob-77e 2\n' > "$T/principals"
+"$BIN" serve "$S" "$T/principals" "$T/transcript" & srv=$!
+i=0; while [ ! -S "$S" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
+printf 'sub cats 9\npost cats 7 hello from alice\nshow cats\n' | "$BIN" connect "$S" tk-alice-2c1 > "$T/alice.out"
+check "identity is bound at ingress: the transcript records the bound number" "2" "$(grep -cE '^(sub cats 1|post cats 1 hello from alice)$' "$T/transcript")"
+check "a claimed number is discarded, not recorded" "0" "$(grep -cE 'cats (9|7) ' "$T/transcript")"
+check "the client sees the executor's output" "1" "$(grep -c '^r/cats' "$T/alice.out")"
+printf 'ban 0 1\n' | "$BIN" connect "$S" tk-bob-77e > "$T/bob.out"
+check "a refused attempt is admitted to the order and recorded" "1" "$(grep -c '^ban 2 1$' "$T/transcript")"
+check "and refused by kappa under the bound identity" "1" "$(grep -c 'refused: not the site' "$T/bob.out")"
+printf 'tick 5\nsave x\nquit\n' | "$BIN" connect "$S" tk-bob-77e > "$T/bob2.out"
+check "tick, save, quit from a client are refused at ingress, not recorded" "0" "$(grep -cE '^(tick|save|quit)' "$T/transcript")"
+printf 'show cats\n' | "$BIN" connect "$S" tk-nobody-000 > "$T/nobody.out"
+check "an unknown principal is refused before any command" "1" "$(grep -c 'refused: unknown principal' "$T/nobody.out")"
+check "tokens never enter the transcript" "0" "$(grep -c 'tk-' "$T/transcript")"
+printf 'clock 0 1\n' | "$BIN" connect "$S" tk-site-8f3 > /dev/null
+sleep 2.6
+ticks1=$(grep -c '^tick 1$' "$T/transcript")
+check "wall time generates ordinary tick lines at the site's interval" "yes" "$([ "$ticks1" -ge 2 ] && echo yes)"
+kill $srv; wait $srv 2>/dev/null; sleep 2
+"$BIN" serve "$S" "$T/principals" "$T/transcript" & srv=$!
+i=0; while [ ! -S "$S" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
+ticks2=$(grep -c '^tick 1$' "$T/transcript")
+check "downtime is not time: a restart synthesizes no ticks" "$ticks1" "$ticks2"
+printf 'show cats\n' | "$BIN" connect "$S" tk-alice-2c1 > "$T/alice2.out"
+check "a restart replays the transcript: the state is back" "1" "$(grep -c 'hello from alice' "$T/alice2.out")"
+sleep 1.6
+check "and ticking resumes from the restart" "yes" "$([ "$(grep -c '^tick 1$' "$T/transcript")" -gt "$ticks2" ] && echo yes)"
+kill $srv; wait $srv 2>/dev/null; rm -rf "$T"
 
 exit $fail

@@ -488,6 +488,27 @@ replayable state. When these are built, the code is small: the existing
 executor consuming a serialized, authenticated ingress, and a clock that
 emits `tick` lines. Nothing more is licensed by these freezes.
 
+**Built, as frozen.** `reddit serve SOCKET PRINCIPALS TRANSCRIPT` replays
+the transcript if it exists, then accepts connections on a Unix socket in
+one poll loop, so the transcript's order is the order complete lines are
+taken there. A connection's first line must be `auth TOKEN`; the token is
+looked up in the principals file (`TOKEN USER`), binds the connection to
+that user number, and is never written anywhere. Every later line has its
+actor field *replaced* by the bound number before it is recorded and
+executed — a claimed number is discarded, not refused — and κ's occupant
+is unchanged. Refusals by the rules are recorded like any attempt.
+`tick`, `save`, `quit` and `auth` from a client are refused at the
+ingress and not recorded. Every `interval` seconds of wall time, θ of the
+site track set by `clock ADMIN SECONDS`, the server appends an ordinary
+`tick INTERVAL` to the same stream. Downtime is not time: a restart
+replays and resumes ticking from then. `reddit connect SOCKET TOKEN`
+sends stdin and prints the replies. The reference executor is one
+function, `execute`, consumed by stdin, file replay and the ingress
+alike, and its replay invariant is unchanged (the eight committed corner
+observations still reproduce). No HTTP, no database, no storage
+interface, no Build A: the ingress is a consumer of the same executor in
+the same process, which is what the freeze licensed and no more.
+
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
 

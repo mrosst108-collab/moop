@@ -6,7 +6,7 @@ static int failures;
 
 /* a Ranking with the delegation parameters at their defaults: f refuses
  * a Ranking with rounds == 0 or alpha outside [0, 1] */
-#define RANKING(h) ((Ranking){ .half_life = (h), .alpha = 0.85, .tolerance = 1e-6, .rounds = 100, .lambda = 1.0 })
+#define RANKING(h) ((Ranking){ .half_life = (h), .alpha = 0.85, .tolerance = 1e-6, .rounds = 100, .lambda = 1.0, .interval = 60 })
 
 static void check(bool ok, const char *desc)
 {
