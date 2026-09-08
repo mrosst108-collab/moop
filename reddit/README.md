@@ -7,8 +7,40 @@ tests.
 
 ```sh
 make && make test
-printf 'sub cats 1\npost cats 1 hello\nshow cats\nquit\n' | build/reddit
+build/reddit          # then type commands; `help` lists them, `quit` leaves
 ```
+
+## Using it
+
+Commands are one per line on stdin. A user is a number; the site is user 0
+and moderates everything. The clock is virtual, starts at 0, and only
+`tick` advances it — so **the command stream is the session's transcript,
+and feeding the same stream again reproduces the session exactly.**
+
+```
+sub science 1                       user 1 founds r/science and moderates it
+post science 1 Water on Mars        a post arrives (node 0) if the rules admit it
+comment science 2 0 Source?         a comment under node 0 (node 1)
+vote science 0 4                    four upvotes on node 0
+tick 3600                           an hour passes; hot halves everywhere
+show science                        the rules in force, then the tree by hot
+rules science 1 50 0.5 3600 1 1     the moderator sets max_title, min_hot,
+                                    half_life, allow_crosspost, export_to_all
+lock science 1 0                    no more comments under node 0
+sweep science                       drop what the rules no longer admit
+sub cats 3                          a second subreddit
+cross science 0 cats 3              user 3 crossposts node 0 into r/cats
+all 2                               r/all, rebuilt from every subreddit's top 2
+profile 1 5                         u1, rebuilt from user 1's nodes everywhere
+ban 0 2                             the site bans user 2 from every subreddit
+gamma science                       nodes whose fate depends on decay running first
+help                                the command list
+quit
+```
+
+Everything refused says why on stderr (`refused: ...`). Limits are fixed
+and stated when hit: 16 subreddits, 16 profiles, 64 nodes per track, 4
+moderators, 95 characters of text.
 
 ## The shape
 

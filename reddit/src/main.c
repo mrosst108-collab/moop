@@ -27,8 +27,33 @@
  *                               through the port, then ranked by itself
  *   sweep SUB                   drop what the rules no longer admit
  *   gamma SUB                   how path-dependent the rules are now
+ *   help                        list the commands
  *   quit
- * The clock is virtual and starts at 0, so runs replay exactly. */
+ * The clock is virtual and starts at 0, so runs replay exactly: the
+ * command stream on stdin is the session's transcript. */
+
+/* The command inventory, the source of `help`. The shell tests hold it
+ * equal to what the dispatcher below actually accepts, so the language
+ * cannot drift from its own description. */
+static const struct { const char *name, *usage, *what; } commands[] = {
+    { "sub",     "sub NAME USER",                       "a user founds a subreddit and moderates it" },
+    { "post",    "post SUB USER TITLE...",              "a post arrives, if the rules admit it" },
+    { "comment", "comment SUB USER PARENT TEXT...",     "a comment arrives under node PARENT" },
+    { "vote",    "vote SUB ID DELTA",                   "a vote arrives on node ID" },
+    { "tick",    "tick SECONDS",                        "time passes; hot decays everywhere" },
+    { "show",    "show TRACK",                          "the rules in force, then the tree ranked by hot" },
+    { "cross",   "cross FROM ID TO USER",               "crosspost node ID through the port" },
+    { "lock",    "lock SUB USER ID",                    "a moderator closes node ID to new comments" },
+    { "rules",   "rules TRACK USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT",
+                                                        "a moderator changes the rules and ranking" },
+    { "ban",     "ban ADMIN USER",                      "the site (user 0) bans USER from every subreddit" },
+    { "profile", "profile USER K",                      "rebuild uUSER from every subreddit's top K by them" },
+    { "all",     "all K",                               "rebuild r/all from every subreddit's top K" },
+    { "sweep",   "sweep SUB",                           "drop what the rules no longer admit" },
+    { "gamma",   "gamma SUB",                           "how many nodes' fate depends on decay running first" },
+    { "help",    "help",                                "this list" },
+    { "quit",    "quit",                                "leave" },
+};
 
 constexpr size_t TRACKS = 16;
 static Track tracks[TRACKS];
@@ -87,11 +112,27 @@ static void show_under(const Track *t, int parent, int depth)
     }
 }
 
+/* θ as it is, not an explanation of it: every field of the rules and
+ * the ranking, read from the struct that governs the tree printed below. */
+static void show_rules(const Track *t)
+{
+    printf("  rules: max_title=%zu min_hot=%.2f half_life=%.0f crosspost=%s "
+           "export=%s locked=%d banned=%d mods=",
+           t->rules.max_title, t->rules.min_hot, t->ranking.half_life,
+           t->rules.allow_crosspost ? "yes" : "no",
+           t->rules.export_to_all ? "yes" : "no",
+           t->rules.locked, t->rules.banned);
+    for (size_t i = 0; i < t->nmods; i++)
+        printf("%su%u", i ? "," : "", t->mods[i]);
+    putchar('\n');
+}
+
 static void show(Track *t)
 {
     t->gsharp(t, now);
     t->jsharp(t);
     printf("r/%s (%zu nodes, %zu mods)\n", t->name, t->nposts, t->nmods);
+    show_rules(t);
     show_under(t, -1, 0);
 }
 
@@ -115,10 +156,14 @@ int main(void)
 
         if (strcmp(cmd, "quit") == 0) {
             break;
+        } else if (strcmp(cmd, "help") == 0) {
+            for (size_t i = 0; i < sizeof commands / sizeof commands[0]; i++)
+                printf("%-8s %-58s %s\n", commands[i].name, commands[i].usage, commands[i].what);
         } else if (strcmp(cmd, "sub") == 0) {
             unsigned user;
             if (sscanf(rest, "%23s %u", a, &user) != 2) { refuse("sub NAME USER"); continue; }
-            if (ntracks == TRACKS || find(a)) { refuse("no room, or that name is taken"); continue; }
+            if (find(a)) { refuse("that name is taken"); continue; }
+            if (ntracks == TRACKS) { fprintf(stderr, "refused: capacity is %zu subreddits\n", TRACKS); continue; }
             reddit_track_init(&tracks[ntracks++], a, user);
         } else if (strcmp(cmd, "post") == 0) {
             unsigned user; int n;
@@ -126,6 +171,7 @@ int main(void)
             Track *t = find_sub(a);
             const char *title = rest + n + strspn(rest + n, " ");
             if (!t) { refuse("no such subreddit"); continue; }
+            if (t->nposts == REDDIT_POSTS) { fprintf(stderr, "refused: capacity is %zu nodes in a track\n", REDDIT_POSTS); continue; }
             if (!t->sigma(t, user, -1, title, now)) refuse("the rules do not admit that post");
         } else if (strcmp(cmd, "comment") == 0) {
             unsigned user; int parent, n;
@@ -133,6 +179,7 @@ int main(void)
             Track *t = find_sub(a);
             const char *text = rest + n + strspn(rest + n, " ");
             if (!t) { refuse("no such subreddit"); continue; }
+            if (t->nposts == REDDIT_POSTS) { fprintf(stderr, "refused: capacity is %zu nodes in a track\n", REDDIT_POSTS); continue; }
             if (!t->sigma(t, user, parent, text, now)) refuse("the rules do not admit that comment");
         } else if (strcmp(cmd, "vote") == 0) {
             int id, d;
@@ -191,7 +238,7 @@ int main(void)
             unsigned user; size_t k;
             if (sscanf(rest, "%u %zu", &user, &k) != 2) { refuse("profile USER K"); continue; }
             Track *u = profile_of(user);
-            if (!u) { refuse("no room"); continue; }
+            if (!u) { fprintf(stderr, "refused: capacity is %zu profiles\n", TRACKS); continue; }
             /* rebuilt from ports, like r/all; the loop is the driver's */
             u->nposts = 0;
             for (size_t s = 0; s < ntracks; s++) {
