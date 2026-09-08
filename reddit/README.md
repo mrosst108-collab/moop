@@ -53,7 +53,8 @@ feature was built with each subreddit exporting through the port `Σ_ij`, no
 global read, and the discipline predicts an observable property of it —
 r/all is stale until rebuilt, never live. Cross-track relation is carried
 on the port, not on γ; γ is derived and measured, never a mediator.
-Comments and users next test recursive structure and a second track kind.
+Comments ran and held (d5ee04a → 15f23d0 → 0d983d2, with a process fault
+kept on the record). Users is frozen next.
 
 Reuse has two grades: a second subsystem of this reddit is intra-domain; an
 independent domain on the same six slots without changing the discipline is
@@ -144,10 +145,45 @@ function (checked statically). The behavioral prediction held: a fresh
 comment clears the same `min_hot` as a fresh post, and a stale one falls
 to the same sweep.
 
-**3. users** — a second track kind carrying identity, without a new slot.
-Prediction to be frozen next, derived from what comments showed: a
-thread was not a track because it has no θ of its own; a user has one
-(what they may do) and state (what they did), which may make a user one.
+**3. users (a second track kind).**
+
+Derived, not assumed. A thread was not a track because nothing that
+governs it lives outside the subreddit's θ. For a user, the forcing
+feature is the profile: what they did, and their karma, across
+subreddits. That is a cross-track aggregate — r/all's problem at the
+level of one identity — and the discipline allows it exactly one shape:
+
+    profile(u) = Aggregate( Port(r_1 → u), Port(r_2 → u), ... )
+
+So the prediction is that a user **is** a track, of a second kind:
+its X is only ever fed through the port (a user originates nothing into
+their own track; every node they wrote was admitted by a subreddit's
+`sigma` and carries the author as a datum), and karma is a sum inside
+X_u after the ports, never a read across subreddits. Its θ_u is the
+profile's own rules, changed through `f` under `kappa` where the user is
+their own moderator. Nothing a subreddit does reads the user track: a
+site-wide ban is `f` applied to each subreddit's θ by an admin, not a
+consultation of θ_u. The six slots and the one port suffice.
+
+Behavioral consequences, observable: a profile and its karma are stale
+until rebuilt, exactly as r/all is; a ban takes effect at each subreddit
+through its θ and leaves already-ported profile content untouched until
+the next build.
+
+**The question this is allowed to fail on.** Whether θ_u is a generator
+at all. The prediction requires that at least one profile behavior
+depends on θ_u — the profile's own admission (its `min_hot`, its
+`allow_crosspost` as "what may appear on me", a per-subreddit opt-out
+held by the user). If the only sensible occupant of every θ_u field is a
+constant that nothing consults, then "what a user may do" was never a
+generator, users are identities referenced from tracks' X and θ, and
+the profile is r/all again with a filter — a track with no generator,
+which the typing does not have. Either result is recorded here.
+
+Falsified if the feature requires: any subreddit slot reading the user
+track (a permission or ban check that reaches into θ_u or X_u); a user
+originating content into their own X without a subreddit's admission;
+a new slot; a second two-track function; or θ_u with no consumer.
 
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
