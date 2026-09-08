@@ -107,6 +107,27 @@ relation rather than by a new primitive, receiver-governed admission, derived
 γ, one port serving distinct aggregations, and the six-slot kernel unchanged
 throughout. Nothing further is to be added here in anticipation of reuse.
 
+Product work since, each frozen before it was built (predictions 4 and 5):
+
+    delegation (subscriptions as theta_u)          held
+    PageRank as port message passing               held
+    rank-weighted article ranking                  held
+    anonymous historical vote                      preserved
+    attributed cast                                held
+    weigh as an explicit rebuild, stale until run  held
+    no text analysis                               held
+    no feedback from voting into rank              held
+    port abstraction                               not earned
+    Build A (in-process consumer)                  not earned
+    Build C (port contract)                        evidence collected, no boundary
+
+The one port function carries four translations for five uses — crosspost;
+carried, for r/all and profiles; rank; weight — and only rank leaves its
+node and user parameters unused. The measured result points toward the
+existing function being the contract. It is not abstracted on the strength
+of a count; a sixth translation, an independent consumer, or a real
+substitution or testing need can change that.
+
 ## Frozen predictions
 
 Written before the feature is built, so the outcome can falsify.
