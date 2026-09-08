@@ -121,6 +121,16 @@ Product work since, each frozen before it was built (predictions 4 and 5):
     Build A (in-process consumer)                  not earned
     Build C (port contract)                        evidence collected, no boundary
 
+Deployment: equivalence is demonstrated and provider-independent — the
+binary reproduces the eight committed Phase 3 corner observations byte for
+byte, now a shell check, and any host that builds and passes the suite has
+the same reference realization. Public exposure is blocked by three
+product freezes, not by infrastructure: identity (what κ trusts, today an
+asserted number), concurrency (one authoritative transcript order with
+many writers, a semantic decision), and live time (when the wall clock
+writes `tick` into the transcript). HTTP is downstream of those three.
+Provider selection is deferred until they are ruled.
+
 The one port function carries four translations for five uses — crosspost;
 carried, for r/all and profiles; rank; weight — and only rank leaves its
 node and user parameters unused. The measured result points toward the

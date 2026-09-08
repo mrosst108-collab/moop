@@ -174,4 +174,15 @@ before=$(printf '%s\n' "$out" | grep -oE 'W [0-9.]+' | sed -n '2p'); after=$(pri
 check "a weigh after a subscription change uses the old ranks until rank runs" "yes" "$([ -n "$before" ] && [ "$before" = "$(printf '%s\n' "$out" | grep -oE 'W [0-9.]+' | sed -n '1p')" ] && [ "$before" != "$after" ] && echo yes)"
 check "the port's id and user are used by weighing (static)" "1" "$(grep -c 'REDDIT_WEIGHT) {' src/reddit.c)"
 
+# equivalence: the binary reproduces the committed Phase 3 corner observations
+# byte for byte (attribution/h3-*/). Provider-independent: any host that
+# passes this has the same reference realization.
+eq=0; for d in ../attribution/h3-E13 ../attribution/h3-E19; do
+  [ -d "$d" ] || continue; read -r N M < "$d/NM"
+  tracks=$(sed -n "$((N+1)),${M}p" "$d/source.txt" | awk '{print $2}' | grep -vE '^[0-9]+$' | sort -u)
+  for h in H00 H01 H10 H11; do
+    { for t in $tracks; do echo "show $t"; done; echo quit; } | "$BIN" "$d/$h.txt" 2>&1 | diff -q - "$d/$h.obs" >/dev/null && eq=$((eq+1))
+  done; done
+check "the binary reproduces the eight committed corner observations" "8" "$eq"
+
 exit $fail
