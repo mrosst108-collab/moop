@@ -1,0 +1,17 @@
+sub science 1
+post science 1 Water on Mars
+post science 2 Ice caps
+comment science 3 0 Source?
+vote science 0 6
+vote science 1 2
+tick 1800
+sub cats 4
+post cats 4 A cat
+cross science 0 cats 5
+show science
+show cats
+tick 1800
+comment science 5 1 Cold reply
+vote science 1 5
+sweep science
+show science
