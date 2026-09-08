@@ -14,7 +14,7 @@ check "and that function is reddit_port" "1" "$(grep -cE '^bool reddit_port\(.*T
 check "theta has no comment-ranking parameter (field names)" "0" "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -cE '^ +(int|bool|double|size_t) [a-z_]*comment')"
 # the command language cannot drift from its own description
 check "help lists exactly the commands the dispatcher accepts" "$(grep -oE 'strcmp\(cmd, "[a-z]+"\)' src/main.c | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
-check "help runs and names every command" "21" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
+check "help runs and names every command" "24" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
 check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=-1 mods=u1$')"
 check "capacity is stated, not hidden" "1" "$(for i in $(seq 1 17); do echo "sub s$i 1"; done | { cat; echo quit; } | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 subreddits')"
 check "the slot set did not change: six slots, gamma measured" "6" "$(grep -cE '^    (void|bool) \(\*[a-z]+\)\(' src/rme7.h)"
@@ -137,5 +137,41 @@ check "with one round, influence travels one hop; with two, further" "yes" "$([ 
 check "pagerank parameters are the site's theta, shown on r/all" "1" "$(printf 'pagerank 0 0.5 0.001 7\nall 1\nquit\n' | "$BIN" 2>/dev/null | grep -c 'alpha=0.50 tolerance=0.001 rounds=7')"
 check "only the site may set them" "1" "$(printf 'pagerank 5 0.5 0.001 7\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
 check "only the user may change whom they follow" "1" "$(printf 'follow 1 2\nshow u1\nquit\n' | "$BIN" 2>/dev/null | grep -c 'subs=u2')"
+
+# rank-weighted ranking: authority arrives through the port; one-way dependency
+wr='follow 1 2
+follow 2 3
+follow 1 4
+rank
+sub news 0
+post news 0 many anonymous votes
+post news 0 one authority
+vote news 0 99
+cast news 3 1 1
+weigh news
+show news
+show u3
+blend 0 news 0
+show news
+blend 5 news 0.5
+cast news 3 0 1
+show u3
+follow 4 3
+weigh news
+show news
+rank
+weigh news
+show news'
+out=$(printf '%s\nquit\n' "$wr" | "$BIN" 2>&1)
+r3=$(printf '%s\n' "$out" | grep -oE '^  rank [0-9.]+' | awk 'NR==1{print $2}')
+expectW=$(awk -v r=$r3 'BEGIN{printf "%.2f", r*4}')
+check "weigh: W on the endorsed node is the voter's rank x N, via the port" "1" "$(printf '%s\n' "$out" | grep -c "#1 \[+2, hot 2.00, W $expectW heat $expectW\] one authority")"
+check "lambda 1: the popular node is first" "1" "$(printf '%s\n' "$out" | sed -n '/^r\/news/,/^r\/u3/p' | grep -c '^  #0 \[+100, hot 100.00\] many anonymous')"
+check "lambda 0: the endorsed node is first, S shown" "1" "$(printf '%s\n' "$out" | awk '/lambda=0.00/{f=1} f&&/^  #1 /{print; exit}' | grep -c 'S '"$expectW"'\] one authority')"
+check "only the site sets lambda" "1" "$(printf '%s\n' "$out" | grep -c 'refused: only the site sets lambda')"
+check "casting changes no rank" "1" "$(printf '%s\n' "$out" | grep -oE '^  rank [0-9.]+' | awk 'NR==1{a=$2} NR==2{b=$2} END{print (a==b)?1:0}')"
+before=$(printf '%s\n' "$out" | grep -oE 'W [0-9.]+' | sed -n '2p'); after=$(printf '%s\n' "$out" | grep -oE 'W [0-9.]+' | tail -1)
+check "a weigh after a subscription change uses the old ranks until rank runs" "yes" "$([ -n "$before" ] && [ "$before" = "$(printf '%s\n' "$out" | grep -oE 'W [0-9.]+' | sed -n '1p')" ] && [ "$before" != "$after" ] && echo yes)"
+check "the port's id and user are used by weighing (static)" "1" "$(grep -c 'REDDIT_WEIGHT) {' src/reddit.c)"
 
 exit $fail

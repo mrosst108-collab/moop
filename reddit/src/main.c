@@ -33,6 +33,11 @@
  *   pagerank ADMIN ALPHA TOL ROUNDS
  *                               F under κ on the site's θ: the delegation
  *                               parameters
+ *   cast SUB USER ID DELTA      Σ: an attributed vote — counts in V and
+ *                               records a ballot; changes no rank
+ *   weigh SUB                   rebuild every node's W from the voters'
+ *                               current ranks, through the port
+ *   blend ADMIN SUB LAMBDA      F under κ by the site: S = λ·hot + (1−λ)·heat
  *   rank                        run the delegation rounds: every user track
  *                               exports its share through the port, sums
  *                               what arrived, damps; stops at tolerance or
@@ -66,6 +71,9 @@ static const struct { const char *name, *usage, *what; } commands[] = {
     { "all",     "all K",                               "rebuild r/all from every subreddit's top K" },
     { "sweep",   "sweep SUB",                           "drop what the rules no longer admit" },
     { "gamma",   "gamma SUB",                           "how many nodes' fate depends on decay running first" },
+    { "cast",    "cast SUB USER ID DELTA",              "an attributed vote: counts in V, records a ballot, changes no rank" },
+    { "weigh",   "weigh SUB",                           "rebuild W on every node from the voters' current ranks, via the port" },
+    { "blend",   "blend ADMIN SUB LAMBDA",              "the site sets SUB's ordering: S = lambda*hot + (1-lambda)*heat" },
     { "follow",  "follow USER TARGET",                  "USER delegates their rank to TARGET (their own theta, via f)" },
     { "unfollow","unfollow USER TARGET",                "USER withdraws that delegation" },
     { "pagerank","pagerank ADMIN ALPHA TOL ROUNDS",     "the site sets the delegation parameters" },
@@ -128,8 +136,12 @@ static void show_under(const Track *t, int parent, int depth)
         const Post *p = &t->posts[i];
         if (p->parent != parent)
             continue;
-        printf("  %*s#%u [%+d, hot %.2f] %s  (u%u)%s\n", depth * 4, "",
-               p->id, p->votes, p->hot, p->title, p->author,
+        printf("  %*s#%u [%+d, hot %.2f", depth * 4, "", p->id, p->votes, p->hot);
+        if (p->nballots)
+            printf(", W %.2f heat %.2f", p->weight, p->heat);
+        if (t->ranking.lambda != 1.0)
+            printf(", S %.2f", t->ranking.lambda * p->hot + (1.0 - t->ranking.lambda) * p->heat);
+        printf("] %s  (u%u)%s\n", p->title, p->author,
                (int)p->id == t->rules.locked ? " [locked]" : "");
         show_under(t, (int)p->id, depth + 1);
     }
@@ -155,6 +167,8 @@ static void show_rules(const Track *t)
     if (t == &all)
         printf(" alpha=%.2f tolerance=%g rounds=%zu", t->ranking.alpha,
                t->ranking.tolerance, t->ranking.rounds);
+    if (t->ranking.lambda != 1.0)
+        printf(" lambda=%.2f", t->ranking.lambda);
     putchar('\n');
     if (t->name[0] == 'u')
         printf("  rank %.6f\n", t->rank);
@@ -277,6 +291,7 @@ static bool run(FILE *in)
             r.nsubs = t->rules.nsubs;
             memcpy(r.subs, t->rules.subs, sizeof r.subs);
             k.alpha = t->ranking.alpha; k.tolerance = t->ranking.tolerance; k.rounds = t->ranking.rounds;
+            k.lambda = t->ranking.lambda;
             if (!t->f(t, user, r, k)) refuse("not a moderator, or rules out of range");
         } else if (strcmp(cmd, "ban") == 0) {
             unsigned admin, user;
@@ -307,6 +322,38 @@ static bool run(FILE *in)
             }
             show(u);
             if (!replaying) printf("  karma %d\n", reddit_karma(u));
+        } else if (strcmp(cmd, "cast") == 0) {
+            unsigned user; int id, d;
+            if (sscanf(rest, "%23s %u %d %d", a, &user, &id, &d) != 4) { refuse("cast SUB USER ID DELTA"); continue; }
+            Track *t = find_sub(a);
+            if (!t) { refuse("no such subreddit"); continue; }
+            if (!reddit_cast(t, user, id, d)) refuse("no such node, already cast, or the ballots are full");
+        } else if (strcmp(cmd, "weigh") == 0) {
+            if (sscanf(rest, "%23s", a) != 1) { refuse("weigh SUB"); continue; }
+            Track *t = find_sub(a);
+            if (!t) { refuse("no such subreddit"); continue; }
+            /* the receiver forgets its W, then each voter's track exports
+             * its authority in vote units (rank x N) through the port,
+             * once per ballot; a voter with no track contributes nothing */
+            for (size_t i = 0; i < t->nposts; i++) t->posts[i].weight = 0.0;
+            for (size_t i = 0; i < t->nposts; i++)
+                for (size_t b = 0; b < t->posts[i].nballots; b++) {
+                    char name[REDDIT_NAME];
+                    snprintf(name, sizeof name, "u%u", t->posts[i].ballots[b].voter);
+                    Track *v = find(name);
+                    if (!v) continue;
+                    v->share = v->rank * (double)nusers;
+                    reddit_port(v, (int)t->posts[i].id, t, t->posts[i].ballots[b].voter, now, REDDIT_WEIGHT);
+                }
+            t->gsharp(t, now);
+        } else if (strcmp(cmd, "blend") == 0) {
+            unsigned admin; double lam;
+            if (sscanf(rest, "%u %23s %lf", &admin, a, &lam) != 3) { refuse("blend ADMIN SUB LAMBDA"); continue; }
+            Track *t = find(a);
+            if (!t) { refuse("no such track"); continue; }
+            if (admin != REDDIT_SITE) { refuse("only the site sets lambda"); continue; }
+            Ranking k = t->ranking; k.lambda = lam;
+            if (!t->f(t, admin, t->rules, k)) refuse("lambda out of range");
         } else if (strcmp(cmd, "follow") == 0 || strcmp(cmd, "unfollow") == 0) {
             unsigned user, target;
             if (sscanf(rest, "%u %u", &user, &target) != 2) { refuse("follow USER TARGET"); continue; }

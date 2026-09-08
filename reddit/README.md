@@ -389,6 +389,31 @@ with many anonymous votes; casting a vote leaves every rank unchanged; a
 Falsified if a subreddit must read a voter's rank directly, if a new slot
 appears, or if a second two-track function is needed.
 
+**Outcome: held.** `cast` adds the delta to V and records a ballot, one
+per voter per node, and touches nothing else. `weigh SUB` zeroes W in
+the receiver, then for each ballot the voter's track exports its authority
+in vote units (rank × N) and the port, under the fourth translation
+`REDDIT_WEIGHT`, finds node `id` in the receiver, finds `user`'s ballot on
+it, and adds share × delta; a voter with no ballot there is refused, and
+a voter with no track contributes nothing. `gsharp` decays W into `heat`
+beside `hot`; `jsharp` sorts on λ·hot + (1−λ)·heat, one key. `blend` sets
+λ through `f`, refused for anyone but the site and outside [0, 1];
+`rules` preserves it. `show` prints W and heat on nodes with ballots and
+S when λ ≠ 1, so nothing printed today changed.
+
+Observed, as predicted: with λ = 1 the 100-vote node is first; with λ =
+0 a node with one ballot from the highest-ranked user outranks it and S
+is shown; casting leaves every rank unchanged; a `weigh` after a new
+subscription reproduces the old W until `rank` runs, then differs. The
+port's `id` and `user` are used by this translation. Static checks: one
+two-track function, six slots.
+
+Pressure, updated from prediction 4: of the four materials now carried
+by the one port function — crosspost, aggregate, profile, rank, weight —
+only rank leaves the node and user parameters unused. The signature fits
+the others as written. The evidence for a port contract has moved toward
+"the existing signature is the contract" and away from a new one.
+
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
 

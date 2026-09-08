@@ -6,7 +6,7 @@ static int failures;
 
 /* a Ranking with the delegation parameters at their defaults: f refuses
  * a Ranking with rounds == 0 or alpha outside [0, 1] */
-#define RANKING(h) ((Ranking){ .half_life = (h), .alpha = 0.85, .tolerance = 1e-6, .rounds = 100 })
+#define RANKING(h) ((Ranking){ .half_life = (h), .alpha = 0.85, .tolerance = 1e-6, .rounds = 100, .lambda = 1.0 })
 
 static void check(bool ok, const char *desc)
 {
@@ -341,6 +341,38 @@ int main(void)
     Ranking bad = ua.ranking; bad.alpha = 1.5;
     check(!ua.f(&ua, 1, ua.rules, bad) && ua.ranking.alpha == 0.85,
           "f: alpha outside [0,1] is refused");
+
+    /* rank-weighted ranking — the frozen prediction 5 */
+    Track sr, v1, v2;
+    reddit_track_init(&sr, "r", 1); reddit_track_init(&v1, "u1", 1); reddit_track_init(&v2, "u2", 2);
+    sr.sigma(&sr, 1, -1, "many anonymous", 0);      /* node 0 */
+    sr.sigma(&sr, 2, -1, "one authority", 0);       /* node 1 */
+    reddit_vote(&sr, 0, 99);
+    check(reddit_cast(&sr, 2, 1, 1) && sr.posts[1].votes == 2 && sr.posts[1].nballots == 1,
+          "cast: counts in V and records a ballot");
+    check(!reddit_cast(&sr, 2, 1, 1) && sr.posts[1].nballots == 1,
+          "cast: one ballot per voter per node");
+    v1.rank = 0.1; v2.rank = 0.9;                    /* two users: N = 2 */
+    double rk1 = v1.rank, rk2 = v2.rank;
+    v2.share = v2.rank * 2.0;
+    check(!reddit_port(&v2, 0, &sr, 2, 0, REDDIT_WEIGHT),
+          "port: weighing is refused where the voter cast no ballot");
+    check(reddit_port(&v2, 1, &sr, 2, 0, REDDIT_WEIGHT) && sr.posts[1].weight == 1.8,
+          "port: the voter's authority in vote units lands on the node they cast on");
+    check(v1.rank == rk1 && v2.rank == rk2,
+          "casting and weighing change no rank");
+    sr.gsharp(&sr, 0); sr.jsharp(&sr);
+    check(sr.posts[0].votes == 100 && sr.posts[0].hot == 100.0,
+          "lambda 1: the popular vote orders, as before");
+    Ranking lam = sr.ranking; lam.lambda = 0.0;
+    check(sr.f(&sr, REDDIT_SITE, sr.rules, lam) && sr.ranking.lambda == 0.0,
+          "the site sets lambda through f");
+    sr.jsharp(&sr);
+    check(sr.posts[0].id == 1 && sr.posts[0].heat == 1.8 && sr.posts[1].heat == 0.0,
+          "lambda 0: one high-authority ballot outranks 99 anonymous votes");
+    lam.lambda = 1.5;
+    check(!sr.f(&sr, REDDIT_SITE, sr.rules, lam) && sr.ranking.lambda == 0.0,
+          "f: lambda outside [0,1] is refused");
 
     return failures;
 }

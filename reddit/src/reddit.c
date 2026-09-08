@@ -5,14 +5,20 @@
 
 /* --- default occupants ------------------------------------------------ */
 
-/* jsharp: order by hot, descending. A permutation of X: nothing is
- * created, dropped, or rewritten. */
+/* jsharp: order by S = lambda*hot + (1-lambda)*heat, descending — with
+ * lambda = 1 that is by hot. A permutation of X: nothing is created,
+ * dropped, or rewritten. */
+static double score(const Track *t, const Post *p)
+{
+    return t->ranking.lambda * p->hot + (1.0 - t->ranking.lambda) * p->heat;
+}
+
 static void sort_by_hot(Track *t)
 {
     for (size_t i = 1; i < t->nposts; i++) {
         Post key = t->posts[i];
         size_t j = i;
-        while (j > 0 && t->posts[j - 1].hot < key.hot) {
+        while (j > 0 && score(t, &t->posts[j - 1]) < score(t, &key)) {
             t->posts[j] = t->posts[j - 1];
             j--;
         }
@@ -30,6 +36,7 @@ static void decay(Track *t, time_t now)
         if (age < 0)
             age = 0;
         p->hot = p->votes * exp2(-age / t->ranking.half_life);
+        p->heat = p->weight * exp2(-age / t->ranking.half_life);
     }
 }
 
@@ -85,7 +92,8 @@ static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
         return false;
     if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT ||
         ranking.alpha < 0 || ranking.alpha > 1 || ranking.tolerance < 0 ||
-        ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS)
+        ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS ||
+        ranking.lambda < 0 || ranking.lambda > 1)
         return false;
     t->rules = rules;
     t->ranking = ranking;
@@ -102,7 +110,7 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
                         .allow_crosspost = true, .export_to_all = true,
                         .locked = -1, .banned = -1 };
     t->ranking = (Ranking){ .half_life = 3600.0, .alpha = 0.85,
-                            .tolerance = 1e-6, .rounds = 100 };
+                            .tolerance = 1e-6, .rounds = 100, .lambda = 1.0 };
     t->mods[0] = founder;
     t->nmods = 1;
     t->jsharp = sort_by_hot;
@@ -128,6 +136,19 @@ bool reddit_vote(Track *t, int id, int delta)
     Post *p = (Post *)reddit_find(t, id);
     if (p == nullptr)
         return false;
+    p->votes += delta;
+    return true;
+}
+
+bool reddit_cast(Track *t, unsigned voter, int id, int delta)
+{
+    Post *p = (Post *)reddit_find(t, id);
+    if (p == nullptr || p->nballots == REDDIT_BALLOTS)
+        return false;
+    for (size_t i = 0; i < p->nballots; i++)
+        if (p->ballots[i].voter == voter)
+            return false;
+    p->ballots[p->nballots++] = (Ballot){ .voter = voter, .delta = delta };
     p->votes += delta;
     return true;
 }
@@ -159,6 +180,19 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
         /* translation: the sender's share; gate: none; adapter: summed */
         to->incoming += from->share;
         return true;
+    }
+    if (how == REDDIT_WEIGHT) {
+        /* translation: the voter's authority (share); gate: the receiver
+         * holds this voter's ballot on this node; adapter: signed sum */
+        Post *p = (Post *)reddit_find(to, id);
+        if (p == nullptr)
+            return false;
+        for (size_t i = 0; i < p->nballots; i++)
+            if (p->ballots[i].voter == user) {
+                p->weight += from->share * p->ballots[i].delta;
+                return true;
+            }
+        return false;
     }
     const Post *src = reddit_find(from, id);
     if (src == nullptr)
