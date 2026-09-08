@@ -39,11 +39,11 @@ int main(void)
     Track a, b;
     reddit_track_init(&a, "cats", 1);
     reddit_track_init(&b, "dogs", 2);
-    check(a.sigma(&a, 1, "first", 0) && a.sigma(&a, 3, "second", 10) &&
-          a.sigma(&a, 4, "third", 20) && a.nposts == 3,
+    check(a.sigma(&a, 1, -1, "first", 0) && a.sigma(&a, 3, -1, "second", 10) &&
+          a.sigma(&a, 4, -1, "third", 20) && a.nposts == 3,
           "sigma: posts arrive");
     check(reddit_vote(&a, 0, 5) && reddit_vote(&a, 2, 2) && !reddit_vote(&a, 9, 1),
-          "sigma: votes arrive; out of range is refused");
+          "sigma: votes arrive by id; a missing node is refused");
 
     /* J-sharp: a permutation and nothing else */
     Track before = a;
@@ -64,12 +64,12 @@ int main(void)
           "gsharp: one half-life halves");
 
     /* G-tilde-sharp: a verdict, never an edit; a refused post enters nothing */
-    Rules strict = { .max_title = 4, .min_hot = 0.0, .allow_crosspost = true };
+    Rules strict = { .max_title = 4, .min_hot = 0.0, .allow_crosspost = true, .locked = -1 };
     check(a.f(&a, 1, strict, a.ranking), "f: a moderator changes the rules");
     Track snap = a;
-    check(!a.sigma(&a, 5, "far too long", 200) && same_posts(&a, &snap),
+    check(!a.sigma(&a, 5, -1, "far too long", 200) && same_posts(&a, &snap),
           "gtildesharp: refuses without altering X");
-    check(a.sigma(&a, 5, "ok", 200), "gtildesharp: admits what fits");
+    check(a.sigma(&a, 5, -1, "ok", 200), "gtildesharp: admits what fits");
 
     /* kappa: not a moderator, nothing changes — including the refusal */
     Rules loose = a.rules; loose.max_title = 50;
@@ -83,11 +83,11 @@ int main(void)
     /* the port: translate, gate, adapt; refused leaves the target unchanged */
     check(reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) == false && a.nposts == 4,
           "port: nothing to crosspost from an empty track");
-    check(b.sigma(&b, 2, "woof", 300), "a post on the other track");
+    check(b.sigma(&b, 2, -1, "woof", 300), "a post on the other track");
     snap = a;
     check(!reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) && same_posts(&a, &snap),
           "port: the target's gate (max_title 4) refuses, target untouched");
-    check(a.f(&a, 1, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true },
+    check(a.f(&a, 1, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true, .locked = -1 },
               a.ranking) &&
           reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) &&
           strcmp(a.posts[a.nposts - 1].title, "x/dogs: woof") == 0 &&
@@ -103,7 +103,7 @@ int main(void)
     a0.gsharp(&a0, 5000); a0.jsharp(&a0);
     for (int i = 0; i < 20; i++) reddit_vote(&b, 0, 7);
     b.gsharp(&b, 5000); b.jsharp(&b);
-    b.f(&b, 2, (Rules){ .max_title = 10, .min_hot = 1, .allow_crosspost = false },
+    b.f(&b, 2, (Rules){ .max_title = 10, .min_hot = 1, .allow_crosspost = false, .locked = -1 },
         (Ranking){ .half_life = 1 });
     reddit_sweep(&b);
     a.gsharp(&a, 5000); a.jsharp(&a);
@@ -113,9 +113,9 @@ int main(void)
     /* gamma: measured, from a copy, changing nothing */
     Track c;
     reddit_track_init(&c, "news", 1);
-    c.sigma(&c, 1, "old", 0);
-    c.sigma(&c, 1, "new", 7000);
-    c.f(&c, 1, (Rules){ .max_title = 40, .min_hot = 0.5, .allow_crosspost = true },
+    c.sigma(&c, 1, -1, "old", 0);
+    c.sigma(&c, 1, -1, "new", 7000);
+    c.f(&c, 1, (Rules){ .max_title = 40, .min_hot = 0.5, .allow_crosspost = true, .locked = -1 },
         (Ranking){ .half_life = 3600 });
     snap = c;
     size_t g = reddit_gamma(&c, 7200);
@@ -131,17 +131,17 @@ int main(void)
     reddit_track_init(&r1, "one", 1);
     reddit_track_init(&r2, "two", 2);
     reddit_track_init(&all, "all", 0);
-    r1.sigma(&r1, 1, "small", 0);  reddit_vote(&r1, 0, 2);   /* 3 votes  */
-    r1.sigma(&r1, 1, "big", 0);    reddit_vote(&r1, 1, 20);  /* 21 votes */
-    r2.sigma(&r2, 2, "medium", 0); reddit_vote(&r2, 0, 9);   /* 10 votes */
-    r2.sigma(&r2, 2, "tiny", 0);                             /* 1 vote   */
+    r1.sigma(&r1, 1, -1, "small", 0);  reddit_vote(&r1, 0, 2);   /* 3 votes  */
+    r1.sigma(&r1, 1, -1, "big", 0);    reddit_vote(&r1, 1, 20);  /* 21 votes */
+    r2.sigma(&r2, 2, -1, "medium", 0); reddit_vote(&r2, 0, 9);   /* 10 votes */
+    r2.sigma(&r2, 2, -1, "tiny", 0);                             /* 1 vote   */
     Track *subs[] = { &r1, &r2 };
     size_t fed = 0;
     for (size_t s = 0; s < 2; s++) {
         subs[s]->gsharp(subs[s], 100);
         subs[s]->jsharp(subs[s]);
         for (size_t i = 0; i < 1 && i < subs[s]->nposts; i++)
-            fed += reddit_port(subs[s], i, &all, 0, 100, REDDIT_CARRY);
+            fed += reddit_port(subs[s], (int)subs[s]->posts[i].id, &all, 0, 100, REDDIT_CARRY);
     }
     all.gsharp(&all, 100);
     all.jsharp(&all);
@@ -163,7 +163,7 @@ int main(void)
 
     /* the sender's opt-out lives in the translation */
     r2.f(&r2, 2, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true,
-                          .export_to_all = false }, r2.ranking);
+                          .export_to_all = false, .locked = -1 }, r2.ranking);
     Track allx = all;
     check(!reddit_port(&r2, 0, &all, 0, 100, REDDIT_CARRY) && same_posts(&all, &allx),
           "r/all: an opted-out track declines to translate; all untouched");
@@ -172,18 +172,87 @@ int main(void)
 
     /* the receiver's gate: r/all's own rules decide admission */
     all.f(&all, 0, (Rules){ .max_title = 40, .min_hot = 5.0, .allow_crosspost = true,
-                            .export_to_all = false }, all.ranking);
+                            .export_to_all = false, .locked = -1 }, all.ranking);
     all.nposts = 0;
     fed = 0;
     for (size_t s = 0; s < 2; s++) {
         subs[s]->rules.export_to_all = true;
         for (size_t i = 0; i < subs[s]->nposts; i++)
-            fed += reddit_port(subs[s], i, &all, 0, 100, REDDIT_CARRY);
+            fed += reddit_port(subs[s], (int)subs[s]->posts[i].id, &all, 0, 100, REDDIT_CARRY);
     }
     check(fed == 2 && all.nposts == 2,
           "r/all: its min_hot gate refuses the cold posts (tiny, small, the crosspost)");
     check(!reddit_port(&all, 0, &all, 0, 100, REDDIT_CARRY),
           "r/all: does not feed itself");
+
+    /* comments — the frozen prediction: recursive state, six slots unchanged */
+    Track c2;
+    reddit_track_init(&c2, "tree", 1);
+    check(c2.sigma(&c2, 1, -1, "post", 0) &&              /* id 0 */
+          c2.sigma(&c2, 2, 0, "reply", 0) &&               /* id 1 */
+          c2.sigma(&c2, 3, 0, "other reply", 0) &&         /* id 2 */
+          c2.sigma(&c2, 4, 1, "reply to reply", 0) &&      /* id 3 */
+          c2.nposts == 4,
+          "sigma: comments arrive under a parent, as nodes of X");
+    check(!c2.sigma(&c2, 5, 42, "orphan", 0) && c2.nposts == 4,
+          "gtildesharp: a comment without a parent is refused");
+
+    /* votes: post 4, reply 1, other reply 7, reply-to-reply 6 */
+    reddit_vote(&c2, 0, 3);
+    reddit_vote(&c2, 2, 6);
+    reddit_vote(&c2, 3, 5);
+    c2.gsharp(&c2, 0);
+    c2.jsharp(&c2);
+
+    /* one sort, every depth: the flat order restricted to any sibling
+     * set is hot-descending; the tree walk is the driver's */
+    size_t at[5] = {};
+    for (size_t i = 0; i < c2.nposts; i++)
+        at[c2.posts[i].id] = i;
+    check(at[2] < at[1] && at[2] < at[0],
+          "jsharp: one permutation orders siblings at every depth");
+    check(reddit_find(&c2, 3)->parent == 1 && reddit_find(&c2, 1)->parent == 0,
+          "the tree is carried by ids and survives the permutation");
+
+    /* one decay: comments halve under the track's one half-life */
+    c2.gsharp(&c2, 3600);
+    check(reddit_find(&c2, 2)->hot > 3.49 && reddit_find(&c2, 2)->hot < 3.51 &&
+          reddit_find(&c2, 0)->hot > 1.99 && reddit_find(&c2, 0)->hot < 2.01,
+          "gsharp: comments decay under the same half-life as posts");
+
+    /* one min_hot for posts and comments: the behavioral prediction */
+    c2.f(&c2, 1, (Rules){ .max_title = 40, .min_hot = 0.75, .allow_crosspost = true,
+                          .export_to_all = true, .locked = -1 }, c2.ranking);
+    check(c2.sigma(&c2, 6, 2, "fresh reply", 3600) && c2.nposts == 5,
+          "a fresh comment (hot 1.0) clears min_hot like a fresh post");
+    /* sweep: reply (0.5) fails the verdict; reply-to-reply (3.0) passes
+     * it but its parent is gone, so it falls on the next pass */
+    check(reddit_sweep(&c2) == 2 && c2.nposts == 3 &&
+          reddit_find(&c2, 1) == nullptr && reddit_find(&c2, 3) == nullptr &&
+          reddit_find(&c2, 0) && reddit_find(&c2, 2) && reddit_find(&c2, 4),
+          "sweep: a verdict per node, the cascade only its repetition");
+
+    /* lock: F under kappa, a rule about one post; not a thread generator */
+    Rules locked = c2.rules; locked.locked = 2;
+    check(!c2.f(&c2, 99, locked, c2.ranking) && c2.rules.locked == -1,
+          "kappa: a non-moderator cannot lock");
+    check(c2.f(&c2, 1, locked, c2.ranking) &&
+          !c2.sigma(&c2, 7, 2, "too late", 3600) &&
+          c2.sigma(&c2, 7, 0, "still open", 3600) &&
+          reddit_find(&c2, 4) != nullptr,
+          "a lock refuses new comments under one node; others and existing stay");
+
+    /* comments do not cross tracks */
+    Track d2;
+    reddit_track_init(&d2, "elsewhere", 9);
+    check(!reddit_port(&c2, 4, &d2, 9, 3600, REDDIT_FRESH) &&
+          reddit_port(&c2, 0, &d2, 9, 3600, REDDIT_FRESH) && d2.nposts == 1,
+          "port: refuses a comment, carries a post");
+
+    /* gamma counts over the tree with no new mechanism: at 7200 the
+     * fresh reply (1.0 at 3600) has halved to 0.5 < 0.75 */
+    check(reddit_gamma(&c2, 7200) == 1,
+          "gamma: measured over the tree; one node's fate flips with decay");
 
     return failures;
 }

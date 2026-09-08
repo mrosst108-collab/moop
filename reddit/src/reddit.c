@@ -33,25 +33,34 @@ static void decay(Track *t, time_t now)
     }
 }
 
-/* gtildesharp: the rules. A verdict on a post; the post is const. */
+/* gtildesharp: the rules. A verdict on one node; the node is const.
+ * The same verdict for a post and a comment — a comment additionally
+ * needs its parent present and not locked. */
 static bool admits(const Track *t, const Post *p)
 {
-    return strlen(p->title) <= t->rules.max_title &&
-           p->hot >= t->rules.min_hot;
+    if (strlen(p->title) > t->rules.max_title || p->hot < t->rules.min_hot)
+        return false;
+    if (p->parent < 0)
+        return true;
+    return reddit_find(t, p->parent) != nullptr && p->parent != t->rules.locked;
 }
 
-/* sigma: a post arrives. It enters only if the rules admit it. */
-static bool post(Track *t, unsigned user, const char *title, time_t now)
+/* sigma: a node arrives — a post (parent -1) or a comment under a
+ * parent. It enters only if the rules admit it. */
+static bool arrive(Track *t, unsigned user, int parent, const char *text,
+                   time_t now)
 {
     if (t->nposts == REDDIT_POSTS)
         return false;
-    Post p = { .author = user, .votes = 1, .born = now, .hot = 1.0 };
-    if (strlen(title) >= sizeof p.title)
+    Post p = { .id = t->next_id, .parent = parent, .author = user,
+               .votes = 1, .born = now, .hot = 1.0 };
+    if (strlen(text) >= sizeof p.title)
         return false; /* refused, not truncated */
-    strcpy(p.title, title);
+    strcpy(p.title, text);
     if (!t->gtildesharp(t, &p))
         return false;
     t->posts[t->nposts++] = p;
+    t->next_id++;
     return true;
 }
 
@@ -84,51 +93,71 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
     memset(t, 0, sizeof *t);
     snprintf(t->name, sizeof t->name, "%s", name);
     t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
-                        .allow_crosspost = true, .export_to_all = true };
+                        .allow_crosspost = true, .export_to_all = true,
+                        .locked = -1 };
     t->ranking = (Ranking){ .half_life = 3600.0 };
     t->mods[0] = founder;
     t->nmods = 1;
     t->jsharp = sort_by_hot;
     t->gsharp = decay;
     t->gtildesharp = admits;
-    t->sigma = post;
+    t->sigma = arrive;
     t->f = adapt;
     t->kappa = is_mod;
 }
 
-bool reddit_vote(Track *t, size_t i, int delta)
+const Post *reddit_find(const Track *t, int id)
 {
-    if (i >= t->nposts)
+    if (id < 0)
+        return nullptr;
+    for (size_t i = 0; i < t->nposts; i++)
+        if (t->posts[i].id == (unsigned)id)
+            return &t->posts[i];
+    return nullptr;
+}
+
+bool reddit_vote(Track *t, int id, int delta)
+{
+    Post *p = (Post *)reddit_find(t, id);
+    if (p == nullptr)
         return false;
-    t->posts[i].votes += delta;
+    p->votes += delta;
     return true;
 }
 
 size_t reddit_sweep(Track *t)
 {
-    size_t kept = 0, dropped = 0;
-    for (size_t i = 0; i < t->nposts; i++) {
-        if (t->gtildesharp(t, &t->posts[i]))
-            t->posts[kept++] = t->posts[i];
-        else
-            dropped++;
-    }
-    t->nposts = kept;
+    size_t dropped = 0, pass;
+    do {
+        size_t kept = 0;
+        pass = 0;
+        for (size_t i = 0; i < t->nposts; i++) {
+            if (t->gtildesharp(t, &t->posts[i]))
+                t->posts[kept++] = t->posts[i];
+            else
+                pass++;
+        }
+        t->nposts = kept;
+        dropped += pass;
+    } while (pass > 0); /* orphans fail the verdict on the next pass */
     return dropped;
 }
 
 /* --- the port ------------------------------------------------------- */
 
-bool reddit_port(const Track *from, size_t i, Track *to, unsigned user,
+bool reddit_port(const Track *from, int id, Track *to, unsigned user,
                  time_t now, Translation how)
 {
-    if (i >= from->nposts)
-        return false;
+    const Post *src = reddit_find(from, id);
+    if (src == nullptr || src->parent >= 0)
+        return false; /* comments do not cross tracks */
 
     /* translation: the sender's side. It may decline. */
     if (how == REDDIT_CARRY && !from->rules.export_to_all)
         return false;
-    Post p = from->posts[i];
+    Post p = *src;
+    p.id = to->next_id;
+    p.parent = -1;
     char title[REDDIT_TEXT];
     int n = snprintf(title, sizeof title, "x/%s: %s", from->name, p.title);
     if (n < 0 || (size_t)n >= sizeof title)
@@ -152,6 +181,7 @@ bool reddit_port(const Track *from, size_t i, Track *to, unsigned user,
 
     /* adapter: it is the receiver's post now */
     to->posts[to->nposts++] = judge.posts[judge.nposts - 1];
+    to->next_id++;
     return true;
 }
 

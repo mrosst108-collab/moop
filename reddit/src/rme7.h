@@ -16,7 +16,7 @@
  *   jsharp       conservative circulation: sorts — a permutation only
  *   gsharp       dissipative, converges: decay — the ONLY writer of hot
  *   gtildesharp  confinement: rules — accept or refuse, never edit
- *   sigma        driving: posts and votes arrive (intra-track);
+ *   sigma        driving: posts, comments and votes arrive (intra-track);
  *                reddit_port is the cross-track Σ_ij,
  *                adapter ∘ gate ∘ translation, the ONLY two-track act
  *   f            generator self-modification: changes θ
@@ -32,8 +32,13 @@ constexpr size_t REDDIT_TEXT  = 96;
 constexpr size_t REDDIT_NAME  = 24;
 constexpr size_t REDDIT_MODS  = 4;
 
+/* A node of X. Posts and comments are the same kind of node: a comment
+ * is a node with a parent. Ids are stable under jsharp's permutations,
+ * so the tree is carried by ids, never by array positions. */
 typedef struct {
     char title[REDDIT_TEXT];
+    unsigned id;
+    int parent;            /* id of the parent node; -1 for a post */
     unsigned author;
     int votes;
     time_t born;
@@ -46,6 +51,8 @@ typedef struct {
     bool allow_crosspost;  /* the port's gate on this track (receiver side) */
     bool export_to_all;    /* the port's translation from this track: a
                               sender may decline to translate (opt-out) */
+    int locked;            /* a rule about one post: no comments arrive
+                              under it; -1 for none. Changed by f. */
 } Rules;
 
 typedef struct {
@@ -56,9 +63,10 @@ typedef struct Track Track;
 struct Track {
     char name[REDDIT_NAME];
 
-    /* X — state */
+    /* X — state: a tree, stored flat, linked by ids */
     Post posts[REDDIT_POSTS];
     size_t nposts;
+    unsigned next_id;
 
     /* θ — generator */
     Rules rules;
@@ -70,7 +78,8 @@ struct Track {
     void (*jsharp)(Track *t);
     void (*gsharp)(Track *t, time_t now);
     bool (*gtildesharp)(const Track *t, const Post *p);
-    bool (*sigma)(Track *t, unsigned user, const char *title, time_t now);
+    bool (*sigma)(Track *t, unsigned user, int parent, const char *text,
+                  time_t now);           /* parent -1: a post; else a comment */
     bool (*f)(Track *t, unsigned user, Rules rules, Ranking ranking);
     bool (*kappa)(const Track *t, unsigned user);
 };
@@ -79,8 +88,11 @@ struct Track {
  * its first moderator, and permissive rules. */
 void reddit_track_init(Track *t, const char *name, unsigned founder);
 
-/* Σ_ii, the other half: a vote on post i. Refused if i is out of range. */
-bool reddit_vote(Track *t, size_t i, int delta);
+/* The node with this id, or nullptr. */
+const Post *reddit_find(const Track *t, int id);
+
+/* Σ_ii, the other half: a vote on a node. Refused if there is none. */
+bool reddit_vote(Track *t, int id, int delta);
 
 /* Σ_ij — the port: translation, then gate, then adapter. The ONLY
  * function that takes two tracks. Two translations (realization data,
@@ -95,11 +107,12 @@ bool reddit_vote(Track *t, size_t i, int delta);
  * touching nothing, if any step refuses. */
 typedef enum { REDDIT_FRESH, REDDIT_CARRY } Translation;
 
-bool reddit_port(const Track *from, size_t i, Track *to, unsigned user,
+bool reddit_port(const Track *from, int id, Track *to, unsigned user,
                  time_t now, Translation how);
 
-/* Sweep: posts the rules no longer admit are dropped. Applies
- * gtildesharp to the current state; returns how many left. */
+/* Sweep: nodes the rules no longer admit are dropped, and so, on the
+ * next pass, are nodes whose parent is gone — the verdict is per node
+ * and the cascade is only its repetition. Returns how many left. */
 size_t reddit_sweep(Track *t);
 
 /* γ — measured, not applied: how many posts' fate under the rules

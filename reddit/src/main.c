@@ -6,10 +6,13 @@
 /* A reddit at the terminal. Commands, one per line:
  *   sub NAME USER               a user founds a subreddit (and moderates it)
  *   post SUB USER TITLE...      Σ: a post arrives
- *   vote SUB INDEX DELTA        Σ: a vote arrives
+ *   comment SUB USER PARENT TEXT...
+ *                               Σ: a comment arrives under node PARENT
+ *   vote SUB ID DELTA           Σ: a vote arrives
  *   tick SECONDS                time passes; every track decays (G♯)
- *   show SUB                    sort (J♯) and print
- *   cross FROM INDEX TO USER    Σ_ij: crosspost through the port
+ *   show SUB                    sort (J♯) and print the tree
+ *   cross FROM ID TO USER       Σ_ij: crosspost through the port
+ *   lock SUB USER ID            F under κ: no more comments under ID
  *   rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT
  *                               F under κ: a moderator changes θ
  *   all K                       r/all: rebuilt from every subreddit's top K
@@ -33,14 +36,27 @@ static Track *find(const char *name)
     return nullptr;
 }
 
+/* The tree walk lives here, in the driver: the array is already in hot
+ * order at every depth (one sort), so children print in rank order. */
+static void show_under(const Track *t, int parent, int depth)
+{
+    for (size_t i = 0; i < t->nposts; i++) {
+        const Post *p = &t->posts[i];
+        if (p->parent != parent)
+            continue;
+        printf("  %*s#%u [%+d, hot %.2f] %s  (u%u)%s\n", depth * 4, "",
+               p->id, p->votes, p->hot, p->title, p->author,
+               (int)p->id == t->rules.locked ? " [locked]" : "");
+        show_under(t, (int)p->id, depth + 1);
+    }
+}
+
 static void show(Track *t)
 {
     t->gsharp(t, now);
     t->jsharp(t);
-    printf("r/%s (%zu posts, %zu mods)\n", t->name, t->nposts, t->nmods);
-    for (size_t i = 0; i < t->nposts; i++)
-        printf("  %zu. [%+d, hot %.2f] %s  (u%u)\n", i, t->posts[i].votes,
-               t->posts[i].hot, t->posts[i].title, t->posts[i].author);
+    printf("r/%s (%zu nodes, %zu mods)\n", t->name, t->nposts, t->nmods);
+    show_under(t, -1, 0);
 }
 
 static void refuse(const char *what)
@@ -74,12 +90,19 @@ int main(void)
             Track *t = find(a);
             const char *title = rest + n + strspn(rest + n, " ");
             if (!t) { refuse("no such subreddit"); continue; }
-            if (!t->sigma(t, user, title, now)) refuse("the rules do not admit that post");
-        } else if (strcmp(cmd, "vote") == 0) {
-            size_t i; int d;
-            if (sscanf(rest, "%23s %zu %d", a, &i, &d) != 3) { refuse("vote SUB INDEX DELTA"); continue; }
+            if (!t->sigma(t, user, -1, title, now)) refuse("the rules do not admit that post");
+        } else if (strcmp(cmd, "comment") == 0) {
+            unsigned user; int parent, n;
+            if (sscanf(rest, "%23s %u %d%n", a, &user, &parent, &n) != 3) { refuse("comment SUB USER PARENT TEXT"); continue; }
             Track *t = find(a);
-            if (!t || !reddit_vote(t, i, d)) refuse("no such post");
+            const char *text = rest + n + strspn(rest + n, " ");
+            if (!t) { refuse("no such subreddit"); continue; }
+            if (!t->sigma(t, user, parent, text, now)) refuse("the rules do not admit that comment");
+        } else if (strcmp(cmd, "vote") == 0) {
+            int id, d;
+            if (sscanf(rest, "%23s %d %d", a, &id, &d) != 3) { refuse("vote SUB ID DELTA"); continue; }
+            Track *t = find(a);
+            if (!t || !reddit_vote(t, id, d)) refuse("no such node");
         } else if (strcmp(cmd, "tick") == 0) {
             long s;
             if (sscanf(rest, "%ld", &s) != 1 || s < 0) { refuse("tick SECONDS"); continue; }
@@ -92,11 +115,19 @@ int main(void)
             if (!t) { refuse("no such subreddit"); continue; }
             show(t);
         } else if (strcmp(cmd, "cross") == 0) {
-            size_t i; unsigned user;
-            if (sscanf(rest, "%23s %zu %23s %u", a, &i, b, &user) != 4) { refuse("cross FROM INDEX TO USER"); continue; }
+            int id; unsigned user;
+            if (sscanf(rest, "%23s %d %23s %u", a, &id, b, &user) != 4) { refuse("cross FROM ID TO USER"); continue; }
             Track *from = find(a), *to = find(b);
             if (!from || !to) { refuse("no such subreddit"); continue; }
-            if (!reddit_port(from, i, to, user, now, REDDIT_FRESH)) refuse("the port did not admit it");
+            if (!reddit_port(from, id, to, user, now, REDDIT_FRESH)) refuse("the port did not admit it");
+        } else if (strcmp(cmd, "lock") == 0) {
+            unsigned user; int id;
+            if (sscanf(rest, "%23s %u %d", a, &user, &id) != 3) { refuse("lock SUB USER ID"); continue; }
+            Track *t = find(a);
+            if (!t) { refuse("no such subreddit"); continue; }
+            Rules r = t->rules;
+            r.locked = id;
+            if (!t->f(t, user, r, t->ranking)) refuse("not a moderator");
         } else if (strcmp(cmd, "rules") == 0) {
             unsigned user; Rules r; Ranking k; int allow, export;
             if (sscanf(rest, "%23s %u %zu %lf %lf %d %d", a, &user, &r.max_title,
@@ -107,6 +138,7 @@ int main(void)
             r.export_to_all = export != 0;
             Track *t = find(a);
             if (!t) { refuse("no such subreddit"); continue; }
+            r.locked = t->rules.locked;
             if (!t->f(t, user, r, k)) refuse("not a moderator, or rules out of range");
         } else if (strcmp(cmd, "all") == 0) {
             size_t k;
@@ -118,8 +150,11 @@ int main(void)
                 Track *t = &tracks[s];
                 t->gsharp(t, now);
                 t->jsharp(t);
-                for (size_t i = 0; i < k && i < t->nposts; i++)
-                    reddit_port(t, i, &all, 0, now, REDDIT_CARRY);
+                size_t sent = 0;
+                for (size_t i = 0; i < t->nposts && sent < k; i++)
+                    if (t->posts[i].parent < 0)
+                        sent += reddit_port(t, (int)t->posts[i].id, &all, 0,
+                                            now, REDDIT_CARRY);
             }
             show(&all);
         } else if (strcmp(cmd, "sweep") == 0) {
