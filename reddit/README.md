@@ -464,6 +464,19 @@ it only receives a number that was bound rather than typed; the site
 principal, user 0, is bound the same way from an operator credential
 and is never claimable from the command stream.
 
+Constraint carried by the identity freeze: **each user controls exactly
+one personal track, their own**, and κ is the only ownership mechanism —
+the ingress adds no second one. A bound principal may change their own
+track's θ (rules, subscriptions), cannot administer another user's track
+by knowing their number (the actor is bound, not claimed), and site
+authority is bound from the operator credential only. Cross-track
+effects — following, rank, weighing — remain ports, never transferred
+authority. A hole found and closed while checking this: a subreddit
+could be founded under a personal-track name (`u7`) before that user's
+track existed, and the profile lookup then returned it, moderated by
+someone else. `uN` names are now reserved to users and a profile is
+looked up only among profiles.
+
 **2. Transcript order.** The transcript is one total order of admitted
 command attempts, fixed by one serialized ingress. Every externally
 submitted command receives its position before it executes; commands

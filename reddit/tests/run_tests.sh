@@ -80,6 +80,11 @@ check "theta_u has a consumer: the profile's min_hot hides cold nodes" "1" "$(pr
 check "a user originates nothing into their own track" "1" "$(printf '%s\n' "$out" | grep -c 'refused: no such subreddit')"
 check "ban: only the site" "1" "$(printf '%s\n' "$out" | grep -c 'refused: not the site')"
 check "runs replay exactly" "$out" "$(printf '%s\n' "$session" | "$BIN" 2>&1)"
+# each user owns exactly one personal track: its name cannot be squatted
+check "a subreddit cannot take a personal track's name" "1" "$(printf 'sub u7 2\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: uN names belong to users')"
+check "a profile is its user's, moderated by them alone" "1" "$(printf 'sub u7 2\nprofile 7 5\nquit\n' | "$BIN" 2>/dev/null | grep -c 'mods=u7$')"
+check "a subreddit named like a word starting with u is fine" "0" "$(printf 'sub unix 2\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c refused)"
+
 # persistence: the transcript is the input history, replayed exactly
 T=$(mktemp -d)
 hist='sub science 1

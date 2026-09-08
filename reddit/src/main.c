@@ -143,11 +143,23 @@ static Track *find_sub(const char *name)
     return nullptr;
 }
 
+/* Personal-track names are reserved: `u` followed by digits belongs to
+ * exactly one user, who is its only moderator. A subreddit may not take
+ * such a name, and a profile is only ever looked up among profiles. */
+static bool reserved_name(const char *name)
+{
+    if (name[0] != 'u' || name[1] == '\0') return false;
+    for (const char *p = name + 1; *p; p++) if (*p < '0' || *p > '9') return false;
+    return true;
+}
+
 static Track *profile_of(unsigned user)
 {
     char name[REDDIT_NAME];
     snprintf(name, sizeof name, "u%u", user);
-    Track *t = find(name);
+    Track *t = nullptr;
+    for (size_t i = 0; i < nusers && !t; i++)
+        if (strcmp(users[i].name, name) == 0) t = &users[i];
     if (t == nullptr && nusers < TRACKS) {
         t = &users[nusers++];
         reddit_track_init(t, name, user); /* the user moderates it */
@@ -198,7 +210,7 @@ static void show_rules(const Track *t)
     if (t->ranking.lambda != 1.0)
         printf(" lambda=%.2f", t->ranking.lambda);
     putchar('\n');
-    if (t->name[0] == 'u')
+    if (t >= users && t < users + TRACKS)
         printf("  rank %.6f\n", t->rank);
 }
 
@@ -256,6 +268,7 @@ static bool execute(char *line)
         unsigned user;
         if (sscanf(rest, "%23s %u", a, &user) != 2) { refuse("sub NAME USER"); return true; }
         if (find(a)) { refuse("that name is taken"); return true; }
+        if (reserved_name(a)) { refuse("uN names belong to users"); return true; }
         if (ntracks == TRACKS) { fprintf(stderr, "refused: capacity is %zu subreddits\n", TRACKS); return true; }
         reddit_track_init(&tracks[ntracks++], a, user);
     } else if (strcmp(cmd, "post") == 0) {
