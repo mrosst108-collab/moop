@@ -202,7 +202,9 @@ filled by teaching it (`sigma ask drive is ask maybe`), and until it is
 taught it honestly answers that nothing in its lineage hosts the
 message. Slots decide nothing: what a primitive *is* here is whatever
 was taught into it, and the spec's operator semantics stay unpopulated
-until a primary source supplies them.
+until a primary source supplies them. `examples/rme7.moop` teaches all
+seven from the relay's offices (`prompts/parameterize-rme7.md` has the
+table).
 
 ## Open questions
 
