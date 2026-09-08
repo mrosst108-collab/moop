@@ -13,8 +13,16 @@
  *   show SUB                    sort (J♯) and print the tree
  *   cross FROM ID TO USER       Σ_ij: crosspost through the port
  *   lock SUB USER ID            F under κ: no more comments under ID
- *   rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT
- *                               F under κ: a moderator changes θ
+ *   rules TRACK USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT
+ *                               F under κ: a moderator changes θ; a user
+ *                               moderates their own profile track uN
+ *   ban ADMIN USER              F under κ on every subreddit's θ, by the
+ *                               site (user 0): nothing of USER's is
+ *                               admitted anywhere
+ *   profile USER K              the user's track uN, rebuilt from every
+ *                               subreddit's nodes by USER (top K each)
+ *                               through the port, then ranked by itself;
+ *                               karma is summed inside it
  *   all K                       r/all: rebuilt from every subreddit's top K
  *                               through the port, then ranked by itself
  *   sweep SUB                   drop what the rules no longer admit
@@ -27,13 +35,41 @@ static Track tracks[TRACKS];
 static size_t ntracks;
 static time_t now;
 static Track all; /* r/all: founded by the site (user 0), fed by ports */
+static Track users[TRACKS]; /* profiles: uN, founded by N, fed by ports */
+static size_t nusers;
 
 static Track *find(const char *name)
 {
     for (size_t i = 0; i < ntracks; i++)
         if (strcmp(tracks[i].name, name) == 0)
             return &tracks[i];
+    for (size_t i = 0; i < nusers; i++)
+        if (strcmp(users[i].name, name) == 0)
+            return &users[i];
     return nullptr;
+}
+
+/* A subreddit only: posts and comments arrive in subreddits, never in
+ * a profile — a user originates nothing into their own track. */
+static Track *find_sub(const char *name)
+{
+    for (size_t i = 0; i < ntracks; i++)
+        if (strcmp(tracks[i].name, name) == 0)
+            return &tracks[i];
+    return nullptr;
+}
+
+static Track *profile_of(unsigned user)
+{
+    char name[REDDIT_NAME];
+    snprintf(name, sizeof name, "u%u", user);
+    Track *t = find(name);
+    if (t == nullptr && nusers < TRACKS) {
+        t = &users[nusers++];
+        reddit_track_init(t, name, user); /* the user moderates it */
+        t->rules.export_to_all = false;   /* a profile feeds nothing */
+    }
+    return t;
 }
 
 /* The tree walk lives here, in the driver: the array is already in hot
@@ -87,14 +123,14 @@ int main(void)
         } else if (strcmp(cmd, "post") == 0) {
             unsigned user; int n;
             if (sscanf(rest, "%23s %u%n", a, &user, &n) != 2) { refuse("post SUB USER TITLE"); continue; }
-            Track *t = find(a);
+            Track *t = find_sub(a);
             const char *title = rest + n + strspn(rest + n, " ");
             if (!t) { refuse("no such subreddit"); continue; }
             if (!t->sigma(t, user, -1, title, now)) refuse("the rules do not admit that post");
         } else if (strcmp(cmd, "comment") == 0) {
             unsigned user; int parent, n;
             if (sscanf(rest, "%23s %u %d%n", a, &user, &parent, &n) != 3) { refuse("comment SUB USER PARENT TEXT"); continue; }
-            Track *t = find(a);
+            Track *t = find_sub(a);
             const char *text = rest + n + strspn(rest + n, " ");
             if (!t) { refuse("no such subreddit"); continue; }
             if (!t->sigma(t, user, parent, text, now)) refuse("the rules do not admit that comment");
@@ -139,7 +175,37 @@ int main(void)
             Track *t = find(a);
             if (!t) { refuse("no such subreddit"); continue; }
             r.locked = t->rules.locked;
+            r.banned = t->rules.banned;
             if (!t->f(t, user, r, k)) refuse("not a moderator, or rules out of range");
+        } else if (strcmp(cmd, "ban") == 0) {
+            unsigned admin, user;
+            if (sscanf(rest, "%u %u", &admin, &user) != 2) { refuse("ban ADMIN USER"); continue; }
+            size_t done = 0;
+            for (size_t i = 0; i < ntracks; i++) {
+                Rules r = tracks[i].rules;
+                r.banned = (int)user;
+                done += tracks[i].f(&tracks[i], admin, r, tracks[i].ranking);
+            }
+            if (done < ntracks) refuse("not the site");
+        } else if (strcmp(cmd, "profile") == 0) {
+            unsigned user; size_t k;
+            if (sscanf(rest, "%u %zu", &user, &k) != 2) { refuse("profile USER K"); continue; }
+            Track *u = profile_of(user);
+            if (!u) { refuse("no room"); continue; }
+            /* rebuilt from ports, like r/all; the loop is the driver's */
+            u->nposts = 0;
+            for (size_t s = 0; s < ntracks; s++) {
+                Track *t = &tracks[s];
+                t->gsharp(t, now);
+                t->jsharp(t);
+                size_t sent = 0;
+                for (size_t i = 0; i < t->nposts && sent < k; i++)
+                    if (t->posts[i].author == user)
+                        sent += reddit_port(t, (int)t->posts[i].id, u, user,
+                                            now, REDDIT_CARRY);
+            }
+            show(u);
+            printf("  karma %d\n", reddit_karma(u));
         } else if (strcmp(cmd, "all") == 0) {
             size_t k;
             if (sscanf(rest, "%zu", &k) != 1) { refuse("all K"); continue; }

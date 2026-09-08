@@ -40,6 +40,8 @@ static bool admits(const Track *t, const Post *p)
 {
     if (strlen(p->title) > t->rules.max_title || p->hot < t->rules.min_hot)
         return false;
+    if ((int)p->author == t->rules.banned)
+        return false;
     if (p->parent < 0)
         return true;
     return reddit_find(t, p->parent) != nullptr && p->parent != t->rules.locked;
@@ -64,9 +66,11 @@ static bool arrive(Track *t, unsigned user, int parent, const char *text,
     return true;
 }
 
-/* kappa: who may modify the generator — the moderators. */
+/* kappa: who may modify the generator — the moderators, and the site. */
 static bool is_mod(const Track *t, unsigned user)
 {
+    if (user == REDDIT_SITE)
+        return true;
     for (size_t i = 0; i < t->nmods; i++)
         if (t->mods[i] == user)
             return true;
@@ -94,7 +98,7 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
     snprintf(t->name, sizeof t->name, "%s", name);
     t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
                         .allow_crosspost = true, .export_to_all = true,
-                        .locked = -1 };
+                        .locked = -1, .banned = -1 };
     t->ranking = (Ranking){ .half_life = 3600.0 };
     t->mods[0] = founder;
     t->nmods = 1;
@@ -149,8 +153,10 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
                  time_t now, Translation how)
 {
     const Post *src = reddit_find(from, id);
-    if (src == nullptr || src->parent >= 0)
-        return false; /* comments do not cross tracks */
+    if (src == nullptr)
+        return false;
+    if (src->parent >= 0 && how == REDDIT_FRESH)
+        return false; /* a crossposted comment would have no parent */
 
     /* translation: the sender's side. It may decline. */
     if (how == REDDIT_CARRY && !from->rules.export_to_all)
@@ -183,6 +189,14 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
     to->posts[to->nposts++] = judge.posts[judge.nposts - 1];
     to->next_id++;
     return true;
+}
+
+int reddit_karma(const Track *t)
+{
+    int karma = 0;
+    for (size_t i = 0; i < t->nposts; i++)
+        karma += t->posts[i].votes;
+    return karma;
 }
 
 /* --- gamma ---------------------------------------------------------- */

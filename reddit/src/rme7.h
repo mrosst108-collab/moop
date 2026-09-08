@@ -31,6 +31,7 @@ constexpr size_t REDDIT_POSTS = 64;
 constexpr size_t REDDIT_TEXT  = 96;
 constexpr size_t REDDIT_NAME  = 24;
 constexpr size_t REDDIT_MODS  = 4;
+constexpr unsigned REDDIT_SITE = 0;  /* the site's own identity: admin */
 
 /* A node of X. Posts and comments are the same kind of node: a comment
  * is a node with a parent. Ids are stable under jsharp's permutations,
@@ -53,6 +54,8 @@ typedef struct {
                               sender may decline to translate (opt-out) */
     int locked;            /* a rule about one post: no comments arrive
                               under it; -1 for none. Changed by f. */
+    int banned;            /* a rule about one user: nothing of theirs is
+                              admitted here; -1 for none. Changed by f. */
 } Rules;
 
 typedef struct {
@@ -98,10 +101,15 @@ bool reddit_vote(Track *t, int id, int delta);
  * function that takes two tracks. Two translations (realization data,
  * not a second port):
  *   REDDIT_FRESH  a crosspost by `user`: the title carries its origin,
- *                 the post starts over with one vote at `now`
+ *                 the post starts over with one vote at `now`. Refuses
+ *                 comments: a comment has no parent elsewhere.
  *   REDDIT_CARRY  aggregation: votes and birth time travel with the
- *                 post, so the receiver ranks it by its own decay; the
- *                 sender's export_to_all must be on, or T declines
+ *                 node, so the receiver ranks it by its own decay; the
+ *                 sender's export_to_all must be on, or T declines. A
+ *                 comment is carried FLATTENED — it arrives as a
+ *                 top-level node marked with its origin — because an
+ *                 aggregate (r/all, a profile) shows what was said, not
+ *                 where it hung.
  * The gate is the receiver's rules (allow_crosspost, then the rules
  * themselves); the adapter enters it as a post of `to`. Refused,
  * touching nothing, if any step refuses. */
@@ -114,6 +122,11 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
  * next pass, are nodes whose parent is gone — the verdict is per node
  * and the cascade is only its repetition. Returns how many left. */
 size_t reddit_sweep(Track *t);
+
+/* Karma: a sum inside one track's X. On a user's profile track — fed
+ * only through the port — it is the user's karma, computed after the
+ * ports and never by a read across subreddits. */
+int reddit_karma(const Track *t);
 
 /* γ — measured, not applied: how many posts' fate under the rules
  * depends on whether decay ran first. Works on copies; changes nothing. */

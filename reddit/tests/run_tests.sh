@@ -43,6 +43,16 @@ vote birds 0 40
 all 1
 rules birds 4 50 0 3600 1 0
 all 1
+post birds 3 by user three
+comment cats 3 0 also user three
+profile 3 5
+rules u3 3 50 5 3600 1 0
+profile 3 5
+rules u3 9 50 0 3600 1 0
+post u3 3 straight into my profile
+ban 5 3
+ban 0 3
+post cats 3 after the ban
 quit'
 out=$(printf '%s\n' "$session" | "$BIN" 2>&1)
 check "votes rank: the voted post is first" "1" "$(printf '%s\n' "$out" | grep -c '^  #1 \[+5, hot 5.00\] another cat  (u3)$')"
@@ -52,11 +62,17 @@ check "an orphan comment, and one under a locked post, are refused" "2" "$(print
 check "one half-life halves hot, comments included" "1" "$(printf '%s\n' "$out" | grep -c '^      #2 \[+4, hot 2.00\] nice cat  (u4)$')"
 check "the port translates and adapts a post" "1" "$(printf '%s\n' "$out" | grep -c 'x/cats: another cat  (u2)')"
 check "the port refuses a comment" "1" "$(printf '%s\n' "$out" | grep -c 'refused: the port did not admit it')"
-check "rules refuse without altering" "1" "$(printf '%s\n' "$out" | grep -c 'refused: the rules do not admit that post')"
-check "kappa refuses a non-moderator: rules and lock" "2" "$(printf '%s\n' "$out" | grep -c 'refused: not a moderator')"
+check "rules refuse without altering: one too long, one banned" "2" "$(printf '%s\n' "$out" | grep -c 'refused: the rules do not admit that post')"
+check "kappa refuses a non-moderator: rules, lock, another's profile" "3" "$(printf '%s\n' "$out" | grep -c 'refused: not a moderator')"
 check "gamma is measured" "1" "$(printf '%s\n' "$out" | grep -c '^gamma [0-9]')"
 check "r/all: fed through the port, ranked by itself" "1" "$(printf '%s\n' "$out" | grep -c '^  #2 \[+41, hot 41.00\] x/birds: tweet  (u0)$')"
 check "r/all: carries the feeder's votes, not a fresh post (both builds)" "2" "$(printf '%s\n' "$out" | grep -c 'hot 2.50\] x/cats: another cat  (u0)')"
 check "r/all: an opted-out subreddit vanishes from it" "1" "$(printf '%s\n' "$out" | grep -c '^r/all (2 nodes')"
+check "profile: fed through the port, karma summed inside it" "1" "$(printf '%s\n' "$out" | grep -c '^  karma 6$')"
+check "profile: a comment arrives flattened, marked with its origin" "1" "$(printf '%s\n' "$out" | grep -c '^  #1 \[+1, hot 1.00\] x/cats: also user three  (u3)$')"
+check "profile: an opted-out subreddit is absent from it too" "0" "$(printf '%s\n' "$out" | grep -c 'x/birds: by user three')"
+check "theta_u has a consumer: the profile's min_hot hides cold nodes" "1" "$(printf '%s\n' "$out" | grep -c '^  karma 0$')"
+check "a user originates nothing into their own track" "1" "$(printf '%s\n' "$out" | grep -c 'refused: no such subreddit')"
+check "ban: only the site" "1" "$(printf '%s\n' "$out" | grep -c 'refused: not the site')"
 check "runs replay exactly" "$out" "$(printf '%s\n' "$session" | "$BIN" 2>&1)"
 exit $fail

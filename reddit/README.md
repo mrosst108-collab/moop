@@ -54,7 +54,9 @@ global read, and the discipline predicts an observable property of it —
 r/all is stale until rebuilt, never live. Cross-track relation is carried
 on the port, not on γ; γ is derived and measured, never a mediator.
 Comments ran and held (d5ee04a → 15f23d0 → 0d983d2, with a process fault
-kept on the record). Users is frozen next.
+kept on the record). Users ran and held (79ca7bd → the commit carrying
+this text), with θ_u consumed and the comments outcome revised in one
+sentence. The independent-domain consumer is what remains.
 
 Reuse has two grades: a second subsystem of this reddit is intra-domain; an
 independent domain on the same six slots without changing the discipline is
@@ -184,6 +186,40 @@ Falsified if the feature requires: any subreddit slot reading the user
 track (a permission or ban check that reaches into θ_u or X_u); a user
 originating content into their own X without a subreddit's admission;
 a new slot; a second two-track function; or θ_u with no consumer.
+
+**Outcome: held, with two findings.** A profile is a `Track` named
+`uN`, founded by N (so `kappa` makes the user their own moderator),
+rebuilt by the driver from every subreddit's nodes by N through
+`reddit_port` with the carried translation, ranked by its own slots;
+`reddit_karma` sums votes inside X_u after the ports. θ_u got a consumer
+without one being invented for it: the profile's own `min_hot` is
+consulted by the port's gate, so a user who sets it hides their cold
+nodes and lowers their own karma; another user's attempt to set it is
+refused by `kappa`. A profile is stale until rebuilt. A ban is
+`Rules.banned`, one field of each subreddit's θ, set through `f` by the
+site (`kappa` admits `REDDIT_SITE` everywhere); it refuses the banned
+user's new arrivals, leaves already-ported profile content alone, and
+`reddit_sweep` applies it to what they already wrote. No subreddit slot
+reads a user track; six slots; one two-track function (both checked
+statically).
+
+Finding 1, a revision of the comments outcome. It said "the port
+refuses comments". A profile shows what a user said, comments included,
+so the *aggregation* translation now carries a comment flattened — it
+arrives as a top-level node marked with its origin — while the
+*crosspost* translation still refuses one (it would have no parent).
+Comments still do not cross between subreddits; they do cross into
+aggregates. The second consumer forced the port's translation to say
+which, and the comments falsifiers are all still intact.
+
+Finding 2. The library cannot tell a profile from a subreddit: the
+second kind differs only in how it is fed. "A user originates nothing
+into their own track" is enforced by the driver (posts and comments
+address subreddits only), not by a slot — there is nothing in θ or X
+that a slot could consult to refuse it. And one export flag,
+`export_to_all`, governs both aggregates: a subreddit that opts out of
+r/all is absent from its authors' profiles too. Whether that is one
+decision or two is a θ design question, left open.
 
 The framework claim is earned only when an independent consumer uses the
 same seven slots without the discipline changing:
