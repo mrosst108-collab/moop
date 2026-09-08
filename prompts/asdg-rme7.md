@@ -6,6 +6,12 @@
 **[carried]** — transcribed verbatim or near-verbatim from Rosst–CP v5 §10. Provenance: the v5
 constitution. Not independently verified against a primary ASDG source.
 
+**[relayed]** — transcribed from a relay recorded in `docs/crossing.md` (the entry is named at each
+use). Provenance and status are the ledger's: `testimony` unless that entry says `re-derived`, and a
+`[relayed]` section is never promoted to `[carried]` by transcription. The relay's own custody rule
+applies — anchored in the Rosst register unless marked `[pending]`; relays assemble and criticize,
+never adjudicate or promote.
+
 **[unpopulated]** — not supplied by any source available when this file was written. **Not omitted
 for brevity, and not to be filled in from memory by a reader.** The constitution's own rule applies
 here first: *reconstruction has a demonstrated failure record — invented levels, mistyped operators —
@@ -48,6 +54,19 @@ The two-scale structure is the point: the first line evolves state, the second e
 the evolution. Collapsing them loses the distinction between a system that runs and a system that
 changes how it runs.
 
+**Correction [relayed, crossing entry 3].** The relay states the canonical form as
+
+```
+dX_t = J♯(dH) − G♯(dH) − G̃♯(dΦ) + Σ dW_t + F dt
+dθ   = F(X, θ, Φ, κ, Ψ) dt
+```
+
+— κ and Ψ are *arguments* of F, and the product `κ · F` carried above from v5 is "a documented
+realization variant", not the grammar. The two second lines are kept side by side because neither is
+grounded here: the v5 line is carried on the constitution's authority, the relayed line on the
+register's, and this tree can resolve neither. `Ψ` is defined by no source available here and is not
+to be read off the notation.
+
 ---
 
 ## 3 — Operator semantics **[unpopulated]**
@@ -60,6 +79,28 @@ notation — `J♯` as a Poisson structure, `G♯` as a metric/gradient term, `�
 is exactly the reconstruction the constitution prohibits, however natural the shapes look.
 
 Populate from the primary ASDG source before any generator-equation work.
+
+### 3.1 — Offices **[relayed, crossing entry 3]**
+
+The relay supplies the *office* of each primitive — its job in the signature — and nothing more:
+
+| primitive | office |
+|-----------|--------|
+| `J♯` | conservative circulation |
+| `G♯` | dissipative; the only office that converges |
+| `G̃♯` | symplectic confinement of Φ to its level sets (`G̃♯* = −G̃♯`); not dissipative |
+| `Σ` | stochastic driving — `Σ_ii` intra-track, `Σ_ij` port coupling |
+| `F` | generator-level self-modification (adaptation of θ) |
+| `κ` | integrity gate: what may modify the generator. Two sites, `κ_F` (generator) and `κ_Σ` (port) — a site distinction; their identity is open, not decided by notation |
+| `γ = [G♯, G̃♯]` | derived endomorphism — not an operator, not itself an observable |
+
+An office is a role. It is not a type, a domain, an admissibility condition, or a composition rule,
+so **§3 remains unpopulated and the gate above stays down.** `X`, `θ`, `Φ`, `H`, `W_t` and `Ψ` are
+still undefined. The γ row is the one office this tree has independently: it agrees with
+`bookended-thinking/ontology/rme7_objects.yaml` (retrieved before the relay). The relay's count —
+"7 primitives, 6 operators", κ among the six — does *not* agree with that file, which types κ an
+indicator and whose loader refuses a six-operator axis; see the ledger entry. Neither side is
+promoted by the disagreement.
 
 ---
 
@@ -145,3 +186,78 @@ deploy.
 Beyond the single adjudication in §6, no failure cases are recorded. The v5 constitution refers to a
 "demonstrated failure record — invented levels, mistyped operators" without enumerating instances;
 those instances are not available here.
+
+---
+
+## 11 — Realization cards **[relayed, crossing entry 3]**
+
+A card is a realization of the canonical form, not the grammar. **Standing instruction, verbatim:
+do not expand the grammar from a card.** Track indices and the port factorization are realization
+data.
+
+### B.7 — multi-track, port-coupled (autopoietic-ecology regime)
+
+Per track i ∈ 𝓘:
+
+```
+dX_i = ( J♯_i(dH_i) − G♯_i(dH_i) − G̃♯_i(dΦ_i) ) dt + Σ_ii ∘ dW_i + Σ_{j≠i} Σ_ij(X_j → X_i) ∘ dW_ij
+dθ_i = κ(𝒯_i; φ_i) · F_i(X_i, θ_i, Φ_i) dt
+Σ_ij = A_i ∘ κ_i ∘ T_ij        (adapter ∘ gate ∘ translation)
+```
+
+Signature ⟨J♯, G♯, G̃♯, Σ, F, κ, γ⟩. Card conditions: block-diagonal offices; `G♯_ij = 0` held
+throughout the trace, not only at endpoints (optimization stays local); cross-track relation carried
+on the ports `Σ_ij`; Stratonovich; `F_X = 0` in this realization.
+
+The relay's claim for the format: minimal because the six non-derived components carry independent
+distinctions and compression never merges two (orthogonality is the minimality criterion);
+expressive because it makes first-class what engineering notation leaves implicit — state ≠
+parameter, execution ≠ adaptation, adaptation ≠ governed evolution, local dynamics ≠ cross-object
+coupling, stochastic perturbation ≠ structural memory, object ≠ composition, realization ≠
+representational grammar. RME-7 heads a family RME-4 → RME-7; the family is a classifier, not a
+regime ladder. The strength of the claim is not that conventional notation cannot express these
+phenomena but that RME-7 makes the distinctions first-class, and that the value of doing so is
+testable — ρ_rel, an answer-to-question ratio against a fixed, executed sota baseline — rather than
+inherited. Unparameterized, RME-7 is qualitative; parameterization yields the quantitative instance.
+
+**Parked here:** no executed baseline exists in this tree, so ρ_rel is a claim about a measurement
+nobody has made — the same class `bookended-thinking` stamps `COHERENCE_ONLY`.
+
+---
+
+## 12 — Use as the structure of an object framework **[relayed, crossing entry 3]**
+
+Rosst objects are *expressed in* RME-7, not produced by it: U₁, U₂ ⊆ Expr(RME-7). The format neither
+generates the objects nor sits above them; "U₁ → U₂ → RME-7" is not to be written, even as a
+dependency chain.
+
+| handle | meaning |
+|--------|---------|
+| track i | one object's state `X_i` and generator `θ_i` |
+| U₁[𝒮] | qualified persistence on a track — a trajectory fact indexed by its solution set; "emergent" only when the route is exhibited, else "persists" |
+| port `Σ_ij` | a typed relation between objects — adapter, gate, translation |
+| U₂ | the composite: a gluing of qualified objects along the coupling graph (a colimit only if the interface algebra is shown to be a category) |
+| coordinate office | a supplied carrier — M₁₁₂ or an ordinary frame; invariant office, swappable occupant |
+| Del(U₂) | typed predicate over composites, not a fifth object: G♯ cross-terms vanish, permitted cross-sector relation sits in G̃♯, κ governs admission, witness preserves provenance |
+| capture | the failure condition: `G♯_ij ≠ 0` — one sector's objective forming the other's ends |
+| N(U₂) = ⋃N_i ∪ N_𝓘 | negative space, two grains: refused ports vs absent ports — **[pending]** |
+| flux / veil / witness | := `T_ij` / `κ_i` / `A_i`, channel lexicon — **[pending]** |
+
+`[pending]` rows are recorded, not adopted: nothing in this tree uses the lexicon, and the negative
+space is realized below under the relay's grains without claiming the item is ratified.
+
+**What a framework built on this must make machine-checkable** (relay, verbatim): what an object is,
+where it is located, what claims are licensed, what promotion would be a category error — object
+card, operation algebra, answerability domain, lifecycle with *located* before *warranted*.
+
+**How this tree realizes it** (`src/rme7.{h,c}`, `docs/model.md`): the port is not a new mechanism —
+moop's `<->` is already translate ∘ refuse ∘ deposit. The framework's handles are protos: the world
+generates `port`, which generates one proto per primitive, and `port` hosts four exclusive verdicts
+(`admitted` / `refused` / `absent` / `open`) answering whether a cross-track port of that primitive is
+admitted. Σ and κ admitted; G♯ refused (capture); J♯, F, γ absent; G̃♯ open. The derivation is the
+deletion test, recorded in the ledger. The verdicts are the negative space with both grains filled;
+`refused` vs `absent` is exactly the pending distinction, exercised without being ratified.
+
+**Guards, verbatim:** object ≠ coordinate space ≠ representation format · representation format ≠
+quantitative realization · office ≠ carrier ≠ theory · localization ≠ derivation · exhibited ≠
+inserted · signature typing ≠ localization ≠ realization-level observable · derived ≠ ruled ≠ RUN.
