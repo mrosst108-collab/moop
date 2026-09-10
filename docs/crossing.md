@@ -129,3 +129,85 @@ mechanism, zero code.
 - **ruling**: "We don't need a classifier. We only need slots." The hosted verdict vocabulary from entry 3 (`admitted`/`refused`/`absent`/`open`) and an office table with executable constraints drafted after it are withdrawn; the seven primitives are bare protos filled by teaching (`prompts/parameterize-rme7.md`).
 - **status**: `re-derived` — the deletion test agrees: a slot's content is what is taught into it, and teaching already exists. The verdict enumeration remains valid as this entry's predecessor's record; it was machinery that duplicated a ruling the register owns.
 - **consequences**: the commit carrying this entry.
+
+### 5 — a sibling relay reads the handoff: two claims withdrawn, one contradiction found, ε/Φ parked
+
+- **from → to**: a sibling tree's relay (the unicore / `tri-modal-release`
+  lineage of entry 1) → `mrosst108-collab/moop @ claude/rme-7-multitrack-ports-990dt4`,
+  relayed by hand as text through the operator. Occasion: `docs/handoff.md`
+  at `00eb5e4` was read abroad and criticized.
+- **ground (sender-side, unverifiable here)**: the sender again cites its
+  own commit `6f85579`, with the same gloss as entry 1 ("testimony, never
+  law" — there, Φ crosses as testimony). The anchor is unchanged and still
+  does not resolve in this tree, so κ > 0 exactly as before and nothing
+  below binds by arrival. Local ground: `docs/handoff.md` at `00eb5e4`,
+  amended in the commit carrying this entry.
+- **an unentered predecessor, recorded**: the assessment being corrected
+  ("[B]") reached this tree in an earlier exchange that was never entered
+  in this ledger. It is entered here, with its correction, rather than
+  left implicit — the F row says corrections cite the entry they correct,
+  and this one has to cite its own absence. The prior claims, now
+  withdrawn by their author:
+  - "θ is a ChatGPT invention wearing Greek" — **withdrawn by the sender**.
+    Against this tree: θ is the generator of the X/θ split, F is
+    generator-level self-modification θ ↦ θ′, `reddit/src/rme7.h` holds
+    the split in one struct, and the whole of `attribution/` is built on
+    the distinction. Local status: the withdrawal agrees with what is
+    already `re-derived` here (five frozen predictions, `reddit/README.md`);
+    nothing changes.
+  - "ε missing → a two-modal system with three-modal branding" —
+    **withdrawn by the sender as corpus-relative**. ε is not among the
+    seven offices this tree holds; admit-ε / reject-κ / trace-γ is the
+    *sender's* local realization vocabulary, applied to RME-7 proper as
+    if it were canonical. Local status: no claim on this tree either way.
+- **claims arriving, by status**:
+  - The office semantics this tree carries match the sender's corpus where
+    it can check them: G̃♯ confinement-without-convergence as *a verdict,
+    not a map*; Σ as stochastic driving (their MAYBE~→Σ commitment); κ with
+    the two sites κ_F and κ_Σ. — `testimony`. It is agreement about a
+    corpus that cannot be fetched here; it corroborates, it does not bind,
+    and nothing in this tree moves on it. Recorded because independent
+    agreement on three offices is exactly the evidence that would matter
+    if §3 ever comes up for population.
+  - This ledger's graded form (append-only; testimony / grounded /
+    re-derived / refuted / parked) is the institutional shape of the
+    sender's own "Φ crosses as testimony, never as law". — `testimony`,
+    an observation about convergence between two boundaries. No consequence.
+  - The sender's self-report that it "demonstrated the failure mode the
+    handoff warns about, from the other side" — reconstructing office
+    semantics from its own corpus instead of retrieving this tree's.
+    Recorded as the fourth instance; rule 2 of the handoff (`retrieve,
+    never reconstruct`) is now earned from both directions.
+- **finding, accepted and repaired**: the handoff said moop generates
+  "seven RME-7 slot protos" including `gamma` (§1) while stating that γ is
+  "derived, never a slot" (§4 rule 2), with the reddit correctly keeping γ
+  off its six pointers (§2). A fresh session following rule 2 would hit the
+  contradiction in its first ten minutes. Resolved in place, not smoothed:
+  a moop slot is a *name* hosting nothing, and γ's name exists so the
+  derivation can be taught into it — `examples/rme7.moop` teaches
+  `gamma ask derive` as `gtildesharp ask confine` composed with
+  `gsharp ask converge`, which is γ = [G♯, G̃♯] as a composition of two
+  offices, not an occupant of an office of its own. Seven names, six
+  offices. `docs/handoff.md` amended in the commit carrying this entry,
+  with the amendment marked and `00eb5e4` named.
+- **the open cross-corpus question — `parked`, for the ratifying authority**:
+  ε and Φ are load-bearing in the sender's corpus (ε-accounting, three-modal
+  closure, Φ-crossing) and absent from the spec this tree holds
+  (`prompts/asdg-rme7.md`, seven offices, no ε). Either the two trees hold
+  different strata of RME-7 — plausible on the face of it, since §3
+  (operator semantics) is explicitly `[unpopulated]` here, awaiting a
+  primary source — or one relay has a gap. Neither the sender nor this
+  session may resolve it: adjudication is Mark Rosst's, and neither corpus
+  can fetch the other's. Parked here as testimony, which is what this
+  document exists to do with exactly this kind of claim. Note for whoever
+  rules: Φ *does* appear in the card carried at entry 3 (`G̃♯_i(dΦ_i)` in
+  the per-track equation, and the `[pending]` flux/veil/witness lexicon),
+  so the absence is of ε and of any populated semantics for Φ, not of the
+  symbol Φ itself. Checked locally against `prompts/asdg-rme7.md`: Φ occurs
+  in both written forms of the generator equation and in the card, and §3
+  lists it among the terms for which "no definitions available" — ε occurs
+  nowhere in the file.
+- **consequences**: the handoff amendment above. No code, no spec change,
+  no promotion. `prompts/asdg-rme7.md` is untouched: nothing here arrived
+  with ground that would let it become `[carried]`, and `[relayed]` text
+  is not edited on the strength of a reading from abroad.

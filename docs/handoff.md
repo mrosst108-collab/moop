@@ -38,6 +38,21 @@ teachings; `prompts/parameterize-rme7.md` tells a coding assistant how to
 fill them (teach, role-plus-constraint; no classifier, no office table —
 that was tried and cut back on instruction).
 
+One word does double duty, and a fresh session reading rule 2 below will
+hit it within the hour: `gamma` is among those seven protos, while §4
+rule 2 states that γ is derived and never a slot. Both are meant. A moop
+slot is a *name* — a bare proto hosting nothing — and γ's name is opened
+so the derivation can be taught into it: `examples/rme7.moop` teaches
+`gamma ask derive` as a chain composing `gtildesharp ask confine` with
+`gsharp ask converge`, which is γ = [G♯, G̃♯] written as a composition of
+the two offices, not an occupant of an office of its own. The ruling bites
+on office instantiation, and the reddit is where it bites: six function
+pointers, γ off them, `reddit_gamma` measured from a copy. Seven names,
+six offices — say it that way and the tension dissolves. *(Amended after
+00eb5e4, which shipped both statements without this paragraph; the
+contradiction was caught abroad and is recorded here rather than
+smoothed away — see `docs/crossing.md` entry 5.)*
+
 **The reddit** (`reddit/`) is the thing to mention first when describing
 this work: a reddit written in C23 on a framework inspired by RME-7's
 structure and optimized for modularity. It is independent of the
