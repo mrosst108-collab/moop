@@ -211,3 +211,78 @@ mechanism, zero code.
   no promotion. `prompts/asdg-rme7.md` is untouched: nothing here arrived
   with ground that would let it become `[carried]`, and `[relayed]` text
   is not edited on the strength of a reading from abroad.
+
+### 6 — "The Adjudicated Firm" arrives; one collision, two criticisms answered, the consumer still described
+
+- **from → to**: the Rosst register / Paragon Press — *The Adjudicated Firm: A Self-Organizing
+  Hierarchical Forum as Organizational Architecture, with a Multi-Track RME-7 Representation*
+  (Mark Rosst) → `mrosst108-collab/moop @ claude/rme-7-multitrack-ports-990dt4`, relayed by hand as
+  text by the operator, in session.
+- **ground (sender-side, unverifiable here)**: none — no commit, no content hash, same as entry 3.
+  κ > 0 for every claim; nothing binds by arrival, and the paper's own §39 **Established** register
+  is *its* record of what it carries, not this tree's. Local ground for the checks below:
+  `prompts/asdg-rme7.md` (§3.1 office table, lines 90–105), `bookended-thinking/ontology/rme7_objects.yaml`,
+  `bookended-thinking/engine/ontology.py:137`, `reddit/src/rme7.h:99`, `reddit/tests/test_reddit.c:105`,
+  all read at `62de17a`.
+- **corroborated** (agreement, not binding — the paper cannot be fetched, so this is `testimony`
+  about convergence):
+  - G̃♯ confining, symplectic, *not* dissipative; "purpose does not pull; it determines what counts
+    as a trajectory — never gradient/descent/optimize on Φ". Third independent statement of the same
+    office: this tree's §3.1, the sibling relay of entry 5, and now the paper.
+  - Only G♯ converges. γ = [G♯, G̃♯] a derived endomorphism, not an operator and not itself an
+    observable, with the curvature observable a realization-level contraction — the one office this
+    tree already held independently.
+  - Ψ an argument of F and **not in the signature**. κ's two sites κ_F and κ_Σ open, "not decided by
+    notation" — carried forward unchanged, in this tree's own words.
+- **collision, unresolved and not promoted** — the operator count, entry 3's `refuted` item:
+  - The paper states six operators and one derived endomorphism, κ among the six (§15, and §39
+    **Established**).
+  - Re-verified locally today, not recalled: `rme7_objects.yaml` types κ `kind: indicator`,
+    `fail_only: true`, "A gate, not a term"; `ontology.py:137` hard-asserts 5 operators / 1 indicator
+    / 1 invariant and raises `OntologyError` on anything else. The refutation of entry 3 stands at
+    realization level, unchanged by restatement.
+  - Sharpened, because the paper holds three positions at once: κ is typed an **operator** in the
+    signature count; κ is described as "a gate, not a scorer ... the projector reading is one
+    realization of admissibility, not its definition" (§16, Track D), which agrees with the yaml's
+    *behaviour* while disagreeing with its *typing*; and κ is **composed** in Σ_ij = A_i ∘ κ_Σ,i ∘ T_ij
+    (§19). Entry 3's criticism (4) — composing a fail-only indicator — is therefore not a separate
+    question from the count. It is the same question, and the paper answers it by typing rather than
+    by argument.
+  - **Status: unchanged.** A paper addressed to a commercial and architectural audience, which
+    neither cites this disagreement nor the resident artifact, is not read here as a silent ruling on
+    a ledger item — that reading would be the promotion the discipline exists to refuse, performed on
+    the ratifying authority's behalf without being asked for. An explicit ruling is requested; until
+    one arrives, both typings stay open and neither side is promoted, exactly as §3.1 already says.
+- **two of entry 3's criticisms answered, one by opening rather than closing**:
+  - Criticism (2), block-diagonal offices against cross-sector relation in G̃♯: the paper now holds
+    **both** carriers and types their relation explicitly open at L4 — the deltron's off-diagonal G̃♯
+    (capture condition) and the ecology card's Σ_ij port (cross-post correspondence), "neither
+    eliminated in favour of the other". Acknowledged, not resolved; this tree's wording ("consistent
+    only if sector ≠ track, which nothing states") is unaffected and stands as the reason it is open.
+  - Criticism (3), Ψ appearing in the canonical form and nowhere else: Ψ now has a reading —
+    generator-side classification of the transition (routine update, office formation, rule revision)
+    — with organizational instantiation open. Partially answered.
+- **the firm as a candidate consumer — `parked`, and by the paper's own rule**: the reddit's standing
+  open item is an *independent domain on the same six slots, unchanged*. The Adjudicated Firm is a
+  described architecture, not an executed one; its §21 supplies the disqualifier itself
+  (described ≠ executed ≠ measured ≠ commensurable, and RUN ≠ RETROSPECTIVE-FIT). It is the best
+  candidate yet named for that consumer and discharges nothing while it remains a paper.
+- **two distinctions the paper carries that the reddit collapses** — recorded as pressure, not as a
+  forcing, per "let the second consumer force the abstraction" (a described consumer does not force):
+  - Three graphs with no implication among them — G_I authorized influence, G_S earned standing,
+    G_C typed outcome attribution (§§11, 35). The reddit carries **one** scalar: `rank` on a track is
+    simultaneously the settled standing value and, as `share`, the exported influence, and it weights
+    articles through `REDDIT_WEIGHT`. G_S and G_I are one object there.
+  - Bilateral attribution, Δθ_P = U_P(·) and Δθ_F = U_F(·) with no joint update scalar (§35). The
+    reddit produces one W per node and has no node-owned split.
+  - If the firm is ever built on these six slots, these are the first two places it will press. Noted
+    so the pressure is on the record before any build, not discovered inside one.
+- **one place the reddit is ahead of the paper**: the capture condition the paper states as
+  `local score_i ⇏ objective_j` with G♯ block-diagonal is **executed** here —
+  `reddit/tests/test_reddit.c:105`, "no capture: every act on b leaves a's ranking identical", holding
+  a track's ranking fixed through every act on another. The paper's strongest formal condition already
+  has a running test in this tree; that is the one thing this side can offer it as more than testimony.
+- **consequences**: this entry. No code, no spec change, no promotion; `prompts/asdg-rme7.md` is
+  untouched. Its §3.1 κ paragraph already states the disagreement correctly and needs no edit.
+- **parked**: everything above except the operator-count ruling request, which is addressed to the
+  ratifying authority.
