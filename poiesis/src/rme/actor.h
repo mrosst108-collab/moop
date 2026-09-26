@@ -61,7 +61,16 @@ typedef struct {
 } RmeActor;
 
 /* The capability chain.  `parent` is capability inheritance; `origin` is
- * provenance.  Two different edges, deliberately two different fields. */
+ * provenance.  Two different edges, deliberately two different fields.
+ *
+ * Both are REFERENCES, not ownership (SPEC §8: reference != ownership/
+ * lifetime).  A context points at its parent and at the originating actor;
+ * whoever owns their storage must keep them alive, and at the same address,
+ * for as long as any context derived from them is used.  In particular a
+ * family of contexts built together must not be copied or returned by value
+ * as a unit: the copy's links still point at the originals, which then die
+ * with the frame that built them.  Build a family in the storage that will
+ * use it. */
 typedef struct RmeConstructionContext {
     const char                          *label;
     const RmeActor                      *origin;   /* provenance */
@@ -79,7 +88,8 @@ bool rme_context_root(const RmeActor *a, RmeCapability want,
  *     Auth(C') superset-of Auth(C)    never
  *
  * Returns false if `want` exceeds the parent's capability.  There is no
- * widening entry point in this header. */
+ * widening entry point in this header.  `*out` references `parent` (and
+ * its origin): both must outlive every use of `*out`. */
 bool rme_context_derive(const RmeConstructionContext *parent, RmeCapability want,
                         const char *label, RmeConstructionContext *out);
 

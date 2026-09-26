@@ -1232,7 +1232,7 @@ Gate 2  schedule  PASS*     VESTIGIAL ⇏ EnvelopeAbsent (S1–S11); see the cor
 Gate 3  Axis C    PARTIAL   K1–K7, K9, K10, C17 PASS; prototype→E_GS sufficiency still OPEN
 Gate 4  AWV       PASS      K8 (+ K8a-K8h)
 
-Authority/validity        PASS      F7a/b, F8a/b/c/d, F9, G1/G2, CAP1, CAPREF, V1/V2
+Authority/validity        PASS      F7a/b, F8a/b/c/d, F9, G1/G2, CAP1, CAPCHAIN, CAPREF, V1/V2
 Negative compilation      PASS      4 forgeries refused, each for its intended reason
 
 Layering                  PASS      `make layering`: src/rme/ free of AWV vocabulary
@@ -1286,6 +1286,14 @@ UNDECIDABLE 2, ORACLE-DEFECT 0.
 stack-use-after-return in `rme_context_depth` (`src/rme/actor.c:58`), reached from
 `tests/test_authority.c:220`. It reproduces on `claude/awv-reddit-file-8b76ff` before this change and
 lies outside Axis C.
+
+*Since fixed.* The test helper `make_trusted()` returned its whole context family by value; each
+context REFERENCES its parent and origin (§8: reference ≠ ownership/lifetime), so the copy's links
+pointed into the helper's dead frame and G1's `rme_context_depth` walked freed stack. The helper now
+builds the family in the caller's storage, `actor.h` states the lifetime contract, and **CAPCHAIN**
+asserts the links by address — it fails in an ordinary build against the old helper, not only under
+a sanitizer. The suite, ProtoC and the differential are clean under ASan+UBSan with
+stack-use-after-return and leak detection on.
 
 **Toolchain fact, not a conformance claim:** GCC 13.3.0 rejects `-std=c23` and accepts `-std=c2x`;
 the local bootstrap verifies compilation under that compiler's C2x mode, not certified ISO C23.

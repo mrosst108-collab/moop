@@ -67,20 +67,24 @@ typedef struct {
     bool                   built;
 } Trusted;
 
-static Trusted make_trusted(void)
+/* Builds the family IN THE CALLER'S STORAGE.  Each context references the
+ * one before it, and the root references the actor, so the family must stay
+ * where it was built: returning it by value would copy the links but not
+ * what they point at, leaving them aimed into this function's dead frame
+ * (CAPCHAIN pins it). */
+static void make_trusted(Trusted *t)
 {
-    Trusted t = { 0 };
-    t.actor = (RmeActor){
+    *t = (Trusted){ 0 };
+    t->actor = (RmeActor){
         .identity        = "A0",
         .capability      = { "omnipotent", RME_ACT_ALL },
         .provenance      = "substrate origin",
         .authority_scope = "everything",
     };
     RmeCapability all = { "omnipotent", RME_ACT_ALL };
-    t.built = rme_context_root(&t.actor, all, "system-root", &t.sys_root)
-           && rme_context_derive(&t.sys_root, all, "user-root", &t.user_root)
-           && rme_context_derive(&t.user_root, all, "prototype", &t.proto_ctx);
-    return t;
+    t->built = rme_context_root(&t->actor, all, "system-root", &t->sys_root)
+            && rme_context_derive(&t->sys_root, all, "user-root", &t->user_root)
+            && rme_context_derive(&t->user_root, all, "prototype", &t->proto_ctx);
 }
 
 void rme_test_authority(void);
@@ -92,7 +96,8 @@ void rme_test_authority(void)
      * uninteresting reason that the path never worked at all. */
     {
         rme_validation_reset();
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmePrototype raw = well_formed("P_good");
         RmeConstructed c = rme_construct(&t.proto_ctx, RME_ACT_CONSTRUCT_PROTOTYPE, &raw);
         RmeValidation err;
@@ -108,7 +113,8 @@ void rme_test_authority(void)
      * Construction is authorized and validation still fails. */
     {
         rme_validation_reset();
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
 
         /* A parent that genuinely crossed its own boundary. */
         RmePrototype parent_raw = well_formed("Parent");
@@ -129,7 +135,8 @@ void rme_test_authority(void)
      * not rest on the UNDEFINED sentinel alone (C11b). */
     {
         rme_validation_reset();
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmePrototype raw = malformed_out_of_domain("Child");
         RmeConstructed c = rme_construct(&t.proto_ctx, RME_ACT_CONSTRUCT_PROTOTYPE, &raw);
         const RmeValidated *v = rme_validate_constructed(&c, nullptr);
@@ -145,7 +152,8 @@ void rme_test_authority(void)
     /* ---- F8a: TrustedActor(A) ^ Produced(A,P) => RME7Conforms(P) is FALSE. */
     {
         rme_validation_reset();
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmePrototype raw = malformed_omitted_port("P");
         RmeConstructed c = rme_construct(&t.proto_ctx, RME_ACT_CONSTRUCT_PROTOTYPE, &raw);
         RmeConformance k = rme7_conforms(c.raw);
@@ -156,7 +164,8 @@ void rme_test_authority(void)
     /* ---- F8b: Capability(A,c) ^ Produces(A,X) => Validated(X) is FALSE. */
     {
         rme_validation_reset();
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmePrototype raw = malformed_omitted_port("X");
         RmeConstructed c = rme_construct(&t.proto_ctx, RME_ACT_CONSTRUCT_PROTOTYPE, &raw);
         rme_check(c.authorized && rme_validate(c.raw, nullptr) == nullptr
@@ -207,9 +216,29 @@ void rme_test_authority(void)
                   "F7b", "the cycle observation is nonhereditary: governed-cycle parent, acyclic child");
     }
 
+    /* ---- CAPCHAIN: the capability chain links through storage the caller
+     * owns.  A context REFERENCES its parent and its origin (SPEC §8:
+     * reference != ownership/lifetime).  The helper once returned the whole
+     * family by value, so the copy's links pointed into the helper's dead
+     * frame, and rme_context_depth walked freed stack (found by ASan: a
+     * stack-use-after-return in G1).  Checked by ADDRESS, so it fails in an
+     * ordinary build, not only under a sanitizer. */
+    {
+        Trusted t;
+        make_trusted(&t);
+        rme_check(t.built
+                  && t.sys_root.origin == &t.actor && t.sys_root.parent == nullptr
+                  && t.user_root.parent == &t.sys_root
+                  && t.proto_ctx.parent == &t.user_root
+                  && t.proto_ctx.origin == &t.actor
+                  && rme_context_depth(&t.proto_ctx) == 3,
+                  "CAPCHAIN", "the capability chain links through live storage the caller owns");
+    }
+
     /* ---- Grant is monotone toward attenuation: widening is refused. */
     {
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmeCapability narrow = { "narrow", RME_ACT_CONSTRUCT_PROTOTYPE };
         RmeConstructionContext attenuated;
         bool narrowed = rme_context_derive(&t.proto_ctx, narrow, "narrow", &attenuated);
@@ -225,7 +254,8 @@ void rme_test_authority(void)
     /* ---- An attenuated context cannot perform what it gave up, however
      * powerful its ancestors remain. */
     {
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmeCapability narrow = { "no-nesting", RME_ACT_CONSTRUCT_PROTOTYPE };
         RmeConstructionContext attenuated;
         bool ok = rme_context_derive(&t.proto_ctx, narrow, "narrow", &attenuated);
@@ -241,7 +271,8 @@ void rme_test_authority(void)
      * handle widens capability. */
     {
         rme_validation_reset();
-        Trusted t = make_trusted();
+        Trusted t;
+        make_trusted(&t);
         RmePrototype raw = well_formed("P");
         const RmeValidated *v = rme_validate(&raw, nullptr);
 
