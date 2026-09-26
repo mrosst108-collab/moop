@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L /* dprintf, poll, unix sockets */
 #include <errno.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -716,6 +717,11 @@ static int connect_to(const char *sock, const char *token)
 
 int main(int argc, char **argv)
 {
+    /* A client that closes its read end must not take the server down:
+     * writing to it raises SIGPIPE, whose default is to terminate. Ignore
+     * it so the write fails with EPIPE and the server drops that client
+     * alone. */
+    signal(SIGPIPE, SIG_IGN);
     reddit_track_init(&all, "all", 0);
     all.rules.export_to_all = false; /* it does not feed itself */
     if (argc == 5 && strcmp(argv[1], "serve") == 0)

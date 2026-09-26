@@ -7,9 +7,18 @@
 #   sh corners-reddit.sh run BIN OUTDIR                  replay each corner with the same binary, then
 #                                                        `show` every track named in (N, M]; write the artifact
 set -e
-classify() { case "$1" in
-    post|comment|vote|cast|cross|all|profile|rank|weigh) echo sigma ;;
-    rules|lock|ban|follow|unfollow|pagerank|blend|clock) echo F ;;
+# The sigma verbs are named ONCE and drive both classify (below) and the
+# line-removal in `derive` (which passes $SIGMA to awk). Keeping a second,
+# hand-maintained list in the awk is what let cast/rank/weigh be called
+# sigma here yet never dropped from the H10/H11 corners; one list cannot
+# drift from itself.
+SIGMA="post comment vote cast cross all profile rank weigh"
+F_VERBS="rules lock ban unban follow unfollow pagerank blend clock"
+in_set() { w=$1; shift; for v in $*; do [ "$w" = "$v" ] && return 0; done; return 1; }
+classify() {
+    in_set "$1" $SIGMA   && { echo sigma; return; }
+    in_set "$1" $F_VERBS && { echo F; return; }
+    case "$1" in
     sub) echo structural ;;
     tick) echo clock ;;
     show|sweep|gamma) echo operation ;;
@@ -31,9 +40,10 @@ derive)
   check "$2"; N=$3; out=$4; mkdir -p "$out"; M=$(interval_end "$2" "$N")
   cp "$2" "$out/source.txt"; printf '%s %s\n' "$N" "$M" > "$out/NM"
   corner() { # name drop_F drop_sigma  — keep lines <= M, drop per flags, no edits inside a line
-    awk -v N="$N" -v M="$M" -v df="$2" -v ds="$3" '
+    awk -v N="$N" -v M="$M" -v df="$2" -v ds="$3" -v sig="$SIGMA" '
+      BEGIN { n = split(sig, a, " "); for (i = 1; i <= n; i++) S[a[i]] = 1 }
       NR>M {exit}
-      { w=$1; s=(w=="post"||w=="comment"||w=="vote"||w=="cross"||w=="all"||w=="profile")
+      { w=$1; s=(w in S)
         if (df && NR==N) next; if (ds && s && NR>N && NR<=M) next; print }' "$out/source.txt" > "$out/$1.txt"; }
   corner H00 0 0; corner H01 1 0; corner H10 0 1; corner H11 1 1
   printf 'event %d, interval (%d, %d]: H00 unchanged, H01 minus F_%d, H10 minus sigma in (%d,%d], H11 both\n' "$N" "$N" "$M" "$N" "$N" "$M" ;;

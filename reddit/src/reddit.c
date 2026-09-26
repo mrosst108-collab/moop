@@ -1,7 +1,18 @@
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "rme7.h"
+
+/* A vote counter saturates rather than overflowing: signed overflow is
+ * undefined, and a counter that cannot go higher simply stays. The wide
+ * accumulator holds any int + int and any sum of int votes. */
+static int sat_i(long long v)
+{
+    if (v > INT_MAX) return INT_MAX;
+    if (v < INT_MIN) return INT_MIN;
+    return (int)v;
+}
 
 /* --- default occupants ------------------------------------------------ */
 
@@ -112,11 +123,18 @@ static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
 {
     if (!t->kappa(t, user, held_of_change(t, &rules, &ranking)))
         return false;
-    if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT ||
-        ranking.alpha < 0 || ranking.alpha > 1 || ranking.tolerance < 0 ||
+    /* Range, written to reject NaN and infinity as well as out-of-band:
+     * a NaN compares false to every bound, so `x >= lo && x <= hi` is the
+     * form that refuses it. alpha < 1 strictly — G♯ is the only office
+     * that converges, and at alpha = 1 (no teleport) the rank iteration
+     * need not. */
+    if (!(ranking.half_life > 0) || rules.max_title >= REDDIT_TEXT ||
+        !isfinite(rules.min_hot) ||
+        !(ranking.alpha >= 0 && ranking.alpha < 1) ||
+        !(ranking.tolerance >= 0 && isfinite(ranking.tolerance)) ||
         ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS ||
-        ranking.lambda < 0 || ranking.lambda > 1 || ranking.interval == 0 ||
-        rules.nbanned > REDDIT_BANS)
+        !(ranking.lambda >= 0 && ranking.lambda <= 1) ||
+        ranking.interval == 0 || rules.nbanned > REDDIT_BANS)
         return false;
     t->rules = rules;
     t->ranking = ranking;
@@ -188,7 +206,7 @@ bool reddit_vote(Track *t, int id, int delta)
     Post *p = (Post *)reddit_find(t, id);
     if (p == nullptr)
         return false;
-    p->votes += delta;
+    p->votes = sat_i((long long)p->votes + delta);
     return true;
 }
 
@@ -205,7 +223,7 @@ bool reddit_cast(Track *t, unsigned voter, int id, int delta)
         if (p->ballots[i].voter == voter)
             return false;
     p->ballots[p->nballots++] = (Ballot){ .voter = voter, .delta = delta };
-    p->votes += delta;
+    p->votes = sat_i((long long)p->votes + delta);
     return true;
 }
 
@@ -294,10 +312,10 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
 
 int reddit_karma(const Track *t)
 {
-    int karma = 0;
+    long long karma = 0;
     for (size_t i = 0; i < t->nposts; i++)
-        karma += t->posts[i].votes;
-    return karma;
+        karma += t->posts[i].votes;   /* wide: any sum of int votes fits */
+    return sat_i(karma);
 }
 
 /* --- gamma ---------------------------------------------------------- */
