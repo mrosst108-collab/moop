@@ -47,7 +47,7 @@ static bool admits(const Track *t, const Post *p)
 {
     if (strlen(p->title) > t->rules.max_title || p->hot < t->rules.min_hot)
         return false;
-    if ((int)p->author == t->rules.banned)
+    if (reddit_is_banned(t, p->author))
         return false;
     if (p->parent < 0)
         return true;
@@ -73,27 +73,50 @@ static bool arrive(Track *t, unsigned user, int parent, const char *text,
     return true;
 }
 
-/* kappa: who may modify the generator — the moderators, and the site. */
-static bool is_mod(const Track *t, unsigned user)
+/* kappa: who may modify the generator, given which authority holds the
+ * field. The site may change anything; a moderator may change only what
+ * the track holds. A site-held field (the ban set, the site ranking
+ * parameters) is the site's alone. */
+static bool is_mod(const Track *t, unsigned user, Held held)
 {
     if (user == REDDIT_SITE)
         return true;
+    if (held == REDDIT_HELD_SITE)
+        return false;
     for (size_t i = 0; i < t->nmods; i++)
         if (t->mods[i] == user)
             return true;
     return false;
 }
 
-/* f: change θ. Passes through kappa first; a refused change is no
- * change. Never touches X. */
+/* Which authority a proposed θ needs: site-held if it moves the ban set
+ * or a site ranking parameter, else track-held. F knows the generator's
+ * structure and reads off the site from what changed; kappa decides
+ * admission from that. */
+static Held held_of_change(const Track *t, const Rules *r, const Ranking *k)
+{
+    if (r->nbanned != t->rules.nbanned ||
+        memcmp(r->banned, t->rules.banned, r->nbanned * sizeof r->banned[0]) != 0)
+        return REDDIT_HELD_SITE;
+    if (k->alpha != t->ranking.alpha || k->tolerance != t->ranking.tolerance ||
+        k->rounds != t->ranking.rounds || k->lambda != t->ranking.lambda ||
+        k->interval != t->ranking.interval)
+        return REDDIT_HELD_SITE;
+    return REDDIT_HELD_TRACK;
+}
+
+/* f: change θ. Passes through kappa first — gated by the field's holder,
+ * not only by the actor — so a refused change is no change. Never
+ * touches X. */
 static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
 {
-    if (!t->kappa(t, user))
+    if (!t->kappa(t, user, held_of_change(t, &rules, &ranking)))
         return false;
     if (ranking.half_life <= 0 || rules.max_title >= REDDIT_TEXT ||
         ranking.alpha < 0 || ranking.alpha > 1 || ranking.tolerance < 0 ||
         ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS ||
-        ranking.lambda < 0 || ranking.lambda > 1 || ranking.interval == 0)
+        ranking.lambda < 0 || ranking.lambda > 1 || ranking.interval == 0 ||
+        rules.nbanned > REDDIT_BANS)
         return false;
     t->rules = rules;
     t->ranking = ranking;
@@ -108,7 +131,7 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
     snprintf(t->name, sizeof t->name, "%s", name);
     t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
                         .allow_crosspost = true, .export_to_all = true,
-                        .locked = -1, .banned = -1 };
+                        .locked = -1, .nbanned = 0 };
     t->ranking = (Ranking){ .half_life = 3600.0, .alpha = 0.85,
                             .tolerance = 1e-6, .rounds = 100, .lambda = 1.0,
                             .interval = 60 };
@@ -132,6 +155,34 @@ const Post *reddit_find(const Track *t, int id)
     return nullptr;
 }
 
+bool reddit_is_banned(const Track *t, unsigned user)
+{
+    for (size_t i = 0; i < t->rules.nbanned; i++)
+        if (t->rules.banned[i] == user)
+            return true;
+    return false;
+}
+
+bool reddit_set_ban(Rules *r, unsigned user, bool add)
+{
+    size_t i = 0;
+    while (i < r->nbanned && r->banned[i] != user)
+        i++;
+    bool present = i < r->nbanned;
+    if (add) {
+        if (present || r->nbanned == REDDIT_BANS)
+            return false;              /* already barred, or the set is full */
+        r->banned[r->nbanned++] = user;
+        return true;
+    }
+    if (!present)
+        return false;                  /* not barred: nothing to lift */
+    for (; i + 1 < r->nbanned; i++)
+        r->banned[i] = r->banned[i + 1];
+    r->nbanned--;
+    return true;
+}
+
 bool reddit_vote(Track *t, int id, int delta)
 {
     Post *p = (Post *)reddit_find(t, id);
@@ -143,6 +194,10 @@ bool reddit_vote(Track *t, int id, int delta)
 
 bool reddit_cast(Track *t, unsigned voter, int id, int delta)
 {
+    if (delta != 1 && delta != -1)
+        return false;                 /* a ballot is +1 or -1: no other lever */
+    if (reddit_is_banned(t, voter))
+        return false;                 /* kappa_Sigma gates a ballot as a post */
     Post *p = (Post *)reddit_find(t, id);
     if (p == nullptr || p->nballots == REDDIT_BALLOTS)
         return false;
@@ -184,7 +239,10 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
     }
     if (how == REDDIT_WEIGHT) {
         /* translation: the voter's authority (share); gate: the receiver
-         * holds this voter's ballot on this node; adapter: signed sum */
+         * holds this voter's ballot on this node, and the voter is not
+         * barred here; adapter: signed sum */
+        if (reddit_is_banned(to, user))
+            return false;              /* a banned voter's standing does not weigh */
         Post *p = (Post *)reddit_find(to, id);
         if (p == nullptr)
             return false;

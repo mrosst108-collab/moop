@@ -68,7 +68,7 @@ int main(void)
           "gsharp: one half-life halves");
 
     /* G-tilde-sharp: a verdict, never an edit; a refused post enters nothing */
-    Rules strict = { .max_title = 4, .min_hot = 0.0, .allow_crosspost = true, .locked = -1, .banned = -1 };
+    Rules strict = { .max_title = 4, .min_hot = 0.0, .allow_crosspost = true, .locked = -1 };
     check(a.f(&a, 1, strict, a.ranking), "f: a moderator changes the rules");
     Track snap = a;
     check(!a.sigma(&a, 5, -1, "far too long", 200) && same_posts(&a, &snap),
@@ -91,7 +91,7 @@ int main(void)
     snap = a;
     check(!reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) && same_posts(&a, &snap),
           "port: the target's gate (max_title 4) refuses, target untouched");
-    check(a.f(&a, 1, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true, .locked = -1, .banned = -1 },
+    check(a.f(&a, 1, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true, .locked = -1 },
               a.ranking) &&
           reddit_port(&b, 0, &a, 1, 300, REDDIT_FRESH) &&
           strcmp(a.posts[a.nposts - 1].title, "x/dogs: woof") == 0 &&
@@ -107,7 +107,7 @@ int main(void)
     a0.gsharp(&a0, 5000); a0.jsharp(&a0);
     for (int i = 0; i < 20; i++) reddit_vote(&b, 0, 7);
     b.gsharp(&b, 5000); b.jsharp(&b);
-    b.f(&b, 2, (Rules){ .max_title = 10, .min_hot = 1, .allow_crosspost = false, .locked = -1, .banned = -1 },
+    b.f(&b, 2, (Rules){ .max_title = 10, .min_hot = 1, .allow_crosspost = false, .locked = -1 },
         RANKING(1));
     reddit_sweep(&b);
     a.gsharp(&a, 5000); a.jsharp(&a);
@@ -119,7 +119,7 @@ int main(void)
     reddit_track_init(&c, "news", 1);
     c.sigma(&c, 1, -1, "old", 0);
     c.sigma(&c, 1, -1, "new", 7000);
-    c.f(&c, 1, (Rules){ .max_title = 40, .min_hot = 0.5, .allow_crosspost = true, .locked = -1, .banned = -1 },
+    c.f(&c, 1, (Rules){ .max_title = 40, .min_hot = 0.5, .allow_crosspost = true, .locked = -1 },
         RANKING(3600));
     snap = c;
     size_t g = reddit_gamma(&c, 7200);
@@ -167,7 +167,7 @@ int main(void)
 
     /* the sender's opt-out lives in the translation */
     r2.f(&r2, 2, (Rules){ .max_title = 40, .min_hot = 0, .allow_crosspost = true,
-                          .export_to_all = false, .locked = -1, .banned = -1 }, r2.ranking);
+                          .export_to_all = false, .locked = -1 }, r2.ranking);
     Track allx = all;
     check(!reddit_port(&r2, 0, &all, 0, 100, REDDIT_CARRY) && same_posts(&all, &allx),
           "r/all: an opted-out track declines to translate; all untouched");
@@ -176,7 +176,7 @@ int main(void)
 
     /* the receiver's gate: r/all's own rules decide admission */
     all.f(&all, 0, (Rules){ .max_title = 40, .min_hot = 5.0, .allow_crosspost = true,
-                            .export_to_all = false, .locked = -1, .banned = -1 }, all.ranking);
+                            .export_to_all = false, .locked = -1 }, all.ranking);
     all.nposts = 0;
     fed = 0;
     for (size_t s = 0; s < 2; s++) {
@@ -226,7 +226,7 @@ int main(void)
 
     /* one min_hot for posts and comments: the behavioral prediction */
     c2.f(&c2, 1, (Rules){ .max_title = 40, .min_hot = 0.75, .allow_crosspost = true,
-                          .export_to_all = true, .locked = -1, .banned = -1 }, c2.ranking);
+                          .export_to_all = true, .locked = -1 }, c2.ranking);
     check(c2.sigma(&c2, 6, 2, "fresh reply", 3600) && c2.nposts == 5,
           "a fresh comment (hot 1.0) clears min_hot like a fresh post");
     /* sweep: reply (0.5) fails the verdict; reply-to-reply (3.0) passes
@@ -310,14 +310,38 @@ int main(void)
     check(same_posts(&u, &u0) && reddit_karma(&u) == 10,
           "profile: stale until the next build; no live cross-track read");
 
-    /* a ban is f on each subreddit's theta by the site, not a read of theta_u */
-    Rules b1 = s1.rules; b1.banned = 7;
-    check(!s1.f(&s1, 8, b1, s1.ranking) && s1.rules.banned == -1,
-          "kappa: a non-site, non-moderator cannot ban");
-    check(s1.f(&s1, REDDIT_SITE, b1, s1.ranking) && s1.rules.banned == 7,
+    /* a ban is f on each subreddit's theta, and it is SITE-HELD: not even a
+     * moderator of the track may set it — the ban set is the site's alone
+     * (prediction 6, channel 1). The moderator of s1 is user 1. */
+    Rules b1 = s1.rules;
+    check(reddit_set_ban(&b1, 7, true) && b1.nbanned == 1 && b1.banned[0] == 7,
+          "the ban set adds a user; a second add of the same is refused");
+    Rules b1b = b1;
+    check(!reddit_set_ban(&b1b, 7, true) && b1b.nbanned == 1,
+          "reddit_set_ban: a duplicate ban does not grow the set");
+    check(!s1.f(&s1, 1, b1, s1.ranking) && s1.rules.nbanned == 0,
+          "kappa: a moderator cannot ban — the ban set is site-held");
+    check(!s1.f(&s1, 8, b1, s1.ranking) && s1.rules.nbanned == 0,
+          "kappa: a non-moderator cannot ban either");
+    check(s1.f(&s1, REDDIT_SITE, b1, s1.ranking) && reddit_is_banned(&s1, 7),
           "kappa admits the site everywhere: the ban lands in theta");
-    check(!s1.sigma(&s1, 7, -1, "after the ban", 1) && s1.sigma(&s1, 8, -1, "others may", 1),
+    /* a second, distinct ban does not erase the first (prediction 6) */
+    Rules b2 = s1.rules;
+    check(reddit_set_ban(&b2, 9, true) && s1.f(&s1, REDDIT_SITE, b2, s1.ranking) &&
+          reddit_is_banned(&s1, 7) && reddit_is_banned(&s1, 9),
+          "a second ban keeps the first: the set holds both");
+    check(!s1.sigma(&s1, 7, -1, "after the ban", 1) && s1.sigma(&s1, 10, -1, "others may", 1),
           "gtildesharp: nothing of the banned user's is admitted there");
+    check(!reddit_cast(&s1, 7, (int)s1.posts[s1.nposts - 1].id, 1),
+          "kappa_Sigma: a banned user's attributed vote is refused too");
+    /* unban lifts it; site-held, so again the site alone */
+    Rules b3 = s1.rules;
+    check(reddit_set_ban(&b3, 7, false) && !s1.f(&s1, 1, b3, s1.ranking) &&
+          s1.f(&s1, REDDIT_SITE, b3, s1.ranking) &&
+          !reddit_is_banned(&s1, 7) && reddit_is_banned(&s1, 9),
+          "unban is site-held: the site lifts one ban and the other stays");
+    check(s1.f(&s1, REDDIT_SITE, b1, s1.ranking) && reddit_is_banned(&s1, 7),
+          "the site re-bans user 7 for the sweep below");
     check(same_posts(&u, &u0),
           "the ban touches no profile content until subreddits re-export");
     check(reddit_sweep(&s1) == 2 && reddit_find(&s1, 0) == nullptr,
@@ -333,7 +357,7 @@ int main(void)
           "f: a subscription is the user's own theta");
     Rules self = ua.rules; self.subs[1] = 1; self.nsubs = 2;
     check(ua.f(&ua, 1, self, ua.ranking) && ua.rules.nsubs == 2,
-          "self-subscription is an ordinary edge");
+          "self-subscription is an ordinary edge at the library (the driver refuses it, prediction 6)");
     ua.rank = 0.5; ua.share = 0.25; ub.incoming = 0.0;
     check(reddit_port(&ua, -1, &ub, 0, 0, REDDIT_RANK) && ub.incoming == 0.25 &&
           reddit_port(&ua, -1, &ub, 0, 0, REDDIT_RANK) && ub.incoming == 0.5,

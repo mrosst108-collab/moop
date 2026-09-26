@@ -14,8 +14,8 @@ check "and that function is reddit_port" "1" "$(grep -cE '^bool reddit_port\(.*T
 check "theta has no comment-ranking parameter (field names)" "0" "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -cE '^ +(int|bool|double|size_t) [a-z_]*comment')"
 # the command language cannot drift from its own description
 check "help lists exactly the commands the dispatcher accepts" "$(sed -n '/^static bool execute/,/^static bool run/p' src/main.c | grep -oE 'strcmp\(cmd, "[a-z]+"\)' | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
-check "help runs and names every command" "25" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
-check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=-1 mods=u1$')"
+check "help runs and names every command" "26" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
+check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=none mods=u1$')"
 check "capacity is stated, not hidden" "1" "$(for i in $(seq 1 17); do echo "sub s$i 1"; done | { cat; echo quit; } | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 subreddits')"
 check "the slot set did not change: six slots, gamma measured" "6" "$(grep -cE '^    (void|bool) \(\*[a-z]+\)\(' src/rme7.h)"
 
@@ -84,6 +84,22 @@ check "runs replay exactly" "$out" "$(printf '%s\n' "$session" | "$BIN" 2>&1)"
 check "a subreddit cannot take a personal track's name" "1" "$(printf 'sub u7 2\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: uN names belong to users')"
 check "a profile is its user's, moderated by them alone" "1" "$(printf 'sub u7 2\nprofile 7 5\nquit\n' | "$BIN" 2>/dev/null | grep -c 'mods=u7$')"
 check "a subreddit named like a word starting with u is fine" "0" "$(printf 'sub unix 2\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c refused)"
+
+# anti-puppet (prediction 6): a generator-side actor cannot write the
+# site's admission data or evaluation configuration
+check "'all' is reserved: a user cannot found r/all" "1" "$(printf 'sub all 5\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: that name is taken')"
+check "a subreddit name longer than the field is refused whole" "1" "$(printf 'sub aaaaaaaaaaaaaaaaaaaaaaaaaaaa5 1\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: that name is too long')"
+check "ban is site-held: a moderator cannot ban on their own track" "1" "$(printf 'sub cats 1\nban 1 3\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'banned=none')"
+check "a moderator's ban is refused, saying not the site" "1" "$(printf 'sub cats 1\nban 1 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
+check "a second site ban keeps the first: the set holds both" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c 'banned=u3,u4 ')"
+check "a re-banned user cannot post; the earlier ban still bars its user" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\npost cats 3 after two bans\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: the rules do not admit that post')"
+check "unban is site-held: a moderator cannot lift a ban" "1" "$(printf 'sub cats 1\nban 0 3\nunban 1 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
+check "the site lifts one ban and the other stays" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\nunban 0 3\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c 'banned=u4 ')"
+check "a subreddit founded after a ban is founded under it" "1" "$(printf 'sub cats 1\nban 0 3\nsub dogs 1\npost dogs 3 banned here too\nshow dogs\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: the rules do not admit that post')"
+check "kappa_Sigma: a banned user's attributed vote is refused" "1" "$(printf 'sub cats 1\npost cats 1 a post\nban 0 3\ncast cats 3 0 1\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: delta not')"
+check "a ballot is +/-1: a large delta is refused" "1" "$(printf 'sub cats 1\npost cats 1 a post\ncast cats 2 0 1000000\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: delta not')"
+check "a user does not certify their own authority: self-follow refused" "1" "$(printf 'follow 3 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: a user does not certify their own authority')"
+check "a non-site actor changes no rank in r/all's theta (blend)" "1" "$(printf 'sub cats 1\npost cats 1 a\npost cats 1 b\nblend 1 cats 0.5\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: only the site sets lambda')"
 
 # persistence: the transcript is the input history, replayed exactly
 T=$(mktemp -d)
@@ -199,6 +215,13 @@ printf 'sub cats 9\npost cats 7 hello from alice\nshow cats\n' | "$BIN" connect 
 check "identity is bound at ingress: the transcript records the bound number" "2" "$(grep -cE '^(sub cats 1|post cats 1 hello from alice)$' "$T/transcript")"
 check "a claimed number is discarded, not recorded" "0" "$(grep -cE 'cats (9|7) ' "$T/transcript")"
 check "the client sees the executor's output" "1" "$(grep -c '^r/cats' "$T/alice.out")"
+# a tab must not let a client smuggle a claimed actor past the binder
+printf 'post cats\t0 7 tabbed\n' | "$BIN" connect "$S" tk-bob-77e > /dev/null
+check "a tab cannot smuggle a claimed actor: u0 is not recorded" "0" "$(grep -cE '^post cats 0 ' "$T/transcript")"
+check "the tabbed line binds the real actor (u2)" "1" "$(grep -cE '^post cats 2 7 tabbed$' "$T/transcript")"
+# an over-long line is refused whole, never split into a second command
+pad=$(printf 'x%.0s' $(seq 1 520)); printf 'post cats 1 %ssub sneaky 7\n' "$pad" > "$T/long.txt"
+check "an over-long line replays refused, not split into 'sub sneaky'" "0" "$(printf 'show sneaky\nquit\n' | "$BIN" "$T/long.txt" 2>/dev/null | grep -c '^r/sneaky')"
 printf 'ban 0 1\n' | "$BIN" connect "$S" tk-bob-77e > "$T/bob.out"
 check "a refused attempt is admitted to the order and recorded" "1" "$(grep -c '^ban 2 1$' "$T/transcript")"
 check "and refused by kappa under the bound identity" "1" "$(grep -c 'refused: not the site' "$T/bob.out")"

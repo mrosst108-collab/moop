@@ -94,6 +94,7 @@ static const struct { const char *name, *usage, *what; } commands[] = {
     { "rules",   "rules TRACK USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT",
                                                         "a moderator changes the rules and ranking" },
     { "ban",     "ban ADMIN USER",                      "the site (user 0) bans USER from every subreddit" },
+    { "unban",   "unban ADMIN USER",                    "the site lifts USER's ban everywhere" },
     { "profile", "profile USER K",                      "rebuild uUSER from every subreddit's top K by them" },
     { "all",     "all K",                               "rebuild r/all from every subreddit's top K" },
     { "sweep",   "sweep SUB",                           "drop what the rules no longer admit" },
@@ -121,6 +122,10 @@ static time_t now;
 static Track all; /* r/all: founded by the site (user 0), fed by ports */
 static Track users[TRACKS]; /* profiles: uN, founded by N, fed by ports */
 static size_t nusers;
+static unsigned site_bans[REDDIT_BANS]; /* the site's standing bans, the
+    driver's record of site policy: a subreddit is founded under them, so
+    a ban precedes the tracks it will govern */
+static size_t nsite_bans;
 
 static Track *find(const char *name)
 {
@@ -192,11 +197,16 @@ static void show_under(const Track *t, int parent, int depth)
 static void show_rules(const Track *t)
 {
     printf("  rules: max_title=%zu min_hot=%.2f half_life=%.0f crosspost=%s "
-           "export=%s locked=%d banned=%d mods=",
+           "export=%s locked=%d banned=",
            t->rules.max_title, t->rules.min_hot, t->ranking.half_life,
            t->rules.allow_crosspost ? "yes" : "no",
            t->rules.export_to_all ? "yes" : "no",
-           t->rules.locked, t->rules.banned);
+           t->rules.locked);
+    if (t->rules.nbanned == 0)
+        printf("none");
+    for (size_t i = 0; i < t->rules.nbanned; i++)
+        printf("%su%u", i ? "," : "", t->rules.banned[i]);
+    printf(" mods=");
     for (size_t i = 0; i < t->nmods; i++)
         printf("%su%u", i ? "," : "", t->mods[i]);
     if (t->rules.nsubs) {
@@ -265,12 +275,17 @@ static bool execute(char *line)
         for (size_t i = 0; i < sizeof commands / sizeof commands[0]; i++)
             printf("%-8s %-58s %s\n", commands[i].name, commands[i].usage, commands[i].what);
     } else if (strcmp(cmd, "sub") == 0) {
-        unsigned user;
-        if (sscanf(rest, "%23s %u", a, &user) != 2) { refuse("sub NAME USER"); return true; }
-        if (find(a)) { refuse("that name is taken"); return true; }
+        unsigned user; char big[64] = "";
+        if (sscanf(rest, "%48s %u", big, &user) != 2) { refuse("sub NAME USER"); return true; }
+        if (strlen(big) >= REDDIT_NAME) { refuse("that name is too long"); return true; }
+        strcpy(a, big);
+        if (find(a) || strcmp(a, "all") == 0) { refuse("that name is taken"); return true; }
         if (reserved_name(a)) { refuse("uN names belong to users"); return true; }
         if (ntracks == TRACKS) { fprintf(stderr, "refused: capacity is %zu subreddits\n", TRACKS); return true; }
-        reddit_track_init(&tracks[ntracks++], a, user);
+        Track *t = &tracks[ntracks++];
+        reddit_track_init(t, a, user);
+        for (size_t i = 0; i < nsite_bans; i++) /* founded under standing bans */
+            reddit_set_ban(&t->rules, site_bans[i], true);
     } else if (strcmp(cmd, "post") == 0) {
         unsigned user; int n;
         if (sscanf(rest, "%23s %u%n", a, &user, &n) != 2) { refuse("post SUB USER TITLE"); return true; }
@@ -328,22 +343,33 @@ static bool execute(char *line)
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         r.locked = t->rules.locked;
-        r.banned = t->rules.banned;
+        r.nbanned = t->rules.nbanned;
+        memcpy(r.banned, t->rules.banned, sizeof r.banned);
         r.nsubs = t->rules.nsubs;
         memcpy(r.subs, t->rules.subs, sizeof r.subs);
         k.alpha = t->ranking.alpha; k.tolerance = t->ranking.tolerance; k.rounds = t->ranking.rounds;
         k.lambda = t->ranking.lambda; k.interval = t->ranking.interval;
         if (!t->f(t, user, r, k)) refuse("not a moderator, or rules out of range");
-    } else if (strcmp(cmd, "ban") == 0) {
-        unsigned admin, user;
+    } else if (strcmp(cmd, "ban") == 0 || strcmp(cmd, "unban") == 0) {
+        unsigned admin, user; bool add = cmd[0] == 'b';
         if (sscanf(rest, "%u %u", &admin, &user) != 2) { refuse("ban ADMIN USER"); return true; }
-        size_t done = 0;
+        if (admin != REDDIT_SITE) { refuse("not the site"); return true; }
+        /* the standing set (the driver's record of site policy) and every
+         * existing track's theta move together; f gates each per track,
+         * and the site passes because a ban is site-held */
         for (size_t i = 0; i < ntracks; i++) {
             Rules r = tracks[i].rules;
-            r.banned = (int)user;
-            done += tracks[i].f(&tracks[i], admin, r, tracks[i].ranking);
+            if (reddit_set_ban(&r, user, add))
+                tracks[i].f(&tracks[i], admin, r, tracks[i].ranking);
         }
-        if (done < ntracks) refuse("not the site");
+        Rules standing = { .nbanned = nsite_bans };
+        memcpy(standing.banned, site_bans, sizeof standing.banned);
+        if (reddit_set_ban(&standing, user, add)) {
+            nsite_bans = standing.nbanned;
+            memcpy(site_bans, standing.banned, sizeof site_bans);
+        } else if (add && nsite_bans == REDDIT_BANS) {
+            fprintf(stderr, "refused: capacity is %zu standing bans\n", REDDIT_BANS);
+        }
     } else if (strcmp(cmd, "profile") == 0) {
         unsigned user; size_t k;
         if (sscanf(rest, "%u %zu", &user, &k) != 2) { refuse("profile USER K"); return true; }
@@ -368,7 +394,7 @@ static bool execute(char *line)
         if (sscanf(rest, "%23s %u %d %d", a, &user, &id, &d) != 4) { refuse("cast SUB USER ID DELTA"); return true; }
         Track *t = find_sub(a);
         if (!t) { refuse("no such subreddit"); return true; }
-        if (!reddit_cast(t, user, id, d)) refuse("no such node, already cast, or the ballots are full");
+        if (!reddit_cast(t, user, id, d)) refuse("delta not +/-1, banned, no such node, already cast, or ballots full");
     } else if (strcmp(cmd, "weigh") == 0) {
         if (sscanf(rest, "%23s", a) != 1) { refuse("weigh SUB"); return true; }
         Track *t = find_sub(a);
@@ -402,6 +428,7 @@ static bool execute(char *line)
     } else if (strcmp(cmd, "follow") == 0 || strcmp(cmd, "unfollow") == 0) {
         unsigned user, target;
         if (sscanf(rest, "%u %u", &user, &target) != 2) { refuse("follow USER TARGET"); return true; }
+        if (user == target) { refuse("a user does not certify their own authority"); return true; }
         Track *u = profile_of(user), *v = profile_of(target);
         if (!u || !v) { fprintf(stderr, "refused: capacity is %zu profiles\n", TRACKS); return true; }
         Rules r = u->rules;
@@ -492,8 +519,17 @@ static bool execute(char *line)
 /* Run one stream of commands. Returns false on quit. */
 static bool run(FILE *in)
 {
-    char line[256];
+    char line[512];   /* matches the ingress buffer: a recorded line fits */
     while (fgets(line, sizeof line, in)) {
+        size_t got = strlen(line);
+        if (got == sizeof line - 1 && line[got - 1] != '\n') {
+            /* longer than the buffer: drain and refuse, never split — a
+             * split tail would run as its own command under no actor */
+            int c;
+            while ((c = fgetc(in)) != '\n' && c != EOF) { }
+            refuse("line too long");
+            continue;
+        }
         line[strcspn(line, "\n")] = '\0';
         if (!execute(line))
             return false;
@@ -518,7 +554,7 @@ static int actor_field(const char *cmd)
 {
     static const struct { const char *name; int field; } table[] = {
         { "sub", 2 }, { "post", 2 }, { "comment", 2 }, { "cast", 2 },
-        { "cross", 4 }, { "lock", 2 }, { "rules", 2 }, { "ban", 1 },
+        { "cross", 4 }, { "lock", 2 }, { "rules", 2 }, { "ban", 1 }, { "unban", 1 },
         { "profile", 1 }, { "follow", 1 }, { "unfollow", 1 },
         { "pagerank", 1 }, { "blend", 1 }, { "clock", 1 },
     };
@@ -528,26 +564,31 @@ static int actor_field(const char *cmd)
 }
 
 /* Rewrite the actor field of `line` to `user`, in place of whatever the
- * client claimed. Returns false if the line has no such field yet. */
+ * client claimed. Tokens are split on ANY whitespace and rejoined with
+ * single spaces, so a tab cannot make the field count disagree with the
+ * executor (which splits on all whitespace) and smuggle a claimed actor
+ * past the binding. Returns false if the actor field is missing or the
+ * result would not fit — serve_line then refuses the line rather than
+ * running it under an unbound actor. */
 static bool bind_actor(const char *line, unsigned user, char *out, size_t outlen)
 {
     char cmd[16] = "";
     int consumed = 0;
     if (sscanf(line, "%15s%n", cmd, &consumed) != 1) return false;
     int field = actor_field(cmd);
-    if (field == 0) { snprintf(out, outlen, "%s", line); return true; }
-    /* walk the words; replace the field-th argument */
     const char *p = line + consumed;
-    size_t n = 0;
-    n += (size_t)snprintf(out + n, outlen - n, "%s", cmd);
+    int w = snprintf(out, outlen, "%s", cmd);
+    if (w < 0 || (size_t)w >= outlen) return false;
+    size_t n = (size_t)w;
     for (int i = 1; ; i++) {
-        p += strspn(p, " ");
-        if (*p == '\0') return i > field;
-        const char *e = p + strcspn(p, " ");
-        if (i == field) n += (size_t)snprintf(out + n, outlen - n, " %u", user);
-        else n += (size_t)snprintf(out + n, outlen - n, " %.*s", (int)(e - p), p);
+        p += strspn(p, " \t");
+        if (*p == '\0') return field == 0 || i > field; /* actor field present? */
+        const char *e = p + strcspn(p, " \t");
+        if (i == field) w = snprintf(out + n, outlen - n, " %u", user);
+        else            w = snprintf(out + n, outlen - n, " %.*s", (int)(e - p), p);
+        if (w < 0 || (size_t)w >= outlen - n) return false;
+        n += (size_t)w;
         p = e;
-        if (n >= outlen - 1) return false;
     }
 }
 

@@ -90,7 +90,7 @@ distinguished and each has one meaning:
 | historical, explicitly set by an admitted F line before *n* | that value |
 | historical, never set since `sub` | the binary's `sub` default |
 | absent — the recording binary had no such field | **instantiated at the replaying binary's `sub` default**, and any Q4–Q6 answer that depends on it is marked **(default)** |
-| present with default (−1 for `locked`, `banned`) | the mechanism's identity: no lock fires, no ban fires — here this is not an assumption, −1 is literally the value the code uses for "none" |
+| present with default (−1 for `locked`; the empty set, shown `none`, for `banned` since prediction 6) | the mechanism's identity: no lock fires, no ban fires — here this is not an assumption, it is literally the value the code uses for "none" (`banned` was a single −1 sentinel until prediction 6 made it a set) |
 | explicitly changed by F_n | that is the event |
 
 Omission is not an option: a struct field cannot be omitted. Any other

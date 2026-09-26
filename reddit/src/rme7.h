@@ -20,7 +20,8 @@
  *                reddit_port is the cross-track Σ_ij,
  *                adapter ∘ gate ∘ translation, the ONLY two-track act
  *   f            generator self-modification: changes θ
- *   kappa        integrity gate: who may call f
+ *   kappa        integrity gate: who may call f, given which authority
+ *                holds the field being changed (track-held vs site-held)
  *   gamma        derived, [gsharp, gtildesharp]: not a slot — measured
  *                from a trajectory by reddit_gamma
  *
@@ -33,7 +34,17 @@ constexpr size_t REDDIT_NAME  = 24;
 constexpr size_t REDDIT_MODS  = 4;
 constexpr size_t REDDIT_SUBS  = 8;   /* subscriptions a user may hold */
 constexpr size_t REDDIT_BALLOTS = 8; /* attributed votes a node may hold */
+constexpr size_t REDDIT_BANS  = 16;  /* users a track's theta may bar */
 constexpr unsigned REDDIT_SITE = 0;  /* the site's own identity: admin */
+
+/* Which authority holds a generator field, so kappa can gate a change by
+ * the field it touches and not only by the actor. A track-held field
+ * (max_title, min_hot, half_life, allow_crosspost, export_to_all, locked,
+ * subs) is a moderator's; a site-held field (the ban set, and the site
+ * ranking parameters alpha/tolerance/rounds/lambda/interval) is the
+ * site's alone. Level before sector: this is not a new slot, it is the
+ * argument kappa already needed to tell its two sites apart. */
+typedef enum { REDDIT_HELD_TRACK, REDDIT_HELD_SITE } Held;
 
 /* A node of X. Posts and comments are the same kind of node: a comment
  * is a node with a parent. Ids are stable under jsharp's permutations,
@@ -64,8 +75,11 @@ typedef struct {
                               sender may decline to translate (opt-out) */
     int locked;            /* a rule about one post: no comments arrive
                               under it; -1 for none. Changed by f. */
-    int banned;            /* a rule about one user: nothing of theirs is
-                              admitted here; -1 for none. Changed by f. */
+    unsigned banned[REDDIT_BANS]; /* users barred here: nothing of theirs
+                              is admitted, and their standing ballots stop
+                              weighing. A set, so a second ban does not
+                              erase the first. Site-held; changed by f. */
+    size_t nbanned;
     unsigned subs[REDDIT_SUBS]; /* on a user's track: whom this user
                               authorizes to carry their rank (delegation);
                               a subscription is the user's act on their own
@@ -111,7 +125,7 @@ struct Track {
     bool (*sigma)(Track *t, unsigned user, int parent, const char *text,
                   time_t now);           /* parent -1: a post; else a comment */
     bool (*f)(Track *t, unsigned user, Rules rules, Ranking ranking);
-    bool (*kappa)(const Track *t, unsigned user);
+    bool (*kappa)(const Track *t, unsigned user, Held held);
 };
 
 /* A track is born with default occupants in every slot, `founder` as
@@ -121,12 +135,22 @@ void reddit_track_init(Track *t, const char *name, unsigned founder);
 /* The node with this id, or nullptr. */
 const Post *reddit_find(const Track *t, int id);
 
+/* Is this user in the track's ban set? Read by gtildesharp (admission),
+ * by the attributed vote (kappa_Sigma), and by the weight port. */
+bool reddit_is_banned(const Track *t, unsigned user);
+
+/* Add or drop a user in a Rules ban set, in place; returns whether the
+ * set changed. The caller passes the result to f, so kappa still gates
+ * the change (site-held). A full set refuses a new ban. */
+bool reddit_set_ban(Rules *r, unsigned user, bool add);
+
 /* Σ_ii, the other half: an anonymous vote on a node. Refused if there is none. */
 bool reddit_vote(Track *t, int id, int delta);
 
-/* Σ_ii: an attributed vote. Counts in V like any vote, and records the
- * ballot. Refused if the node is missing, the voter already cast here,
- * or the node's ballots are full. Changes no rank anywhere. */
+/* Σ_ii: an attributed vote, delta +1 or -1. Counts in V like any vote,
+ * and records the ballot. Refused if delta is anything else, the voter is
+ * barred here, the node is missing, the voter already cast here, or the
+ * node's ballots are full. Changes no rank anywhere. */
 bool reddit_cast(Track *t, unsigned voter, int id, int delta);
 
 /* Σ_ij — the port: translation, then gate, then adapter. The ONLY
@@ -149,8 +173,9 @@ bool reddit_cast(Track *t, unsigned voter, int id, int delta);
  *   REDDIT_WEIGHT weighing: the sender is a voter's track and `share` is
  *                 their authority in vote units; it is added, signed by
  *                 the ballot that `user` cast on node `id` in `to`, to
- *                 that node's weight. Refused if there is no such ballot.
- *                 Uses `id` and `user` (README, prediction 5).
+ *                 that node's weight. Refused if `user` is barred in `to`
+ *                 or there is no such ballot. Uses `id` and `user`
+ *                 (README, predictions 5 and 6).
  * The gate is the receiver's rules (allow_crosspost, then the rules
  * themselves); the adapter enters it as a post of `to`. Refused,
  * touching nothing, if any step refuses. */
