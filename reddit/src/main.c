@@ -56,6 +56,13 @@
  *   quit
  *   clock ADMIN SECONDS         F under κ on the site's θ: the live tick
  *                               interval
+ *   request SUB USER ID         Σ: USER asks the AI to answer node ID —
+ *                               any human's node, once; it is pending
+ *   answer SUB ID [TEXT...]     Σ: the AI's answer to a pending node, the
+ *                               only way an AI node enters X; empty or
+ *                               refused, the node is unrequested again.
+ *                               At the live ingress, the server's alone
+ *   ai SUB USER 0|1             F under κ: a moderator turns answers off/on
  * The clock is virtual and starts at 0, so runs replay exactly: the
  * command stream on stdin is the session's transcript. `reddit FILE`
  * replays FILE silently, then reads stdin — a restart. Session control
@@ -77,6 +84,13 @@
  *       Every `interval` seconds of wall time (site θ, `clock`) the
  *       server appends an ordinary `tick INTERVAL`. Downtime is not
  *       time: a restart replays and resumes ticking from then.
+ *       Every pending request is answered by running REDDIT_ANSWERER
+ *       (an executable: the thread path on stdin, one line on stdout,
+ *       exit 0), at most REDDIT_ANSWER_TIMEOUT seconds (default 60),
+ *       and the server appends an ordinary `answer SUB ID TEXT` — or
+ *       `answer SUB ID`, no answer, if it failed. Without an answerer, a
+ *       client's `request` is refused at the ingress. Replay never runs
+ *       an answerer: it reads the recorded answers.
  *   reddit connect SOCKET TOKEN
  *       stdin lines to the server, its output to stdout, until EOF. */
 
@@ -108,10 +122,18 @@ static const struct { const char *name, *usage, *what; } commands[] = {
     { "pagerank","pagerank ADMIN ALPHA TOL ROUNDS",     "the site sets the delegation parameters" },
     { "rank",    "rank",                                "run the delegation rounds through the port; ranks are stale until run" },
     { "clock",   "clock ADMIN SECONDS",                 "the site sets the live tick interval (theta of r/all)" },
+    { "request", "request SUB USER ID",                 "ask the AI to answer node ID: a human's node, once" },
+    { "answer",  "answer SUB ID [TEXT...]",             "the AI's answer to a pending request; empty withdraws it" },
+    { "ai",      "ai SUB USER 0|1",                     "a moderator turns AI answers off or on" },
     { "help",    "help",                                "this list" },
     { "save",    "save FILE",                           "record every application command to FILE from now on" },
     { "quit",    "quit",                                "leave" },
 };
+
+/* One line bound for every consumer of the executor — stdin, replay, the
+ * ingress, and the answers the server records — so a recorded line always
+ * replays whole. It holds the longest answer the rules could admit. */
+constexpr size_t LINE = 2048;
 
 static FILE *transcript;   /* where application commands are recorded */
 static bool replaying;     /* a file is being replayed: effects, no output */
@@ -190,8 +212,14 @@ static void show_under(const Track *t, int parent, int depth)
             printf(", W %.2f heat %.2f", p->weight, p->heat);
         if (t->ranking.lambda != 1.0)
             printf(", S %.2f", t->ranking.lambda * p->hot + (1.0 - t->ranking.lambda) * p->heat);
-        printf("] %s  (u%u)%s\n", p->title, p->author,
-               (int)p->id == t->rules.locked ? " [locked]" : "");
+        if (p->author == REDDIT_AI)
+            printf("] %s  (ai, asked by u%u)", p->title, p->asked_by);
+        else
+            printf("] %s  (u%u)", p->title, p->author);
+        printf("%s", (int)p->id == t->rules.locked ? " [locked]" : "");
+        if (p->ai == REDDIT_AI_PENDING)
+            printf(" [ai asked by u%u]", p->asked_by);
+        putchar('\n');
         show_under(t, (int)p->id, depth + 1);
     }
 }
@@ -201,15 +229,18 @@ static void show_under(const Track *t, int parent, int depth)
 static void show_rules(const Track *t)
 {
     printf("  rules: max_title=%zu min_hot=%.2f half_life=%.0f crosspost=%s "
-           "export=%s locked=%d banned=",
+           "export=%s%s locked=%d banned=",
            t->rules.max_title, t->rules.min_hot, t->ranking.half_life,
            t->rules.allow_crosspost ? "yes" : "no",
            t->rules.export_to_all ? "yes" : "no",
+           t->rules.allow_ai ? "" : " ai=off",
            t->rules.locked);
     if (t->rules.nbanned == 0)
         printf("none");
-    for (size_t i = 0; i < t->rules.nbanned; i++)
-        printf("%su%u", i ? "," : "", t->rules.banned[i]);
+    for (size_t i = 0; i < t->rules.nbanned; i++) {
+        if (t->rules.banned[i] == REDDIT_AI) printf("%sai", i ? "," : "");
+        else printf("%su%u", i ? "," : "", t->rules.banned[i]);
+    }
     printf(" mods=");
     for (size_t i = 0; i < t->nmods; i++)
         printf("%su%u", i ? "," : "", t->mods[i]);
@@ -285,6 +316,7 @@ static bool execute(char *line)
         strcpy(a, big);
         if (find(a) || strcmp(a, "all") == 0) { refuse("that name is taken"); return true; }
         if (reserved_name(a)) { refuse("uN names belong to users"); return true; }
+        if (user == REDDIT_AI) { refuse("the ai founds nothing"); return true; }
         if (ntracks == TRACKS) { fprintf(stderr, "refused: capacity is %zu subreddits\n", TRACKS); return true; }
         Track *t = &tracks[ntracks++];
         reddit_track_init(t, a, user);
@@ -350,6 +382,7 @@ static bool execute(char *line)
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         r.locked = t->rules.locked;
+        r.allow_ai = t->rules.allow_ai;
         r.nbanned = t->rules.nbanned;
         memcpy(r.banned, t->rules.banned, sizeof r.banned);
         r.nsubs = t->rules.nsubs;
@@ -380,6 +413,7 @@ static bool execute(char *line)
     } else if (strcmp(cmd, "profile") == 0) {
         unsigned user; size_t k;
         if (sscanf(rest, "%u %zu", &user, &k) != 2) { refuse("profile USER K"); return true; }
+        if (user == REDDIT_AI) { refuse("the ai holds no track"); return true; }
         Track *u = profile_of(user);
         if (!u) { fprintf(stderr, "refused: capacity is %zu profiles\n", TRACKS); return true; }
         /* rebuilt from ports, like r/all; the loop is the driver's */
@@ -437,6 +471,7 @@ static bool execute(char *line)
         unsigned user, target;
         if (sscanf(rest, "%u %u", &user, &target) != 2) { refuse("follow USER TARGET"); return true; }
         if (user == target) { refuse("a user does not certify their own authority"); return true; }
+        if (user == REDDIT_AI || target == REDDIT_AI) { refuse("the ai holds no track"); return true; }
         Track *u = profile_of(user), *v = profile_of(target);
         if (!u || !v) { fprintf(stderr, "refused: capacity is %zu profiles\n", TRACKS); return true; }
         Rules r = u->rules;
@@ -519,6 +554,31 @@ static bool execute(char *line)
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         if (!replaying) printf("gamma %zu\n", reddit_gamma(t, now));
+    } else if (strcmp(cmd, "request") == 0) {
+        unsigned user; int id;
+        if (sscanf(rest, "%23s %u %d", a, &user, &id) != 3) { refuse("request SUB USER ID"); return true; }
+        Track *t = find_sub(a);
+        if (!t) { refuse("no such subreddit"); return true; }
+        if (!reddit_request(t, user, id))
+            refuse("no such node, the ai's own, already asked or answered, answers off or locked there, you or the ai barred, or the track full");
+    } else if (strcmp(cmd, "answer") == 0) {
+        int id, n;
+        if (sscanf(rest, "%23s %d%n", a, &id, &n) != 2) { refuse("answer SUB ID TEXT"); return true; }
+        Track *t = find_sub(a);
+        const char *text = rest + n + strspn(rest + n, " ");
+        if (!t) { refuse("no such subreddit"); return true; }
+        const Post *q = reddit_find(t, id);
+        if (!q || q->ai != REDDIT_AI_PENDING) { refuse("nothing is pending there"); return true; }
+        /* an empty answer is no answer: the node is unrequested again */
+        if (!reddit_answer(t, id, text, now) && *text) refuse("the rules do not admit that answer");
+    } else if (strcmp(cmd, "ai") == 0) {
+        unsigned user; int on;
+        if (sscanf(rest, "%23s %u %d", a, &user, &on) != 3) { refuse("ai SUB USER 0|1"); return true; }
+        Track *t = find_sub(a);
+        if (!t) { refuse("no such subreddit"); return true; }
+        Rules r = t->rules;
+        r.allow_ai = on != 0;
+        if (!t->f(t, user, r, t->ranking)) refuse("not a moderator");
     } else {
         refuse("unknown command");
     }
@@ -528,7 +588,7 @@ static bool execute(char *line)
 /* Run one stream of commands. Returns false on quit. */
 static bool run(FILE *in)
 {
-    char line[512];   /* matches the ingress buffer: a recorded line fits */
+    char line[LINE];  /* the ingress's bound: a recorded line fits */
     while (fgets(line, sizeof line, in)) {
         size_t got = strlen(line);
         if (got == sizeof line - 1 && line[got - 1] != '\n') {
@@ -556,7 +616,7 @@ constexpr size_t CLIENTS = 16;
 constexpr size_t PRINCIPALS = 64;
 static struct { char token[64]; unsigned user; } principals[PRINCIPALS];
 static size_t nprincipals;
-static struct { int fd; int user; char buf[512]; size_t len; } clients[CLIENTS];
+static struct { int fd; int user; char buf[LINE]; size_t len; } clients[CLIENTS];
 
 /* Which argument carries the actor, per command (0: none). */
 static int actor_field(const char *cmd)
@@ -566,6 +626,7 @@ static int actor_field(const char *cmd)
         { "cross", 4 }, { "lock", 2 }, { "rules", 2 }, { "ban", 1 }, { "unban", 1 },
         { "profile", 1 }, { "follow", 1 }, { "unfollow", 1 },
         { "pagerank", 1 }, { "blend", 1 }, { "clock", 1 },
+        { "request", 2 }, { "ai", 2 },
     };
     for (size_t i = 0; i < sizeof table / sizeof table[0]; i++)
         if (strcmp(table[i].name, cmd) == 0) return table[i].field;
@@ -622,7 +683,7 @@ static void serve_line(size_t c, char *raw)
         strcmp(cmd, "quit") == 0 || strcmp(cmd, "auth") == 0) {
         dprintf(fd, "refused: %s is the server's, not a client's\n", cmd); return;
     }
-    char line[512];
+    char line[LINE];
     if (!bind_actor(raw, (unsigned)clients[c].user, line, sizeof line)) {
         dprintf(fd, "refused: %s needs its actor\n", cmd); return;
     }
@@ -704,7 +765,7 @@ static int connect_to(const char *sock, const char *token)
     snprintf(addr.sun_path, sizeof addr.sun_path, "%s", sock);
     if (connect(fd, (struct sockaddr *)&addr, sizeof addr) < 0) { perror(sock); return 1; }
     dprintf(fd, "auth %s\n", token);
-    char line[512];
+    char line[LINE];
     /* send everything, then half-close, then drain the replies: the
      * server answers in order, so the drain reads every response */
     while (fgets(line, sizeof line, stdin)) write(fd, line, strlen(line));

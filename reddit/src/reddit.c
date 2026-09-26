@@ -51,18 +51,37 @@ static void decay(Track *t, time_t now)
     }
 }
 
+/* Characters, not bytes: UTF-8 code points, counted by their lead bytes. */
+static size_t chars(const char *s)
+{
+    size_t n = 0;
+    for (; *s; s++)
+        n += ((unsigned char)*s & 0xC0) != 0x80;
+    return n;
+}
+
 /* gtildesharp: the rules. A verdict on one node; the node is const.
  * The same verdict for a post and a comment — a comment additionally
- * needs its parent present and not locked. */
+ * needs its parent present and not locked. An AI node is a comment by an
+ * author that holds nothing: it answers a node that is not the AI's, in a
+ * track that allows answers, in at most REDDIT_AI_CHARS characters where
+ * a human has max_title bytes. */
 static bool admits(const Track *t, const Post *p)
 {
-    if (strlen(p->title) > t->rules.max_title || p->hot < t->rules.min_hot)
+    bool ai = p->author == REDDIT_AI;
+    if (ai ? chars(p->title) > REDDIT_AI_CHARS : strlen(p->title) > t->rules.max_title)
+        return false;
+    if (p->hot < t->rules.min_hot)
         return false;
     if (reddit_is_banned(t, p->author))
         return false;
+    if (ai && !t->rules.allow_ai)
+        return false;
     if (p->parent < 0)
-        return true;
-    return reddit_find(t, p->parent) != nullptr && p->parent != t->rules.locked;
+        return !ai;                       /* the AI only ever answers */
+    const Post *q = reddit_find(t, p->parent);
+    return q != nullptr && p->parent != t->rules.locked &&
+           !(ai && q->author == REDDIT_AI); /* the AI never answers the AI */
 }
 
 /* sigma: a node arrives — a post (parent -1) or a comment under a
@@ -70,8 +89,8 @@ static bool admits(const Track *t, const Post *p)
 static bool arrive(Track *t, unsigned user, int parent, const char *text,
                    time_t now)
 {
-    if (t->nposts == REDDIT_POSTS)
-        return false;
+    if (t->nposts == REDDIT_POSTS || user == REDDIT_AI)
+        return false; /* full; or the AI, whose one path is reddit_answer */
     Post p = { .id = t->next_id, .parent = parent, .author = user,
                .votes = 1, .born = now, .hot = 1.0 };
     if (strlen(text) >= sizeof p.title)
@@ -128,7 +147,7 @@ static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
      * form that refuses it. alpha < 1 strictly — G♯ is the only office
      * that converges, and at alpha = 1 (no teleport) the rank iteration
      * need not. */
-    if (!(ranking.half_life > 0) || rules.max_title >= REDDIT_TEXT ||
+    if (!(ranking.half_life > 0) || rules.max_title > REDDIT_TITLE ||
         !isfinite(rules.min_hot) ||
         !(ranking.alpha >= 0 && ranking.alpha < 1) ||
         !(ranking.tolerance >= 0 && isfinite(ranking.tolerance)) ||
@@ -147,9 +166,9 @@ void reddit_track_init(Track *t, const char *name, unsigned founder)
 {
     memset(t, 0, sizeof *t);
     snprintf(t->name, sizeof t->name, "%s", name);
-    t->rules = (Rules){ .max_title = REDDIT_TEXT - 1, .min_hot = 0.0,
+    t->rules = (Rules){ .max_title = REDDIT_TITLE, .min_hot = 0.0,
                         .allow_crosspost = true, .export_to_all = true,
-                        .locked = -1, .nbanned = 0 };
+                        .allow_ai = true, .locked = -1, .nbanned = 0 };
     t->ranking = (Ranking){ .half_life = 3600.0, .alpha = 0.85,
                             .tolerance = 1e-6, .rounds = 100, .lambda = 1.0,
                             .interval = 60 };
@@ -214,8 +233,9 @@ bool reddit_cast(Track *t, unsigned voter, int id, int delta)
 {
     if (delta != 1 && delta != -1)
         return false;                 /* a ballot is +1 or -1: no other lever */
-    if (reddit_is_banned(t, voter))
-        return false;                 /* kappa_Sigma gates a ballot as a post */
+    if (voter == REDDIT_AI || reddit_is_banned(t, voter))
+        return false;                 /* kappa_Sigma gates a ballot as a post;
+                                         the AI holds no ballot */
     Post *p = (Post *)reddit_find(t, id);
     if (p == nullptr || p->nballots == REDDIT_BALLOTS)
         return false;
@@ -224,6 +244,42 @@ bool reddit_cast(Track *t, unsigned voter, int id, int delta)
             return false;
     p->ballots[p->nballots++] = (Ballot){ .voter = voter, .delta = delta };
     p->votes = sat_i((long long)p->votes + delta);
+    return true;
+}
+
+bool reddit_request(Track *t, unsigned requester, int id)
+{
+    if (requester == REDDIT_AI || reddit_is_banned(t, requester))
+        return false;                 /* the AI asks nothing; nor does a barred user */
+    Post *q = (Post *)reddit_find(t, id);
+    if (q == nullptr || q->ai != REDDIT_AI_NONE || t->nposts == REDDIT_POSTS)
+        return false;
+    Post probe = { .parent = id, .author = REDDIT_AI, .votes = 1, .hot = 1.0 };
+    if (!t->gtildesharp(t, &probe))
+        return false;                 /* its answer could not be admitted now */
+    q->ai = REDDIT_AI_PENDING;
+    q->asked_by = requester;
+    return true;
+}
+
+bool reddit_answer(Track *t, int id, const char *text, time_t now)
+{
+    Post *q = (Post *)reddit_find(t, id);
+    if (q == nullptr || q->ai != REDDIT_AI_PENDING)
+        return false;                 /* nothing was asked here */
+    q->ai = REDDIT_AI_NONE;           /* resolved, whatever follows */
+    if (text[0] == '\0' || t->nposts == REDDIT_POSTS)
+        return false;                 /* no answer: a human may ask again */
+    Post p = { .id = t->next_id, .parent = id, .author = REDDIT_AI,
+               .asked_by = q->asked_by, .votes = 1, .born = now, .hot = 1.0 };
+    if (strlen(text) >= sizeof p.title)
+        return false;                 /* refused, not truncated */
+    strcpy(p.title, text);
+    if (!t->gtildesharp(t, &p))
+        return false;
+    q->ai = REDDIT_AI_ANSWERED;       /* one answer, ever */
+    t->posts[t->nposts++] = p;
+    t->next_id++;
     return true;
 }
 
@@ -272,8 +328,8 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
         return false;
     }
     const Post *src = reddit_find(from, id);
-    if (src == nullptr)
-        return false;
+    if (src == nullptr || src->author == REDDIT_AI)
+        return false; /* nothing the AI wrote crosses */
     if (src->parent >= 0 && how == REDDIT_FRESH)
         return false; /* a crossposted comment would have no parent */
 
@@ -289,6 +345,8 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
         return false; /* would not fit: refused, not truncated */
     strcpy(p.title, title);
     p.author = user;
+    p.ai = REDDIT_AI_NONE;  /* it arrives unrequested: a request is on a node */
+    p.asked_by = 0;
     if (how == REDDIT_FRESH) {
         p.votes = 1;
         p.born = now;

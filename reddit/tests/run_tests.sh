@@ -14,7 +14,7 @@ check "and that function is reddit_port" "1" "$(grep -cE '^bool reddit_port\(.*T
 check "theta has no comment-ranking parameter (field names)" "0" "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -cE '^ +(int|bool|double|size_t) [a-z_]*comment')"
 # the command language cannot drift from its own description
 check "help lists exactly the commands the dispatcher accepts" "$(sed -n '/^static bool execute/,/^static bool run/p' src/main.c | grep -oE 'strcmp\(cmd, "[a-z]+"\)' | grep -oE '"[a-z]+"' | tr -d '"' | sort -u | tr '\n' ' ')" "$(grep -oE '^    \{ "[a-z]+"' src/main.c | grep -oE '[a-z]+' | sort | tr '\n' ' ')"
-check "help runs and names every command" "26" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
+check "help runs and names every command" "29" "$(printf 'help\nquit\n' | "$BIN" 2>/dev/null | grep -cE '^[a-z]+ ')"
 check "show prints theta as it is" "1" "$(printf 'sub cats 1\nrules cats 1 40 2.5 1800 0 1\nlock cats 1 7\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  rules: max_title=40 min_hot=2.50 half_life=1800 crosspost=no export=yes locked=7 banned=none mods=u1$')"
 check "capacity is stated, not hidden" "1" "$(for i in $(seq 1 17); do echo "sub s$i 1"; done | { cat; echo quit; } | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 subreddits')"
 check "the slot set did not change: six slots, gamma measured" "6" "$(grep -cE '^    (void|bool) \(\*[a-z]+\)\(' src/rme7.h)"
@@ -156,6 +156,12 @@ clock 1 5
 clock 5 5
 blend 1 cats 1
 blend 2 dogs 0
+request cats 5 0
+request cats 3 0
+answer cats 0 an answer from the ai
+request cats 1 0
+ai cats 5 1
+ai cats 1 0
 sweep cats
 gamma cats'
 views='show cats
@@ -186,6 +192,51 @@ check "weigh scales by the N of the last rank: a new profile moves no W" "1" "$(
 check "nobody crossposts or votes into a profile" "2" "$(printf 'sub cats 1\npost cats 9 from nine\npost cats 3 by three\nprofile 3 5\ncross cats 0 u3 9\nvote u3 0 50\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: no such subreddit')"
 check "and the profile is as its rebuild left it" "r/u3 (1 nodes, 1 mods)" "$(printf 'sub cats 1\npost cats 9 from nine\npost cats 3 by three\nprofile 3 5\ncross cats 0 u3 9\nvote u3 0 50\nshow u3\nquit\n' | "$BIN" 2>/dev/null | grep '^r/u3' | tail -1)"
 check "a crosspost starts over: the sender's ballots and W stay behind" "1" "$(printf 'follow 1 2\nfollow 2 1\nrank\nsub cats 1\nsub dogs 2\npost cats 1 one\ncast cats 2 0 1\nweigh cats\ncross cats 0 dogs 5\nweigh dogs\nshow dogs\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  #0 \[+1, hot 1.00\] x/cats: one  (u5)$')"
+
+# requested AI answers (prediction 7): the reference executor
+ask='sub science 1
+post science 1 Water on Mars
+comment science 2 0 Source?
+request science 3 1
+show science
+request science 4 1
+answer science 1 NASA reported it in 2015.
+show science
+request science 5 2
+comment science 2 2 Which mission?
+request science 1 3
+answer science 3
+show science
+cross science 2 science 5
+ai science 7 0
+ai science 1 0
+request science 1 3
+show science
+rules science 1 90 0 3600 1 1
+show science
+ai science 1 1
+all 5
+profile 2 5
+profile 3 5'
+out=$(printf '%s\nquit\n' "$ask" | "$BIN" 2>&1)
+check "a request marks the node pending, attributed" "1" "$(printf '%s\n' "$out" | grep -c '^      #1 \[+1, hot 1.00\] Source?  (u2) \[ai asked by u3\]$')"
+check "a second request on a pending node is refused" "yes" "$(printf '%s\n' "$out" | grep -q '^refused: no such node, the ai.s own, already asked' && echo yes)"
+check "the answer enters under the node asked, authored by the AI" "4" "$(printf '%s\n' "$out" | grep -c '^          #2 \[+1, hot 1.00\] NASA reported it in 2015.  (ai, asked by u3)$')"
+check "the AI never answers the AI; asked twice, answered once; off: refused" "3" "$(printf '%s\n' "$out" | grep -c '^refused: no such node, the ai.s own')"
+check "a human's reply to the AI can be asked about; an empty answer withdraws it" "yes" "$(printf '%s\n' "$out" | grep -q '^              #3 \[+1, hot 1.00\] Which mission?  (u2)$' && [ "$(printf '%s\n' "$out" | grep -c 'Which mission?  (u2) \[ai asked')" = 0 ] && echo yes)"
+check "an AI node does not cross, even into its own subreddit" "1" "$(printf '%s\n' "$out" | grep -c '^refused: the port did not admit it$')"
+check "the switch is the moderator's: a stranger is refused" "1" "$(printf '%s\n' "$out" | grep -c '^refused: not a moderator$')"
+check "the rules line shows ai=off only when off, and rules preserves it" "2" "$(printf '%s\n' "$out" | grep -c ' export=yes ai=off locked=')"
+check "no AI node reaches r/all or a profile" "0" "$(printf '%s\n' "$out" | sed -n '/^r\/all/,$p' | grep -c '(ai')"
+check "nobody writes as the AI, founds, profiles or follows as it" "4" "$(printf 'sub science 1\npost science 1 hi\ncomment science 4294967295 0 forged\nsub robots 4294967295\nprofile 4294967295 3\nfollow 3 4294967295\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -cE 'refused: (the rules do not admit that comment|the ai founds nothing|the ai holds no track)')"
+check "an answer with nothing pending is refused" "1" "$(printf 'sub science 1\npost science 1 hi\nanswer science 0 unasked\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: nothing is pending there')"
+long=$(printf 'a%.0s' $(seq 1 301))
+check "a 301-character answer is refused whole, and the node is unrequested" "yes" "$(printf 'sub science 1\npost science 1 hi\nrequest science 2 0\nanswer science 0 %s\nshow science\nquit\n' "$long" | "$BIN" 2>&1 | { o=$(cat); printf '%s\n' "$o" | grep -q 'refused: the rules do not admit that answer' && [ "$(printf '%s\n' "$o" | grep -c 'asked by')" = 0 ] && [ "$(printf '%s\n' "$o" | grep -c '^r/science (1 nodes')" = 1 ] && echo yes; })"
+wide=$(printf '\303\251%.0s' $(seq 1 300))
+check "the limit counts characters: 300 two-byte characters are admitted" "1" "$(printf 'sub science 1\npost science 1 hi\nrequest science 2 0\nanswer science 0 %s\nshow science\nquit\n' "$wide" | "$BIN" 2>/dev/null | grep -c '(ai, asked by u2)$')"
+T=$(mktemp -d); acts=$(printf '%s\n' "$ask" | grep -vE '^(show|all|profile) '); printf '%s\n' "$acts" > "$T/ask.txt"
+check "requests and answers replay exactly, with no answerer anywhere" "$(printf '%s\nshow science\nquit\n' "$acts" | "$BIN" 2>/dev/null)" "$(printf 'show science\nquit\n' | "$BIN" "$T/ask.txt" 2>/dev/null)"
+rm -rf "$T"
 
 # persistence: the transcript is the input history, replayed exactly
 T=$(mktemp -d)
@@ -306,7 +357,7 @@ printf 'post cats\t0 7 tabbed\n' | "$BIN" connect "$S" tk-bob-77e > /dev/null
 check "a tab cannot smuggle a claimed actor: u0 is not recorded" "0" "$(grep -cE '^post cats 0 ' "$T/transcript")"
 check "the tabbed line binds the real actor (u2)" "1" "$(grep -cE '^post cats 2 7 tabbed$' "$T/transcript")"
 # an over-long line is refused whole, never split into a second command
-pad=$(printf 'x%.0s' $(seq 1 520)); printf 'post cats 1 %ssub sneaky 7\n' "$pad" > "$T/long.txt"
+pad=$(printf 'x%.0s' $(seq 1 2100)); printf 'post cats 1 %ssub sneaky 7\n' "$pad" > "$T/long.txt"
 check "an over-long line replays refused, not split into 'sub sneaky'" "0" "$(printf 'show sneaky\nquit\n' | "$BIN" "$T/long.txt" 2>/dev/null | grep -c '^r/sneaky')"
 printf 'ban 0 1\n' | "$BIN" connect "$S" tk-bob-77e > "$T/bob.out"
 check "a refused attempt is admitted to the order and recorded" "1" "$(grep -c '^ban 2 1$' "$T/transcript")"

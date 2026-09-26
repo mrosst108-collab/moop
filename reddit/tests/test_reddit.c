@@ -25,7 +25,7 @@ static bool same_posts(const Track *x, const Track *y)
  * fields a moderator may move come first, the site's after. Returns the
  * field's name, or nullptr past the last. The shell tests hold the names
  * equal to the fields of Rules and Ranking in rme7.h. */
-constexpr int FIRST_SITE_HELD = 7;
+constexpr int FIRST_SITE_HELD = 8;
 static const char *change_field(int i, Rules *r, Ranking *k)
 {
     switch (i) {
@@ -33,15 +33,16 @@ static const char *change_field(int i, Rules *r, Ranking *k)
     case 1:  r->min_hot = 2.5;           return "min_hot";
     case 2:  r->allow_crosspost = false; return "allow_crosspost";
     case 3:  r->export_to_all = false;   return "export_to_all";
-    case 4:  r->locked = 3;              return "locked";
-    case 5:  r->subs[r->nsubs++] = 2;    return "subs";
-    case 6:  k->half_life = 1800.0;      return "half_life";
-    case 7:  reddit_set_ban(r, 7, true); return "banned";
-    case 8:  k->alpha = 0.5;             return "alpha";
-    case 9:  k->tolerance = 1e-3;        return "tolerance";
-    case 10: k->rounds = 7;              return "rounds";
-    case 11: k->lambda = 0.5;            return "lambda";
-    case 12: k->interval = 30;           return "interval";
+    case 4:  r->allow_ai = false;        return "allow_ai";
+    case 5:  r->locked = 3;              return "locked";
+    case 6:  r->subs[r->nsubs++] = 2;    return "subs";
+    case 7:  k->half_life = 1800.0;      return "half_life";
+    case 8:  reddit_set_ban(r, 7, true); return "banned";
+    case 9:  k->alpha = 0.5;             return "alpha";
+    case 10: k->tolerance = 1e-3;        return "tolerance";
+    case 11: k->rounds = 7;              return "rounds";
+    case 12: k->lambda = 0.5;            return "lambda";
+    case 13: k->interval = 30;           return "interval";
     default: return nullptr;
     }
 }
@@ -131,13 +132,15 @@ int main(void)
     Track a0 = a;
     a0.gsharp(&a0, 5000); a0.jsharp(&a0);
     for (int i = 0; i < 20; i++) reddit_vote(&b, 0, 7);
+    bool answered_b = reddit_request(&b, 2, 0) &&
+                      reddit_answer(&b, 0, "an answer on b", 5000) && b.nposts == 2;
     b.gsharp(&b, 5000); b.jsharp(&b);
     b.f(&b, 2, (Rules){ .max_title = 10, .min_hot = 1, .allow_crosspost = false, .locked = -1 },
         RANKING(1));
     reddit_sweep(&b);
     a.gsharp(&a, 5000); a.jsharp(&a);
-    check(same_posts(&a, &a0),
-          "no capture: every act on b leaves a's ranking identical");
+    check(same_posts(&a, &a0) && answered_b,
+          "no capture: every act on b, an AI answer included, leaves a's ranking identical");
 
     /* gamma: measured, from a copy, changing nothing */
     Track c;
@@ -435,6 +438,106 @@ int main(void)
           xr.posts[0].nballots == 0 && xr.posts[0].weight == 0.0 &&
           xr.posts[0].heat == 0.0 && xr.posts[0].votes == 1,
           "port: a fresh crosspost carries no ballots and no W");
+
+    /* requested AI answers — the frozen prediction 7 */
+    Track ra;
+    reddit_track_init(&ra, "ask", 1);
+    ra.sigma(&ra, 1, -1, "Water on Mars", 0);          /* node 0, by u1 */
+    ra.sigma(&ra, 2, 0, "Source?", 0);                  /* node 1, by u2 */
+    check(!ra.sigma(&ra, REDDIT_AI, 0, "forged", 0) && ra.nposts == 2,
+          "sigma: nobody posts or comments as the AI");
+    check(!reddit_answer(&ra, 1, "unasked", 0) && ra.nposts == 2,
+          "answer: nothing enters where nothing was asked");
+    check(!reddit_request(&ra, REDDIT_AI, 1), "request: the AI asks nothing");
+    check(reddit_request(&ra, 3, 1) && reddit_find(&ra, 1)->ai == REDDIT_AI_PENDING &&
+          reddit_find(&ra, 1)->asked_by == 3,
+          "request: a human asks for an answer to another's node; pending, attributed");
+    check(!reddit_request(&ra, 4, 1), "request: a pending node is refused");
+    check(reddit_answer(&ra, 1, "NASA reported it in 2015.", 10) && ra.nposts == 3,
+          "answer: the AI's node enters under the node asked");
+    const Post *ans = reddit_find(&ra, 2);
+    check(ans && ans->author == REDDIT_AI && ans->parent == 1 && ans->asked_by == 3 &&
+          reddit_find(&ra, 1)->ai == REDDIT_AI_ANSWERED,
+          "answer: authored by the AI, attributed to who asked; the node is answered");
+    check(!reddit_request(&ra, 5, 1), "request: one comment only, an answered node is refused");
+    check(!reddit_request(&ra, 5, 2), "request: the AI never answers the AI");
+    check(ra.sigma(&ra, 2, 2, "Which mission?", 20) && reddit_request(&ra, 1, 3) &&
+          reddit_answer(&ra, 3, "Mars Reconnaissance Orbiter.", 30) && ra.nposts == 5,
+          "a human's reply to the AI can itself be answered");
+    check(!reddit_cast(&ra, REDDIT_AI, 0, 1), "cast: the AI holds no ballot");
+    check(reddit_vote(&ra, 2, 3) && reddit_cast(&ra, 4, 2, 1),
+          "votes and ballots reach an answer like any node");
+    /* a failed answer returns the node to unrequested, so a human may ask again */
+    check(reddit_request(&ra, 2, 0) && !reddit_answer(&ra, 0, "", 40) &&
+          reddit_find(&ra, 0)->ai == REDDIT_AI_NONE && ra.nposts == 5,
+          "answer: an empty answer withdraws the request; nothing enters");
+    char over[REDDIT_AI_CHARS + 2];
+    memset(over, 'a', REDDIT_AI_CHARS + 1); over[REDDIT_AI_CHARS + 1] = '\0';
+    check(reddit_request(&ra, 2, 0) && !reddit_answer(&ra, 0, over, 40) &&
+          reddit_find(&ra, 0)->ai == REDDIT_AI_NONE && ra.nposts == 5,
+          "answer: 301 characters are refused whole, never truncated");
+    char wide[2 * (REDDIT_AI_CHARS + 1) + 1] = "";
+    for (size_t i = 0; i <= REDDIT_AI_CHARS; i++) strcat(wide, "\xC3\xA9"); /* e-acute */
+    check(reddit_request(&ra, 2, 0) && !reddit_answer(&ra, 0, wide, 40) && ra.nposts == 5,
+          "answer: 301 two-byte characters are refused");
+    wide[2 * REDDIT_AI_CHARS] = '\0';
+    check(reddit_request(&ra, 2, 0) && reddit_answer(&ra, 0, wide, 40) &&
+          strlen(reddit_find(&ra, 5)->title) == 2 * REDDIT_AI_CHARS,
+          "answer: the limit counts characters, not bytes; 300 two-byte characters fit");
+    char h96[REDDIT_TITLE + 2];
+    memset(h96, 'h', REDDIT_TITLE + 1); h96[REDDIT_TITLE + 1] = '\0';
+    check(!ra.sigma(&ra, 1, -1, h96, 50) && ra.sigma(&ra, 1, -1, h96 + 1, 50),
+          "sigma: a human's text is still at most 95 bytes");  /* node 6 */
+    Rules wide_rules = ra.rules;
+    wide_rules.max_title = REDDIT_TITLE + 1;
+    check(!ra.f(&ra, 1, wide_rules, ra.ranking) && ra.rules.max_title == REDDIT_TITLE,
+          "f: max_title above 95 bytes is refused; the buffer grew for answers alone");
+    /* the switch is theta, track-held, and a standing rule */
+    Rules off = ra.rules; off.allow_ai = false;
+    check(!ra.f(&ra, 9, off, ra.ranking) && ra.rules.allow_ai,
+          "kappa: a stranger cannot switch answers off");
+    check(reddit_request(&ra, 4, 6) && ra.f(&ra, 1, off, ra.ranking) && !ra.rules.allow_ai,
+          "f: the moderator switches answers off, with a request pending");
+    check(!reddit_answer(&ra, 6, "too late", 60) && reddit_find(&ra, 6)->ai == REDDIT_AI_NONE &&
+          !reddit_request(&ra, 4, 6),
+          "switch off: the pending answer is refused, and so is a new request");
+    check(reddit_sweep(&ra) == 4 && ra.nposts == 3 && reddit_find(&ra, 3) == nullptr,
+          "switch off: sweep drops the answers, and a reply under one falls with it");
+    /* barred, locked, full: the request is refused where its answer could not enter */
+    Track rb;
+    reddit_track_init(&rb, "bar", 1);
+    rb.sigma(&rb, 1, -1, "p", 0);                        /* node 0 */
+    Rules rr = rb.rules;
+    reddit_set_ban(&rr, 7, true);
+    check(rb.f(&rb, REDDIT_SITE, rr, rb.ranking) && !reddit_request(&rb, 7, 0),
+          "request: a barred user asks nothing");
+    rr = rb.rules; rr.locked = 0;
+    check(rb.f(&rb, 1, rr, rb.ranking) && !reddit_request(&rb, 2, 0),
+          "request: refused on a locked node");
+    rr = rb.rules; rr.locked = -1;
+    reddit_set_ban(&rr, REDDIT_AI, true);
+    check(rb.f(&rb, REDDIT_SITE, rr, rb.ranking) && !reddit_request(&rb, 2, 0),
+          "request: refused where the site has barred the AI");
+    for (size_t i = rb.nposts; i < REDDIT_POSTS; i++) rb.sigma(&rb, 1, -1, "fill", 0);
+    rr = rb.rules; reddit_set_ban(&rr, REDDIT_AI, false);
+    check(rb.f(&rb, REDDIT_SITE, rr, rb.ranking) && rb.nposts == REDDIT_POSTS &&
+          !reddit_request(&rb, 2, 0),
+          "request: refused in a full track, where its answer would have no room");
+    /* nothing of the AI crosses; a crossposted or carried node arrives unrequested */
+    Track pa, pb, agg;
+    reddit_track_init(&pa, "pa", 1); reddit_track_init(&pb, "pb", 2); reddit_track_init(&agg, "all", 0);
+    pa.sigma(&pa, 1, -1, "asked", 0);                    /* node 0 */
+    reddit_request(&pa, 2, 0);
+    reddit_answer(&pa, 0, "an answer", 0);               /* node 1, the AI's */
+    pa.sigma(&pa, 1, -1, "pending", 0);                  /* node 2 */
+    reddit_request(&pa, 3, 2);
+    check(!reddit_port(&pa, 1, &pb, 2, 0, REDDIT_FRESH) &&
+          !reddit_port(&pa, 1, &agg, 0, 0, REDDIT_CARRY) && pb.nposts == 0 && agg.nposts == 0,
+          "port: an AI node crosses under no translation");
+    check(reddit_port(&pa, 2, &pb, 2, 0, REDDIT_FRESH) && pb.posts[0].ai == REDDIT_AI_NONE &&
+          pb.posts[0].asked_by == 0 && reddit_port(&pa, 0, &agg, 0, 0, REDDIT_CARRY) &&
+          agg.posts[0].ai == REDDIT_AI_NONE,
+          "port: a crossposted or carried node arrives unrequested");
 
     /* prediction 6, channel 1, field by field: a moderator's f changing
      * only one field is admitted iff the track holds that field; the

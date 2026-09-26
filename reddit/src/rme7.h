@@ -29,18 +29,27 @@
  * second track. The tests hold that throughout, not only at the end. */
 
 constexpr size_t REDDIT_POSTS = 64;
-constexpr size_t REDDIT_TEXT  = 96;
+constexpr size_t REDDIT_TITLE = 95;  /* a human's text: the most max_title
+                                        allows, in bytes */
+constexpr size_t REDDIT_AI_CHARS = 300; /* an AI answer: at most this many
+                                        characters (UTF-8 code points) */
+constexpr size_t REDDIT_TEXT  = 4 * REDDIT_AI_CHARS + 1; /* room for either */
 constexpr size_t REDDIT_NAME  = 24;
 constexpr size_t REDDIT_MODS  = 4;
 constexpr size_t REDDIT_SUBS  = 8;   /* subscriptions a user may hold */
 constexpr size_t REDDIT_BALLOTS = 8; /* attributed votes a node may hold */
 constexpr size_t REDDIT_BANS  = 16;  /* users a track's theta may bar */
 constexpr unsigned REDDIT_SITE = 0;  /* the site's own identity: admin */
+constexpr unsigned REDDIT_AI = ~0u;  /* the AI's identity: an author that
+                                        holds nothing — no track, rank,
+                                        ballot, moderation or principal
+                                        (README, prediction 7) */
 
 /* Which authority holds a generator field, so kappa can gate a change by
  * the field it touches and not only by the actor. A track-held field
- * (max_title, min_hot, half_life, allow_crosspost, export_to_all, locked,
- * subs) is a moderator's; a site-held field (the ban set, and the site
+ * (max_title, min_hot, half_life, allow_crosspost, export_to_all,
+ * allow_ai, locked, subs) is a moderator's; a site-held field (the ban
+ * set, and the site
  * ranking parameters alpha/tolerance/rounds/lambda/interval) is the
  * site's alone. Level before sector: this is not a new slot, it is the
  * argument kappa already needed to tell its two sites apart. */
@@ -51,11 +60,18 @@ typedef enum { REDDIT_HELD_TRACK, REDDIT_HELD_SITE } Held;
  * so the tree is carried by ids, never by array positions. */
 typedef struct { unsigned voter; int delta; } Ballot;
 
+/* Has the AI been asked to answer this node? A request makes it pending;
+ * the answer resolves it, to answered (terminal) or back to none. */
+typedef enum { REDDIT_AI_NONE, REDDIT_AI_PENDING, REDDIT_AI_ANSWERED } AiState;
+
 typedef struct {
     char title[REDDIT_TEXT];
     unsigned id;
     int parent;            /* id of the parent node; -1 for a post */
-    unsigned author;
+    unsigned author;       /* REDDIT_AI: entered through reddit_answer only */
+    AiState ai;            /* on a human's node: asked, answered, or neither */
+    unsigned asked_by;     /* who asked the AI: on the node asked, and on
+                              the answer */
     int votes;             /* V: the popular vote, anonymous and attributed */
     Ballot ballots[REDDIT_BALLOTS]; /* the attributed votes, one per voter */
     size_t nballots;
@@ -73,6 +89,8 @@ typedef struct {
     bool allow_crosspost;  /* the port's gate on this track (receiver side) */
     bool export_to_all;    /* the port's translation from this track: a
                               sender may decline to translate (opt-out) */
+    bool allow_ai;         /* AI answers may be requested and admitted
+                              here. Track-held; changed by f. */
     int locked;            /* a rule about one post: no comments arrive
                               under it; -1 for none. Changed by f. */
     unsigned banned[REDDIT_BANS]; /* users barred here: nothing of theirs
@@ -153,6 +171,22 @@ bool reddit_vote(Track *t, int id, int delta);
  * node's ballots are full. Changes no rank anywhere. */
 bool reddit_cast(Track *t, unsigned voter, int id, int delta);
 
+/* Σ_ii: a request for the AI's answer to node `id`, attributed like a
+ * ballot. The node becomes pending, with the requester recorded. Refused
+ * if the requester is the AI or barred here, the node is missing or not
+ * unrequested, the track is full, or the answer asked for would not be
+ * admitted now — gtildesharp run on a probe answer, so a request has no
+ * rules of its own. */
+bool reddit_request(Track *t, unsigned requester, int id);
+
+/* Σ_ii: the AI's answer to pending node `id` — the ONLY path by which an
+ * AI-authored node enters X. It resolves the request either way: if the
+ * text is admitted (gtildesharp; at most REDDIT_AI_CHARS characters) the
+ * answer enters under the node and the node is answered, which is
+ * terminal; if the text is empty or refused, the node is unrequested
+ * again. Returns whether an answer entered. */
+bool reddit_answer(Track *t, int id, const char *text, time_t now);
+
 /* Σ_ij — the port: translation, then gate, then adapter. The ONLY
  * function that takes two tracks. Two translations (realization data,
  * not a second port):
@@ -179,8 +213,9 @@ bool reddit_cast(Track *t, unsigned voter, int id, int delta);
  *                 or there is no such ballot. Uses `id` and `user`
  *                 (README, predictions 5 and 6).
  * The gate is the receiver's rules (allow_crosspost, then the rules
- * themselves); the adapter enters it as a post of `to`. Refused,
- * touching nothing, if any step refuses. */
+ * themselves); the adapter enters it as a post of `to`, unrequested.
+ * Nothing the AI wrote crosses: an AI node is refused under every
+ * translation. Refused, touching nothing, if any step refuses. */
 typedef enum { REDDIT_FRESH, REDDIT_CARRY, REDDIT_RANK, REDDIT_WEIGHT } Translation;
 
 bool reddit_port(const Track *from, int id, Track *to, unsigned user,

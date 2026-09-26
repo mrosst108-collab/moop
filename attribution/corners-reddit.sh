@@ -12,8 +12,8 @@ set -e
 # hand-maintained list in the awk is what let cast/rank/weigh be called
 # sigma here yet never dropped from the H10/H11 corners; one list cannot
 # drift from itself.
-SIGMA="post comment vote cast cross all profile rank weigh"
-F_VERBS="rules lock ban unban follow unfollow pagerank blend clock"
+SIGMA="post comment vote cast cross all profile rank weigh request answer"
+F_VERBS="rules lock ban unban follow unfollow pagerank blend clock ai"
 in_set() { w=$1; shift; for v in $*; do [ "$w" = "$v" ] && return 0; done; return 1; }
 classify() {
     in_set "$1" $SIGMA   && { echo sigma; return; }
