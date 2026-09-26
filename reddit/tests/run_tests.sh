@@ -91,6 +91,7 @@ check "'all' is reserved: a user cannot found r/all" "1" "$(printf 'sub all 5\nq
 check "a subreddit name longer than the field is refused whole" "1" "$(printf 'sub aaaaaaaaaaaaaaaaaaaaaaaaaaaa5 1\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: that name is too long')"
 check "ban is site-held: a moderator cannot ban on their own track" "1" "$(printf 'sub cats 1\nban 1 3\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'banned=none')"
 check "a moderator's ban is refused, saying not the site" "1" "$(printf 'sub cats 1\nban 1 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
+check "a moderator's refused ban does not lift the site's ban (channel 1 re-run)" "1" "$(printf 'sub cats 1\nban 0 99\nban 1 99\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c 'banned=u99 ')"
 check "a second site ban keeps the first: the set holds both" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c 'banned=u3,u4 ')"
 check "a re-banned user cannot post; the earlier ban still bars its user" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\npost cats 3 after two bans\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: the rules do not admit that post')"
 check "unban is site-held: a moderator cannot lift a ban" "1" "$(printf 'sub cats 1\nban 0 3\nunban 1 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
@@ -100,6 +101,91 @@ check "kappa_Sigma: a banned user's attributed vote is refused" "1" "$(printf 's
 check "a ballot is +/-1: a large delta is refused" "1" "$(printf 'sub cats 1\npost cats 1 a post\ncast cats 2 0 1000000\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: delta not')"
 check "a user does not certify their own authority: self-follow refused" "1" "$(printf 'follow 3 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: a user does not certify their own authority')"
 check "a non-site actor changes no rank in r/all's theta (blend)" "1" "$(printf 'sub cats 1\npost cats 1 a\npost cats 1 b\nblend 1 cats 0.5\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: only the site sets lambda')"
+# the C field-holder battery names every field of theta, no more, no fewer
+check "the field-holder battery covers every field of Rules and Ranking" \
+    "$(sed -n '/} Post;/,/} Ranking;/p' src/rme7.h | grep -oE '^    (size_t|double|bool|int|unsigned) [a-z_]+' | awk '{print $2}' | grep -vE '^n(banned|subs)$' | sort | tr '\n' ' ')" \
+    "$(sed -n '/^static const char \*change_field/,/^}/p' tests/test_reddit.c | grep -oE 'return "[a-z_]+"' | grep -oE '"[a-z_]+"' | tr -d '"' | sort | tr '\n' ' ')"
+# every command in the language, issued by non-site actors (a moderator on
+# their own track, strangers, a banned user), leaves the site's
+# configuration, every existing track's admission data, and every rank
+# byte-identical; no evaluation (rank, weigh) runs in between
+T=$(mktemp -d)
+setup='sub cats 1
+sub dogs 2
+post cats 1 one
+post dogs 2 two
+comment cats 4 0 four here
+profile 2 3
+profile 4 3
+ban 0 3
+pagerank 0 0.8 0.0001 50
+clock 0 30
+blend 0 cats 0.5
+follow 1 2
+follow 2 4
+follow 4 1
+rank
+cast cats 4 0 1
+weigh cats'
+battery='sub newsub 5
+post cats 5 hello
+post cats 3 barred
+comment cats 5 0 hi
+vote cats 0 1
+cast cats 5 0 1
+cross cats 0 dogs 5
+cross cats 0 u2 5
+vote u2 0 50
+lock cats 1 0
+lock cats 5 0
+rules cats 1 50 0 1800 0 0
+rules cats 5 10 9 60 0 0
+rules u1 2 10 9 60 0 0
+ban 1 5
+ban 3 3
+unban 1 3
+unban 3 3
+profile 5 3
+profile 1 3
+follow 5 1
+follow 3 2
+unfollow 1 2
+pagerank 1 0.5 0.1 3
+pagerank 3 0.5 0.1 3
+clock 1 5
+clock 5 5
+blend 1 cats 1
+blend 2 dogs 0
+sweep cats
+gamma cats'
+views='show cats
+show dogs
+show u1
+show u2
+show u4
+all 5'
+# T_E as printed: the site's parameters and bans on every track, every
+# rank, W in every subreddit, and the X of the profiles the battery does
+# not rebuild. r/all's X is left out: `all K` is itself a declared
+# evaluation, and a moderator's opt-out (track-held) legitimately moves it
+site_view() { awk '/^r\// { t = $1; print t; next }
+    { for (i = 1; i <= NF; i++) if ($i ~ /^(banned|lambda|alpha|tolerance|rounds|interval)=/) print t, $i
+      if ($1 == "rank") print t, $0
+      if (t != "r/all" && match($0, /W -?[0-9.]+/)) print t, substr($0, RSTART, RLENGTH)
+      if ((t == "r/u2" || t == "r/u4") && $1 ~ /^#/) print t, $0 }'; }
+printf '%s\n' "$setup" > "$T/setup.txt"
+printf '%s\n%s\n' "$setup" "$battery" > "$T/battery.txt"
+sv_before=$(printf '%s\nquit\n' "$views" | "$BIN" "$T/setup.txt" 2>/dev/null | site_view)
+sv_after=$(printf '%s\nquit\n' "$views" | "$BIN" "$T/battery.txt" 2>/dev/null | site_view)
+check "the battery's baseline holds bans, lambda, alpha, interval, ranks, W, profile X" "yes" "$([ "$(printf '%s\n' "$sv_before" | grep -c ' banned=u3$')" = 2 ] && printf '%s\n' "$sv_before" | grep -q '^r/cats lambda=0.50$' && printf '%s\n' "$sv_before" | grep -q '^r/all alpha=0.80$' && printf '%s\n' "$sv_before" | grep -q '^r/all interval=30$' && [ "$(printf '%s\n' "$sv_before" | grep -c ' rank ')" = 3 ] && printf '%s\n' "$sv_before" | grep -q '^r/cats W [1-9]' && printf '%s\n' "$sv_before" | grep -q '^r/u2 .*x/dogs: two' && printf '%s\n' "$sv_before" | grep -q '^r/u4 .*x/cats: four here' && echo yes)"
+check "no non-site command writes the site's configuration, admission data, or a rank" "$sv_before" "$sv_after"
+rm -rf "$T"
+# the forcing failures of channels 4, 5 and 6, re-run
+check "a voter with no track contributes nothing and stops nothing" "1" "$(printf 'sub news 1\npost news 1 first\npost news 1 second\nfollow 2 3\nfollow 3 2\nrank\ncast news 9 0 1\ncast news 2 1 1\nweigh news\nshow news\nquit\n' | "$BIN" 2>/dev/null | grep -c '#1 \[+2, hot 2.00, W 1.00 heat 1.00\] second')"
+check "weigh scales by the N of the last rank: a new profile moves no W" "1" "$(printf 'follow 1 2\nfollow 2 3\nrank\nsub news 0\npost news 0 x\ncast news 3 0 1\nweigh news\nshow news\nprofile 7 1\nweigh news\nshow news\nquit\n' | "$BIN" 2>/dev/null | grep -oE 'W [0-9.]+' | sort -u | wc -l)"
+check "nobody crossposts or votes into a profile" "2" "$(printf 'sub cats 1\npost cats 9 from nine\npost cats 3 by three\nprofile 3 5\ncross cats 0 u3 9\nvote u3 0 50\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: no such subreddit')"
+check "and the profile is as its rebuild left it" "r/u3 (1 nodes, 1 mods)" "$(printf 'sub cats 1\npost cats 9 from nine\npost cats 3 by three\nprofile 3 5\ncross cats 0 u3 9\nvote u3 0 50\nshow u3\nquit\n' | "$BIN" 2>/dev/null | grep '^r/u3' | tail -1)"
+check "a crosspost starts over: the sender's ballots and W stay behind" "1" "$(printf 'follow 1 2\nfollow 2 1\nrank\nsub cats 1\nsub dogs 2\npost cats 1 one\ncast cats 2 0 1\nweigh cats\ncross cats 0 dogs 5\nweigh dogs\nshow dogs\nquit\n' | "$BIN" 2>/dev/null | grep -c '^  #0 \[+1, hot 1.00\] x/cats: one  (u5)$')"
 
 # persistence: the transcript is the input history, replayed exactly
 T=$(mktemp -d)

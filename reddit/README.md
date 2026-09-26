@@ -599,6 +599,50 @@ seventh slot and reads nothing across tracks. Parked, unchanged: the
 anonymous `vote` as an unadmitted Σ channel, ballot capacity per node,
 and karma under theta_u.
 
+**Correction to the outcome above**, which was recorded at 2ba50a5 and is
+left as it was written. It over-claimed. Re-running the forcing failures
+against the built binary, before freezing prediction 7, found three still
+reproducing at 2ba50a5, and neither acceptance battery had been written:
+
+- channel 4: `weigh` stopped at the first ballot whose voter had no track
+  (a `return` where "contributes nothing and stops nothing" was frozen),
+  so every W after it stayed zero;
+- channel 5: `weigh` still scaled by the current count of user tracks,
+  not by the N of the last `rank`, so a profile created between them moved
+  W (1.42 to 1.90 on the re-run) with no rank changed;
+- channel 6: `cross` and `vote` still reached profiles: `cross cats 0 u3
+  9` put u9's post into u3's profile, and `vote u3 0 50` raised the votes
+  u3's karma is summed from;
+- "the field-holder battery and a non-site command battery" did not exist.
+
+All four are closed at the commit carrying this paragraph. `weigh` skips a
+voter with no track and continues. `rank` records its N, and `weigh`
+scales by that N. `cross` and `vote` address subreddits only. The C
+battery changes each of the thirteen fields of θ alone (seven track-held,
+six site-held), and a shell check holds its field list equal to `Rules`
+and `Ranking`. The shell battery issues every actor-bearing command as
+non-site actors (a moderator on their own track, strangers, a banned
+user) and compares the site's parameters, every ban set, every rank, every
+subreddit's W, and the X of the profiles it does not rebuild. Every
+forcing failure now has an exact re-run as a check. Each new check fails
+against 2ba50a5's binary and passes here.
+
+Writing the battery found a seventh channel, one the prediction did not
+list. The crosspost translation copied the sender node's ballots and W,
+so a user's `cross` wrote W into a track where no `weigh` had run, and
+later `weigh`s there counted ballots nobody had cast there. It is closed
+in the translation: a fresh crosspost starts over with one vote, no
+ballots and no W. That needed no slot and no second two-track function.
+So "no act of a generator-side actor writes T_E" was false when the
+outcome was first recorded, for this channel and for channels 4 to 6. It
+holds from this commit, and it rests on the batteries rather than on the
+list of channels.
+
+The process fault, kept on the record: the outcome was written from the
+list of intended fixes, not from re-running each forcing failure against
+the binary. The checks that would have caught it were the ones the
+outcome said already existed.
+
 ## Frozen decisions for a live service
 
 Three semantic decisions, fixed before any code, presupposing no host,

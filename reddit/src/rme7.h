@@ -157,8 +157,10 @@ bool reddit_cast(Track *t, unsigned voter, int id, int delta);
  * function that takes two tracks. Two translations (realization data,
  * not a second port):
  *   REDDIT_FRESH  a crosspost by `user`: the title carries its origin,
- *                 the post starts over with one vote at `now`. Refuses
- *                 comments: a comment has no parent elsewhere.
+ *                 the post starts over with one vote at `now`, no
+ *                 ballots and no W — nobody cast there and nothing was
+ *                 weighed there. Refuses comments: a comment has no
+ *                 parent elsewhere.
  *   REDDIT_CARRY  aggregation: votes and birth time travel with the
  *                 node, so the receiver ranks it by its own decay; the
  *                 sender's export_to_all must be on, or T declines. A

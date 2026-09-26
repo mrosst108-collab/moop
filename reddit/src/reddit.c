@@ -292,6 +292,11 @@ bool reddit_port(const Track *from, int id, Track *to, unsigned user,
     if (how == REDDIT_FRESH) {
         p.votes = 1;
         p.born = now;
+        /* it starts over: nobody has cast here and nothing was weighed
+         * here, so the sender's ballots and W stay behind */
+        memset(p.ballots, 0, sizeof p.ballots);
+        p.nballots = 0;
+        p.weight = 0.0;
     }
     p.hot = 0.0; /* the receiver's gsharp writes hot, nobody else */
 

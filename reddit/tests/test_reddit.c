@@ -21,6 +21,31 @@ static bool same_posts(const Track *x, const Track *y)
            memcmp(x->posts, y->posts, x->nposts * sizeof(Post)) == 0;
 }
 
+/* One in-range change to exactly one field of theta, by index: the
+ * fields a moderator may move come first, the site's after. Returns the
+ * field's name, or nullptr past the last. The shell tests hold the names
+ * equal to the fields of Rules and Ranking in rme7.h. */
+constexpr int FIRST_SITE_HELD = 7;
+static const char *change_field(int i, Rules *r, Ranking *k)
+{
+    switch (i) {
+    case 0:  r->max_title = 40;          return "max_title";
+    case 1:  r->min_hot = 2.5;           return "min_hot";
+    case 2:  r->allow_crosspost = false; return "allow_crosspost";
+    case 3:  r->export_to_all = false;   return "export_to_all";
+    case 4:  r->locked = 3;              return "locked";
+    case 5:  r->subs[r->nsubs++] = 2;    return "subs";
+    case 6:  k->half_life = 1800.0;      return "half_life";
+    case 7:  reddit_set_ban(r, 7, true); return "banned";
+    case 8:  k->alpha = 0.5;             return "alpha";
+    case 9:  k->tolerance = 1e-3;        return "tolerance";
+    case 10: k->rounds = 7;              return "rounds";
+    case 11: k->lambda = 0.5;            return "lambda";
+    case 12: k->interval = 30;           return "interval";
+    default: return nullptr;
+    }
+}
+
 /* Multiset equality of titles, ignoring order. */
 static bool same_titles(const Track *x, const Track *y)
 {
@@ -397,6 +422,44 @@ int main(void)
     lam.lambda = 1.5;
     check(!sr.f(&sr, REDDIT_SITE, sr.rules, lam) && sr.ranking.lambda == 0.0,
           "f: lambda outside [0,1] is refused");
+
+    /* a crosspost starts over: the sender's ballots and W stay behind, so
+     * a user's crosspost writes no W, and imports no ballot, into a track
+     * where nobody cast and nothing was weighed (prediction 6, found by
+     * its non-site battery) */
+    Track xr;
+    reddit_track_init(&xr, "x", 3);
+    const Post *weighed = reddit_find(&sr, 1);        /* one ballot, W 1.8 */
+    check(weighed && weighed->nballots == 1 && weighed->weight == 1.8 &&
+          reddit_port(&sr, 1, &xr, 5, 0, REDDIT_FRESH) && xr.nposts == 1 &&
+          xr.posts[0].nballots == 0 && xr.posts[0].weight == 0.0 &&
+          xr.posts[0].heat == 0.0 && xr.posts[0].votes == 1,
+          "port: a fresh crosspost carries no ballots and no W");
+
+    /* prediction 6, channel 1, field by field: a moderator's f changing
+     * only one field is admitted iff the track holds that field; the
+     * site's always is; a stranger's never is; a refused change leaves
+     * the track byte-identical */
+    for (int i = 0; ; i++) {
+        Track m, s, m0;
+        reddit_track_init(&m, "m", 1);                 /* moderated by user 1 */
+        Rules r = m.rules; Ranking k = m.ranking;
+        const char *name = change_field(i, &r, &k);
+        if (name == nullptr)
+            break;
+        bool site_held = i >= FIRST_SITE_HELD;
+        memcpy(&m0, &m, sizeof m);
+        bool stranger = m.f(&m, 8, r, k);
+        bool untouched = memcmp(&m, &m0, sizeof m) == 0;
+        bool mod = m.f(&m, 1, r, k);
+        untouched = untouched && (mod || memcmp(&m, &m0, sizeof m) == 0);
+        reddit_track_init(&s, "s", 1);
+        bool site = s.f(&s, REDDIT_SITE, r, k);
+        char desc[160];
+        snprintf(desc, sizeof desc, "kappa by field: %s is %s-held (moderator %s, site admitted, stranger refused)",
+                 name, site_held ? "site" : "track", site_held ? "refused" : "admitted");
+        check(!stranger && mod == !site_held && site && untouched, desc);
+    }
 
     return failures;
 }

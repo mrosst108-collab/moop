@@ -127,6 +127,9 @@ static unsigned site_bans[REDDIT_BANS]; /* the site's standing bans, the
     driver's record of site policy: a subreddit is founded under them, so
     a ban precedes the tracks it will govern */
 static size_t nsite_bans;
+static size_t ranked_over; /* the N the last `rank` made the ranks sum to
+    one over: `weigh` converts rank to vote units by this N, fixed per
+    evaluation, so a profile created after `rank` moves no W */
 
 static Track *find(const char *name)
 {
@@ -306,8 +309,9 @@ static bool execute(char *line)
     } else if (strcmp(cmd, "vote") == 0) {
         int id, d;
         if (sscanf(rest, "%23s %d %d", a, &id, &d) != 3) { refuse("vote SUB ID DELTA"); return true; }
-        Track *t = find(a);
-        if (!t || !reddit_vote(t, id, d)) refuse("no such node");
+        Track *t = find_sub(a); /* a profile's X is evidence: nobody votes into it */
+        if (!t) { refuse("no such subreddit"); return true; }
+        if (!reddit_vote(t, id, d)) refuse("no such node");
     } else if (strcmp(cmd, "tick") == 0) {
         long s;
         if (sscanf(rest, "%ld", &s) != 1 || s < 0) { refuse("tick SECONDS"); return true; }
@@ -322,7 +326,9 @@ static bool execute(char *line)
     } else if (strcmp(cmd, "cross") == 0) {
         int id; unsigned user;
         if (sscanf(rest, "%23s %d %23s %u", a, &id, b, &user) != 4) { refuse("cross FROM ID TO USER"); return true; }
-        Track *from = find(a), *to = find(b);
+        /* subreddits only, at both ends: a profile is fed by `profile`
+         * alone, so nobody writes another user's X by crossposting */
+        Track *from = find_sub(a), *to = find_sub(b);
         if (!from || !to) { refuse("no such subreddit"); return true; }
         if (!reddit_port(from, id, to, user, now, REDDIT_FRESH)) refuse("the port did not admit it");
     } else if (strcmp(cmd, "lock") == 0) {
@@ -401,16 +407,17 @@ static bool execute(char *line)
         Track *t = find_sub(a);
         if (!t) { refuse("no such subreddit"); return true; }
         /* the receiver forgets its W, then each voter's track exports
-         * its authority in vote units (rank x N) through the port,
-         * once per ballot; a voter with no track contributes nothing */
+         * its authority in vote units (rank x N, N of the last `rank`)
+         * through the port, once per ballot; a voter with no track
+         * contributes nothing and stops nothing */
         for (size_t i = 0; i < t->nposts; i++) t->posts[i].weight = 0.0;
         for (size_t i = 0; i < t->nposts; i++)
             for (size_t b = 0; b < t->posts[i].nballots; b++) {
                 char name[REDDIT_NAME];
                 snprintf(name, sizeof name, "u%u", t->posts[i].ballots[b].voter);
                 Track *v = find(name);
-                if (!v) return true;
-                v->share = v->rank * (double)nusers;
+                if (!v) continue;
+                v->share = v->rank * (double)ranked_over;
                 reddit_port(v, (int)t->posts[i].id, t, t->posts[i].ballots[b].voter, now, REDDIT_WEIGHT);
             }
         t->gsharp(t, now);
@@ -455,6 +462,7 @@ static bool execute(char *line)
          * each track then settles from its own incoming alone. */
         size_t n = nusers;
         if (n == 0) { refuse("nobody to rank"); return true; }
+        ranked_over = n;
         for (size_t i = 0; i < n; i++) users[i].rank = 1.0 / (double)n;
         size_t round = 0; double change = 1.0;
         while (round < all.ranking.rounds && change > all.ranking.tolerance) {
