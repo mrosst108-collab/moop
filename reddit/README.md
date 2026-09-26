@@ -445,6 +445,124 @@ only rank leaves the node and user parameters unused. The signature fits
 the others as written. The evidence for a port contract has moved toward
 "the existing signature is the contract" and away from a new one.
 
+**6. anti-puppet (a block condition is not an independence certificate).**
+
+Arrived as testimony (`docs/crossing.md`, entry 7): the outline "Where
+the Generator Acts" states
+
+    G♯_GE = G♯_EG = 0   ⇏   ¬Puppet(G, E, T_E)
+
+— the absence of dissipative coupling between a generator side G and an
+evaluator side E does not show that G lacks operative capacity over E's
+transition space T_E. This reddit's no-capture test *is* the block
+condition (capture := G♯_ij ≠ 0; "every act on b leaves a's ranking
+identical"), and it held on a tree where such capacity was reproduced
+before this prediction was written. The non-implication is re-derived
+here by counterexample, not imported. The outline's equations are not
+used: §3 is unpopulated and its gate stays down, so this stays at
+role-plus-constraint level like every row above.
+
+The partition, declared for this reddit and nothing else:
+
+    G    users (posts, comments, ballots, subscriptions), moderators
+         (their tracks' θ), clients of the live ingress
+    E    the site's configuration of evaluation — alpha, tolerance,
+         rounds, lambda, interval — and its admission data (bans); the
+         evidence evaluation produces — ranks, the N they sum to one
+         over, W, a profile's X; and the argument κ receives: the actor
+    T_E  every write to those
+
+Prediction: every write into T_E is either admitted at the site's
+κ-site or produced by a declared evaluation (`rank`, `weigh`, the
+aggregation port) from G's recorded acts under a configuration fixed for
+that evaluation. No act of a generator-side actor writes T_E, directly or
+through its own admission. Closing the channels needs no new slot and no
+second two-track function: κ gains one argument (which κ-site holds the
+field being changed), and a track's ban field becomes a set.
+
+Concretely, each channel with the failure that forces it, all reproduced
+on `d751555`:
+
+1. **κ-site per field, level before sector.** `f` names the holder of
+   every field it changes — the track (max_title, min_hot, half_life,
+   allow_crosspost, export_to_all, locked, subs) or the site (alpha,
+   tolerance, rounds, lambda, interval, bans) — and κ admits a
+   track-held change for the track's moderators and the site, a
+   site-held change for the site alone. Forced by: `ban 1 99` from the
+   moderator of r/cats printed `refused: not the site` and still lifted
+   the site's ban there; a moderator's `f` wrote lambda and alpha on
+   their own track (the site-only rule for lambda lived in `blend`).
+2. **Admission transitions are declared, one at a time.** A ban is added
+   to a set and lifted only by `unban`; a subreddit is founded under the
+   site's standing bans; κ_Σ gates a ballot as it gates a post — `cast`
+   refuses a banned voter, and the weight port refuses their authority.
+   Forced by: `ban 0 3` then `ban 0 4` let u3 post again; a subreddit
+   founded after `ban 0 3` admitted u3; a banned user's `cast` was
+   admitted.
+3. **κ's argument is authored by the ingress alone.** The ingress
+   collapses every run of whitespace to one space before it binds the
+   actor; a field longer than a name is refused whole; one line bound
+   governs the ingress and replay, and an over-long line is refused,
+   never split. Forced by: a client bound to u2 sent `post cats<TAB>0 7
+   x` and the post was authored u0; `sub` with a 24-character name read
+   the actor from the name's tail; a 265-character line the ingress
+   recorded whole replayed as two commands, the second (`sub tail 7`)
+   under an actor nobody bound.
+4. **The evidential procedure is declared.** A subscription naming the
+   subscriber is refused — a subject does not certify its own
+   authority; a ballot is +1 or −1; `weigh` processes every ballot (a
+   voter with no track contributes nothing and stops nothing). Forced
+   by: `follow 1 1` with three dangling users gave u1 rank 0.690 against
+   0.250; `cast news 1 1 1000000` from the lowest-ranked user outweighed
+   the highest-ranked user's +1 (W 659929.70 against 1.46); a ballot by
+   a track-less voter zeroed every W after it.
+5. **The evaluator reference is fixed per evaluation.** `rank` records
+   the N its ranks sum to one over, and `weigh` scales by that N until
+   the next `rank`. Forced by: a profile created between `rank` and
+   `weigh` moved every W (1.46 to 1.82) with no rank changed.
+6. **E's records are not writable by name.** `all` is reserved like
+   `uN`; `cross` and `vote` address subreddits only, so no one writes
+   another user's profile (a profile's X is what its karma is summed
+   from). Forced by: `sub all 5` made `show all` show u5's subreddit;
+   `cross cats 0 u3 9` put u9's post into u3's profile.
+
+Decisions made here rather than by the code. Self-subscription is
+refused, reversing prediction 4's "a self-loop is an ordinary edge",
+which recorded itself as open to reversal. `unban` is added because a
+ban set without removal would make every ban irreversible by accident,
+and a replacing ban was the silent unban this prediction removes. The
+ingress normalizes whitespace rather than refusing tabs, so a title sent
+over the socket records single spaces; the transcript records exactly
+what ran. Not closed, and recorded as open rather than decided here: the
+anonymous `vote` (an unadmitted Σ channel over the default ordering,
+kept anonymous by prediction 5), ballot capacity per node, and karma
+summed under its subject's own θ_u (prediction 3's consumer of θ_u).
+
+Behavioral consequences, observable: every command in the language,
+issued by a non-site actor, leaves the site's configuration and every
+existing track's admission data byte-identical; a moderator keeps every
+track-held power; the PageRank reference and the eight committed corner
+observations still reproduce.
+
+Acceptance: at the library, for every field of θ, a moderator's `f`
+changing only that field is admitted iff the field is track-held, and
+the site's always is; in the shell, a battery issuing every command as
+non-site actors leaves every rules line (bans included) and every rank
+unchanged, and each forcing failure above, re-run, is refused. Static
+checks: six slots, one two-track function.
+
+Falsified if closing a channel needs a new slot, a second two-track
+function, a slot reading a second track, or a distinction no reproduced
+failure forces; if any channel above survives its re-run; or if the
+committed corner observations stop reproducing, which would mean
+recorded evidence had been re-produced under a different instrument.
+
+Not claimed: independence. Authority remains a function of G's
+subscriptions — PageRank over the follow graph measures recursive
+endorsement, not judgment — so ¬Puppet here is structural and necessary,
+and an independent evaluation would additionally need an evidential
+procedure and matched conditions this reddit does not have.
+
 ## Frozen decisions for a live service
 
 Three semantic decisions, fixed before any code, presupposing no host,

@@ -286,3 +286,76 @@ mechanism, zero code.
   untouched. Its §3.1 κ paragraph already states the disagreement correctly and needs no edit.
 - **parked**: everything above except the operator-count ruling request, which is addressed to the
   ratifying authority.
+
+### 7 — "Where the Generator Acts" arrives; the reddit's no-capture test is a block condition, not an independence certificate
+
+- **from → to**: an outline, *Where the Generator Acts — Recursive Self-Improvement as an RME-7
+  Instantiation* (model, agent, research and evaluator sectors; DeepSeek and OpenAI profiles), pasted
+  in session by the operator with a relay's framing ("I've kept the formal architecture intact, but
+  tightened the prose…"), and the operator's question, "can you use recursive self improvement math
+  to help strengthen the reddit?" → `mrosst108-collab/moop @ claude/peer-hierarchy-reddit-review-12dgaf`,
+  which carries `reddit/` forward from `claude/rme-7-multitrack-ports-990dt4 @ d751555`.
+- **ground (sender-side)**: none — pasted text, no commit, no content hash. κ > 0 for every claim;
+  nothing binds by arrival. Local ground for the re-derivations below: `reddit/` at `d751555`, and a
+  review of it run in the same session, whose reproductions are the forcing failures listed in
+  `reddit/README.md` prediction 6.
+- **claims** (sender's terms, abridged; nothing transcribed into `prompts/asdg-rme7.md`): the canonical
+  form with F = (F_X, F_θ), κ and Ψ arguments of F, "no proposal stage between F and κ", G̃♯ = ω_σ⁻¹;
+  four transition classes Ψ ordered by what is modified — state-, generator-, evaluator-,
+  admissibility-level — and "level ≠ sector"; the G/E block condition G♯_GE = G♯_EG = 0, with target
+  reuse (G♯_GE ≠ 0) and evaluator capture (G♯_EG ≠ 0) as its two failures; Puppet(C, P, T), "C has
+  operative capacity over the specified transition-space T of P", with G♯_GE = G♯_EG = 0 ⇏
+  ¬Puppet(G, E, T_E) and "the block condition is never, by itself, an independence certificate";
+  improvement as a relation under an evaluator reference that is fixed, held out and matched, where
+  "a verdict under θ′_E opens a new comparison rather than extending the old one"; four failure forms
+  (evaluator drift, target reuse, evaluator capture, self-admission); F does not "author the κ it
+  takes as an argument"; "the generative channel may self-apply, but may not modify the rules
+  governing its own admissibility by invoking them"; RUN as the discharge standard, κ(θ, F)·F a
+  realization variant. The outline's own status section keeps κ-site identity (κ_F/κ_Σ),
+  admissibility-level representation and independent evaluation open.
+- **status**, by claim:
+  - the canonical form, G̃♯ = ω_σ⁻¹, every equation — `testimony`, and declined: §3 is unpopulated and
+    its gate stays down. The reddit stays at role-plus-constraint level, as its README has from the
+    start. This is what the operator's question cost: the outline's mathematics enters only as
+    distinctions and implications that the reddit can test, not as equations it satisfies.
+  - G♯_GE = G♯_EG = 0 ⇏ ¬Puppet(G, E, T_E) — `re-derived`, by counterexample in this tree. The
+    reddit's no-capture test holds the block condition throughout the trace, and it was green at
+    `d751555` while a moderator could lift the site's ban, a client could choose the actor κ
+    received, and a user could raise their own authority by following themselves — each reproduced
+    before any change. The non-implication did not need to be believed; the tree already exhibited it.
+  - κ-site by level — `re-derived` for this reddit, reduced: two holders (a track's moderators; the
+    site), not four classes. The reddit's evaluator-level fields (alpha, tolerance, rounds, lambda,
+    interval) and its admissibility-level data (bans) share one κ-site, so the distinction between
+    them carries no information here and is not introduced (§7, ruled). Ψ in general stays undefined
+    in this tree.
+  - F does not author κ's argument — `re-derived`: the ingress's binder split words on spaces and the
+    executor on all whitespace, a name longer than its field fed its tail to the next conversion, and
+    replay split lines the ingress had recorded whole.
+  - a fixed evaluator reference — `re-derived`: `weigh` scaled ranks solved over one N by another.
+  - no self-certification ("it does not thereby become the authority that certifies the improvement")
+    — `re-derived` as the reversal of prediction 4's self-loop ruling. It agrees in reason with AWV
+    v0.6 (`collab/awv-reddit.md @ claude/awv-reddit-file-8b76ff`), which excludes "the self-loop option
+    as a rank sink" for dangling columns — testimony here; a self-subscription is that sink chosen by
+    the user. It is also the first place entry 6's collapse of G_S into G_I pressed: one scalar is
+    both standing and exported influence, so an influence edge to oneself buys standing directly.
+  - the four sectors M/A/R/E, the two laboratory profiles, the improvement relation and the
+    five-conjunct closed-loop criterion — `testimony`, not used. Nothing in the reddit improves the
+    machinery that improves it, and no office is instantiated for completeness.
+  - κ_F / κ_Σ identity — `parked`; the outline, entry 3 and entry 6 agree it is open.
+- **a correction to entry 6**, which is not edited: entry 6 recorded "one place the reddit is ahead of
+  the paper" — the capture condition executed as `reddit/tests/test_reddit.c:105`. That stands as a
+  statement about the block condition and is withdrawn as anything more. The test is necessary and
+  was never sufficient; prediction 6 adds the anti-puppet checks it lacked, and the no-capture test
+  stays as it is.
+- **derivation**: `reddit/README.md` prediction 6, frozen and committed before any code: a G/E
+  partition declared for this reddit alone, six channels, each named with the reproduced failure that
+  forces it, and falsifiers that include "a distinction no reproduced failure forces".
+- **criticism, assembled** (not adjudicated): (1) the outline's G/E split is a sector split within one
+  instantiation; the reddit's crosses roles and tracks — the site's track holds E's configuration — so
+  whether sector and track coincide is again the question entries 3 and 6 left open for G̃♯.
+  (2) "operative capacity" is left informal by the outline; here it is operationalized as "some act by
+  a generator-side actor changes a field of T_E", a checkable proxy and not the definition.
+- **consequences**: the commits carrying this entry and prediction 6. `prompts/asdg-rme7.md` is
+  untouched.
+- **parked**: κ-site identity; Ψ; the anonymous `vote` as an unadmitted Σ channel; ballot capacity per
+  node; karma summed under its subject's own θ_u.
