@@ -563,6 +563,42 @@ endorsement, not judgment — so ¬Puppet here is structural and necessary,
 and an independent evaluation would additionally need an evidential
 procedure and matched conditions this reddit does not have.
 
+**Outcome: held.** All six channels are closed, and each forcing failure,
+re-run, is refused. Channel 1: `kappa` gained the `Held` argument
+(track-held vs site-held), `f` reads the holder off the fields a change
+moves, and a moderator's site-held change — a ban, or lambda/alpha — is
+refused at the library; the C tests assert it field by field. Channel 2:
+`banned` is a set (`reddit_set_ban`/`reddit_is_banned`), a second ban
+keeps the first, `unban` lifts one, a subreddit is founded under the
+site's standing bans, and `cast` and the weight port refuse a barred
+voter. Channel 3: the ingress splits tokens on all whitespace, so the
+tabbed line binds the real actor (`post cats 2 7 tabbed`, not u0); a name
+over its field is refused; an over-long line replays refused, not split.
+Channel 4: a self-subscription is refused at the driver, a ballot is
+±1. Channel 5: `weigh` scales by the N of the last `rank`. Channel 6:
+`all` is reserved, and `cross`/`vote` reach subreddits only. Acceptance
+met: the field-holder battery and a non-site command battery leave every
+rules line and rank unchanged; static checks still find six slots and one
+two-track function; the eight committed corner observations still
+reproduce (the only realization change to `show` is an empty ban set now
+reads `banned=none`, and the frozen observations were regenerated for
+that one token).
+
+One prediction reversed, as it said it might: self-subscription. At the
+library a self-loop is still an ordinary edge (`f` does not parse `uN`);
+the *product* refuses it at the driver, where "a user originates nothing
+into their own track" already lives. Two findings, neither falsifying.
+(i) The library cannot tell a profile from a subreddit (finding 2 of
+prediction 3 stands), so the self-edge refusal, the reserved `all`, and
+"posts address subreddits only" are all driver rules, not slot rules —
+the six slots carry no notion of "self" or "site policy" to consult.
+(ii) A ban is now two records: `theta` per track (what `gtildesharp`
+reads) and the driver's standing set (what a new track is founded under).
+The standing set is the site policy the transcript replays; it is not a
+seventh slot and reads nothing across tracks. Parked, unchanged: the
+anonymous `vote` as an unadmitted Σ channel, ballot capacity per node,
+and karma under theta_u.
+
 ## Frozen decisions for a live service
 
 Three semantic decisions, fixed before any code, presupposing no host,
