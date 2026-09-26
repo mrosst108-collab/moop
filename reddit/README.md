@@ -643,6 +643,114 @@ list of intended fixes, not from re-running each forcing failure against
 the binary. The checks that would have caught it were the ones the
 outcome said already existed.
 
+**7. requested AI answers (an author that holds nothing).**
+
+Ruled by the operator. Any human may request an AI answer to any
+human-written post or comment, their own or someone else's. The AI then
+answers once, automatically. It never answers the AI. After it has
+answered, it speaks again in that thread only where a human has replied
+and a human asks. An answer is at most 300 characters. Recommended and
+accepted with those rulings: a moderator may turn answers off in their
+subreddit (on by default), and an answer is written from the thread path
+(the post down to the node answered) and from nothing else. Read here as:
+each human-written node is answered at most once, and a node the AI wrote
+is never answered.
+
+Derived before any code. The AI is neither a slot nor a user. It is an
+**author that holds nothing**: a reserved identity, `REDDIT_AI`, beside
+`REDDIT_SITE`, with no track, no rank, no ballot, no moderation and no
+principal. What it writes is a node of X, so every slot acts on an answer
+as on any comment. `jsharp` orders it among siblings, `gsharp` decays it,
+`gtildesharp` admits it, votes and ballots reach it, and a human may reply
+to it. Prediction:
+
+    an answer is Σ under the one verdict: requested as an attributed
+    arrival on a node, entering X only through the answer path, gated by
+    the same gtildesharp. No new slot, no second two-track function, no
+    slot reading a second track, no state above the node.
+
+Concretely:
+
+1. **Request, then answer, both Σ.** `request SUB USER ID` is an
+   attributed arrival on node ID, like a ballot. It marks the node pending
+   and records who asked. It is admitted only if the requester is not the
+   AI and not barred there, the node is unrequested, and the answer it asks
+   for would be admitted now. That last test is `gtildesharp` run on a
+   probe answer, so a request has no rules of its own. `answer SUB ID TEXT`
+   is the only path by which an AI-authored node enters X, and it resolves
+   the request. Either the node is answered, which is terminal ("one
+   comment only"), or TEXT is empty or refused and the node is unrequested
+   again, so a human may ask again. `post`, `comment`, `cross` and the port
+   never produce an AI-authored node.
+2. **Admission stays one verdict.** `gtildesharp` gains the AI's standing
+   rules. An AI node has a parent that is present, not locked, and not
+   written by the AI, so the AI never answers the AI. Its subreddit allows
+   answers and has not barred the AI (the site's ban set can hold
+   `REDDIT_AI` like any user). Its text is at most 300 characters (UTF-8
+   code points), where a human's is at most `max_title` bytes. `min_hot`
+   and the other rules apply unchanged, and `reddit_sweep` applies these
+   rules to existing answers as it applies a lock to existing comments.
+3. **The switch is θ.** `allow_ai` is one track-held field of `Rules`, set
+   by `ai SUB USER 0|1` through `f` under `kappa`, and `rules` preserves
+   it. The field-holder battery gains its row. The rules line prints
+   `ai=off` only when the switch is off, so nothing printed today changes.
+4. **Nothing of the AI crosses tracks.** The port refuses an AI node under
+   every translation, and a crossposted or carried node arrives
+   unrequested. The AI has no profile, so it has no karma and no rank:
+   `sub`, `profile`, `follow` and `unfollow` refuse it. κ never admits it,
+   because it moderates nothing and is not the site.
+5. **Answering automatically belongs to the live service, as ticking
+   does.** `reddit serve` runs one answerer per pending request. The
+   answerer is an executable the operator configures (`REDDIT_ANSWERER`);
+   it reads the thread path on stdin and writes one line. The server
+   records the result as an ordinary `answer` line in the one serialized
+   order: the text, or an empty answer if the answerer failed, timed out
+   (`REDDIT_ANSWER_TIMEOUT`), or wrote more than a line can record. The
+   executor, not the server, applies the 300-character rule, so an
+   over-long answer is recorded and refused, never truncated. A client
+   cannot send `answer`, just as it cannot send `tick`, and no principal
+   binds to the AI. A server with no answerer refuses `request` at the
+   ingress. A request still pending at restart is asked again. Replay reads
+   the recorded answers and never consults an answerer, the network or
+   wall time. The reference CLI records requests and executes `answer`
+   lines but answers nothing by itself; whoever types an `answer` line
+   there is trusted, as with the asserted actor number.
+6. **The answerer is replaceable.** `answerers/claude.py` is a reference
+   occupant that calls Claude through the official Python SDK. The server
+   knows only the executable's contract.
+
+Decisions made here rather than by the code. Any human may request,
+including the node's author. Requests are limited only by one per node and
+by the track's capacity; the moderator's switch, sweep and the site's bans
+are the recourse. The empty answer exists so that a failed answer returns
+the node to unrequested instead of leaving it pending forever. The human
+text cap stays 95 bytes (now named `REDDIT_TITLE`), and a node's text
+buffer grows to hold 300 characters of UTF-8.
+
+Behavioral consequences, observable. These requests are refused: one on
+an AI node, a second one on a pending or answered node, one by a barred
+user, and one where the switch is off or the node is locked. A human's
+reply to an answer can itself be answered. `ai SUB U 0` by a
+non-moderator is refused. A 301-character answer is refused whole, and its
+node is unrequested again. A transcript with requests and answers replays
+to the same tree with no answerer present. No AI node reaches r/all or a
+profile. The eight committed corner observations still reproduce, and the
+prediction 6 batteries still pass with `request`, `answer` and `ai` added
+to them.
+
+Falsified if the feature needs a new slot, a second two-track function, a
+slot reading a second track, or state above the node (a thread-level
+generator, a per-thread counter); if an AI-authored node enters X by any
+path but `answer`; if replay consults an answerer, the network or wall
+time; if an answer over 300 characters is admitted or truncated; or if the
+committed corner observations stop reproducing.
+
+Not claimed: anything about what an answer says. Its correctness, safety
+and tone belong to the answerer, and the site's recourse is the switch,
+votes, sweep and the ban set. Also not claimed: that an unreserved account
+is a human. "Human-written" means "not written through `answer`", so a
+principal bound to a bot is a bot the rules treat as a human.
+
 ## Frozen decisions for a live service
 
 Three semantic decisions, fixed before any code, presupposing no host,
