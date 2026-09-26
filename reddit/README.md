@@ -1,9 +1,11 @@
 # reddit
 
-A reddit in C23, shaped by RME-7 (`../prompts/asdg-rme7.md`). No network,
-no persistence: a library (`src/reddit.c`, `src/rme7.h`), a terminal
-front end (`src/main.c`) with a virtual clock so runs replay exactly, and
-tests.
+A reddit in C23, shaped by RME-7 (`../prompts/asdg-rme7.md`). No network
+of its own and no storage but its transcript: a library (`src/reddit.c`,
+`src/rme7.h`), a terminal front end (`src/main.c`) with a virtual clock so
+runs replay exactly, a live service over a Unix socket, and tests. AI
+answers come from an external answerer the operator configures
+(`answerers/claude.py` is the reference one).
 
 ```sh
 make && make test
@@ -34,13 +36,16 @@ all 2                               r/all, rebuilt from every subreddit's top 2
 profile 1 5                         u1, rebuilt from user 1's nodes everywhere
 ban 0 2                             the site bans user 2 from every subreddit
 gamma science                       nodes whose fate depends on decay running first
+request science 3 1                 user 3 asks the AI to answer node 1, once
+answer science 1 It was in 2015.    the AI's answer (live, only the server writes it)
+ai science 1 0                      the moderator turns AI answers off in r/science
 help                                the command list
 quit
 ```
 
 Everything refused says why on stderr (`refused: ...`). Limits are fixed
 and stated when hit: 16 subreddits, 16 profiles, 64 nodes per track, 4
-moderators, 95 characters of text.
+moderators, 95 bytes of a human's text, 300 characters of an AI answer.
 
 **Persistence is the transcript.** `save FILE` records every application
 command to FILE from then on, before it runs; `build/reddit FILE` replays
@@ -750,6 +755,79 @@ and tone belong to the answerer, and the site's recourse is the switch,
 votes, sweep and the ban set. Also not claimed: that an unreserved account
 is a human. "Human-written" means "not written through `answer`", so a
 principal bound to a bot is a bot the rules treat as a human.
+
+**Outcome: held.** The AI is `REDDIT_AI` (`~0u`). `sigma`, `reddit_cast`,
+`sub`, `profile`, `follow` and `unfollow` refuse it, a principals-file line
+that binds a token to it is refused when the server starts, and κ never
+admits it. `reddit_request` and `reddit_answer` are Σ_ii library functions
+beside `reddit_vote` and `reddit_cast`, not slots. A request is admitted by
+running `gtildesharp` on a probe answer, so the refusals for the AI's own
+node, a locked node, the switch being off and the AI being barred all come
+from the verdict, not from a second set of rules. The request adds only
+its own conditions: who asks, that the node is unrequested, and room in
+the track. `admits` gained the AI branch (parent present, not locked, not
+the AI's; `allow_ai` on; at most 300 code points) and nothing else
+changed in it. `reddit_sweep` applies the branch to existing answers:
+with the switch off, a sweep drops the answers, and a human reply under
+one falls on the next pass, as under a lock. `allow_ai` got its row in
+the field-holder battery; the static check that holds the battery equal to
+`Rules` and `Ranking` is what forced the row. `Post` gained `ai` (none,
+pending, answered) and `asked_by`, which is state on the node and nothing
+above it. The static checks still find six slots and one two-track
+function.
+
+The port's refusal of an AI node is load-bearing. The adapter rewrites
+`author` to the receiving user, so a carried AI node would have reached
+r/all as u0's and passed as human. The driver's loops happened not to send
+one (r/all takes posts, a profile takes its user's own nodes), but refusing
+at the source makes "nothing the AI wrote crosses" hold in the library.
+
+Sizes. `REDDIT_TITLE` (95 bytes) caps a human's text as `REDDIT_TEXT - 1`
+did. `REDDIT_TEXT` is now 1201 bytes (300 four-byte characters), so the
+port's prefix check no longer fires on a human title, and the receiver's
+`max_title` refuses the titles that check used to refuse. One bound,
+`LINE` = 2048 bytes, governs stdin, replay, the ingress and `connect`.
+
+The live service is as frozen:
+
+    REDDIT_ANSWERER=answerers/claude.py build/reddit serve SOCKET PRINCIPALS TRANSCRIPT
+
+At most four answerers run at once. Each one gets the thread path as
+stdin, from a temporary file unlinked at once; runs in its own process
+group, with SIGPIPE at its default; and has its output read through a
+pipe. Control bytes become spaces. A result is recorded only on exit 0 and
+only if the line holds it. More output than a line kills the answerer, and
+`REDDIT_ANSWER_TIMEOUT` (default 60 s) kills its group. An answerer that is
+not executable stops the server at startup. With no answerer configured, a
+client's `request` is refused at the ingress, and a request found pending
+at startup is resolved with no answer.
+
+The reference answerer, `answerers/claude.py`, uses the official Python
+SDK: `claude-opus-5` (`REDDIT_MODEL` overrides it), adaptive thinking at
+low effort, and server-side refusal fallbacks (`fallbacks: "default"`,
+beta `server-side-fallback-2026-07-01`). A refusal, a truncated response
+or an API error exits 1. Over 300 characters, it asks once for a rewrite,
+then exits 1; it never cuts. It is tested against a fake Messages API,
+including end to end through `reddit serve`. It has not run against the
+live API from this tree, which has no key.
+
+Observed, as predicted. These requests were refused: one on the AI's own
+node, one on a pending or answered node, one by a barred user, one where
+the switch was off or the node locked, and one in a full track. A human's
+reply to an answer was answered, with the AI's earlier turn in its thread
+path. A 301-character answer was recorded, refused whole, and left its
+node unrequested, while 300 two-byte characters were admitted. A failed
+answerer and one out of time each recorded no answer. A restart asked
+again. A client's `answer` was refused at the ingress and not recorded.
+The whole live transcript replayed to the same tree with no answerer
+configured. No AI node reached r/all or a profile. The eight committed
+corner observations still reproduce, and the prediction 6 batteries pass
+with `request`, `answer` and `ai` added to them.
+
+Recorded, not closed. An answerer still running when the server dies
+finishes unobserved, and the restart asks again, so one request can cost
+two model calls. Requests are limited only by one per node and the
+track's capacity, as decided above.
 
 ## Frozen decisions for a live service
 

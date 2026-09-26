@@ -1,15 +1,20 @@
 #define _POSIX_C_SOURCE 200809L /* dprintf, poll, unix sockets */
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include "rme7.h"
+
+extern char **environ;
 
 /* A reddit at the terminal. Commands, one per line:
  *   sub NAME USER               a user founds a subreddit (and moderates it)
@@ -662,6 +667,159 @@ static bool bind_actor(const char *line, unsigned user, char *out, size_t outlen
     }
 }
 
+/* --- the answerers ----------------------------------------------------
+ * A pending request is answered by the operator's answerer: an executable
+ * given the thread path on stdin (the post down to the node asked, root
+ * first), expected to write its answer and exit 0. The server records the
+ * result as an ordinary `answer` line in the one serialized order — the
+ * text, or no text if the answerer failed, timed out, or wrote more than a
+ * line holds — and the rules decide whether the text is admitted. Replay
+ * reads those lines and never runs an answerer. */
+
+constexpr size_t ANSWERING = 4;       /* answerers running at once */
+static const char *answerer;          /* REDDIT_ANSWERER; nullptr: none */
+static long answer_timeout = 60;      /* REDDIT_ANSWER_TIMEOUT, seconds */
+static struct {
+    pid_t pid;                        /* 0: the slot is free */
+    int fd;                           /* the answerer's stdout; -1 once read to EOF */
+    bool exited, overflow;
+    int status;
+    Track *t;
+    int id;
+    time_t started;                   /* wall time, for the timeout only */
+    char out[LINE];
+    size_t len;
+} answering[ANSWERING];
+
+/* Record slot i's result and free the slot. Control bytes become spaces,
+ * so the answer is one line; the text is recorded only if the answerer
+ * exited 0 and the line holds it — never cut to fit. */
+static void resolve(size_t i, bool ok)
+{
+    char *text = answering[i].out;
+    for (size_t k = 0; k < answering[i].len; k++)
+        if ((unsigned char)text[k] < 0x20 || text[k] == 0x7f) text[k] = ' ';
+    text[answering[i].len] = '\0';
+    text += strspn(text, " ");
+    size_t n = strlen(text);
+    while (n > 0 && text[n - 1] == ' ') text[--n] = '\0';
+    char line[LINE];
+    int w = -1;
+    if (ok && !answering[i].overflow && n > 0)
+        w = snprintf(line, sizeof line, "answer %s %d %s", answering[i].t->name, answering[i].id, text);
+    if (w < 0 || (size_t)w >= sizeof line)
+        snprintf(line, sizeof line, "answer %s %d", answering[i].t->name, answering[i].id);
+    if (answering[i].fd >= 0) close(answering[i].fd);
+    answering[i].pid = 0;
+    execute(line);                    /* an ordinary line, recorded */
+}
+
+/* Start an answerer in slot `slot` for pending node `id` of `t`. */
+static bool ask(size_t slot, Track *t, int id)
+{
+    const char *dir = getenv("TMPDIR");
+    char path[256];
+    snprintf(path, sizeof path, "%s/reddit-thread-XXXXXX", dir && *dir ? dir : "/tmp");
+    int in = mkstemp(path);
+    if (in < 0) { perror("answerer: thread file"); return false; }
+    unlink(path);                     /* the thread exists only as the answerer's stdin */
+    const Post *thread[REDDIT_POSTS];
+    size_t n = 0;
+    for (const Post *p = reddit_find(t, id); p && n < REDDIT_POSTS; p = reddit_find(t, p->parent))
+        thread[n++] = p;
+    dprintf(in, "subreddit: %s\n", t->name);
+    while (n-- > 0) {
+        if (thread[n]->author == REDDIT_AI) dprintf(in, "ai: %s\n", thread[n]->title);
+        else dprintf(in, "u%u: %s\n", thread[n]->author, thread[n]->title);
+    }
+    lseek(in, 0, SEEK_SET);
+    int fds[2];
+    if (pipe(fds) < 0) { perror("answerer: pipe"); close(in); return false; }
+    fcntl(in, F_SETFD, FD_CLOEXEC);
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+    posix_spawn_file_actions_t fa;
+    posix_spawn_file_actions_init(&fa);
+    posix_spawn_file_actions_adddup2(&fa, in, STDIN_FILENO);
+    posix_spawn_file_actions_adddup2(&fa, fds[1], STDOUT_FILENO);
+    posix_spawnattr_t at;             /* the server ignores SIGPIPE; the answerer need not */
+    posix_spawnattr_init(&at);
+    sigset_t dfl;
+    sigemptyset(&dfl);
+    sigaddset(&dfl, SIGPIPE);
+    posix_spawnattr_setsigdefault(&at, &dfl);
+    posix_spawnattr_setpgroup(&at, 0); /* its own group: stopping it stops what it started */
+    posix_spawnattr_setflags(&at, POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETPGROUP);
+    char *argv[] = { (char *)answerer, nullptr };
+    pid_t pid;
+    int err = posix_spawn(&pid, answerer, &fa, &at, argv, environ);
+    posix_spawn_file_actions_destroy(&fa);
+    posix_spawnattr_destroy(&at);
+    close(in);
+    close(fds[1]);
+    if (err != 0) {
+        fprintf(stderr, "answerer: %s: %s\n", answerer, strerror(err));
+        close(fds[0]);
+        return false;
+    }
+    answering[slot] = (typeof(answering[0])){ .pid = pid, .fd = fds[0], .t = t, .id = id,
+                                               .started = time(nullptr) };
+    return true;
+}
+
+/* Every pending request not already being answered gets an answerer, as
+ * slots allow; with no answerer configured, it gets no answer at once, so
+ * nothing stays pending that nothing will answer. */
+static void ask_pending(void)
+{
+    for (size_t s = 0; s < ntracks; s++)
+        for (size_t i = 0; i < tracks[s].nposts; i++) {
+            const Post *p = &tracks[s].posts[i];
+            if (p->ai != REDDIT_AI_PENDING) continue;
+            size_t k = 0, free_slot = ANSWERING;
+            for (; k < ANSWERING; k++) {
+                if (answering[k].pid && answering[k].t == &tracks[s] && answering[k].id == (int)p->id) break;
+                if (!answering[k].pid && free_slot == ANSWERING) free_slot = k;
+            }
+            if (k < ANSWERING) continue;                /* already being answered */
+            if (answerer && free_slot == ANSWERING) return; /* all busy: later */
+            if (answerer && ask(free_slot, &tracks[s], (int)p->id)) continue;
+            char line[64];
+            snprintf(line, sizeof line, "answer %.*s %u", (int)sizeof tracks[s].name, tracks[s].name, p->id);
+            execute(line);            /* no answer: the node is unrequested again */
+        }
+}
+
+/* Read what has arrived, reap what has exited, and resolve each answerer
+ * that is finished or out of time. */
+static void tend_answerers(const struct pollfd *pfd)
+{
+    for (size_t i = 0; i < ANSWERING; i++) {
+        if (!answering[i].pid) continue;
+        if (answering[i].fd >= 0 && (pfd[i].revents & (POLLIN | POLLHUP | POLLERR))) {
+            size_t room = sizeof answering[i].out - 1 - answering[i].len;
+            ssize_t r = read(answering[i].fd, answering[i].out + answering[i].len, room);
+            if (r > 0) answering[i].len += (size_t)r;
+            if (r <= 0 || answering[i].len == sizeof answering[i].out - 1) {
+                answering[i].overflow = r > 0; /* a full buffer is more than a line holds */
+                close(answering[i].fd);
+                answering[i].fd = -1;
+                if (answering[i].overflow && !answering[i].exited) kill(-answering[i].pid, SIGKILL);
+            }
+        }
+        if (!answering[i].exited && waitpid(answering[i].pid, &answering[i].status, WNOHANG) == answering[i].pid)
+            answering[i].exited = true;
+        if (answering[i].exited && answering[i].fd < 0) {
+            resolve(i, WIFEXITED(answering[i].status) && WEXITSTATUS(answering[i].status) == 0);
+        } else if (time(nullptr) - answering[i].started >= answer_timeout) {
+            kill(-answering[i].pid, SIGKILL); /* its group: anything it left running too */
+            if (!answering[i].exited)
+                waitpid(answering[i].pid, &answering[i].status, 0);
+            resolve(i, false);        /* out of time: no answer */
+        }
+    }
+}
+
 static void serve_line(size_t c, char *raw)
 {
     char cmd[16] = "";
@@ -680,8 +838,12 @@ static void serve_line(size_t c, char *raw)
         dprintf(fd, "refused: unknown principal\n"); close(fd); clients[c].fd = -1; return;
     }
     if (strcmp(cmd, "tick") == 0 || strcmp(cmd, "save") == 0 ||
-        strcmp(cmd, "quit") == 0 || strcmp(cmd, "auth") == 0) {
+        strcmp(cmd, "quit") == 0 || strcmp(cmd, "auth") == 0 ||
+        strcmp(cmd, "answer") == 0) {
         dprintf(fd, "refused: %s is the server's, not a client's\n", cmd); return;
+    }
+    if (strcmp(cmd, "request") == 0 && answerer == nullptr) {
+        dprintf(fd, "refused: this server has no answerer\n"); return;
     }
     char line[LINE];
     if (!bind_actor(raw, (unsigned)clients[c].user, line, sizeof line)) {
@@ -698,35 +860,61 @@ static void serve_line(size_t c, char *raw)
 
 static int serve(const char *sock, const char *principals_path, const char *transcript_path)
 {
+    answerer = getenv("REDDIT_ANSWERER");
+    if (answerer && *answerer == '\0') answerer = nullptr;
+    if (answerer && access(answerer, X_OK) != 0) { perror(answerer); return 1; }
+    const char *limit = getenv("REDDIT_ANSWER_TIMEOUT");
+    if (limit) {
+        char *end;
+        answer_timeout = strtol(limit, &end, 10);
+        if (*limit == '\0' || *end != '\0' || answer_timeout <= 0) {
+            fprintf(stderr, "REDDIT_ANSWER_TIMEOUT: a positive number of seconds\n"); return 1;
+        }
+    }
     FILE *pf = fopen(principals_path, "r");
     if (!pf) { perror(principals_path); return 1; }
     while (nprincipals < PRINCIPALS &&
-           fscanf(pf, "%63s %u", principals[nprincipals].token, &principals[nprincipals].user) == 2)
+           fscanf(pf, "%63s %u", principals[nprincipals].token, &principals[nprincipals].user) == 2) {
+        if (principals[nprincipals].user == REDDIT_AI) {  /* the AI holds no principal */
+            fprintf(stderr, "%s: a principal bound to the ai is refused\n", principals_path);
+            continue;
+        }
         nprincipals++;
+    }
     fclose(pf);
 
     FILE *f = fopen(transcript_path, "r");          /* the history, if any */
     if (f) { replaying = true; run(f); replaying = false; fclose(f); }
     transcript = fopen(transcript_path, "a");
     if (!transcript) { perror(transcript_path); return 1; }
+    fcntl(fileno(transcript), F_SETFD, FD_CLOEXEC); /* no answerer inherits it */
 
     int ls = socket(AF_UNIX, SOCK_STREAM, 0);
+    fcntl(ls, F_SETFD, FD_CLOEXEC);
     struct sockaddr_un addr = { .sun_family = AF_UNIX };
     snprintf(addr.sun_path, sizeof addr.sun_path, "%s", sock);
     unlink(sock);
     if (bind(ls, (struct sockaddr *)&addr, sizeof addr) < 0 || listen(ls, 8) < 0) { perror(sock); return 1; }
     for (size_t i = 0; i < CLIENTS; i++) clients[i].fd = -1;
+    ask_pending();                    /* a request pending at restart is asked again */
 
     time_t last_tick = time(nullptr);               /* downtime is not time */
     for (;;) {
-        struct pollfd pfd[CLIENTS + 1];
+        struct pollfd pfd[CLIENTS + 1 + ANSWERING];
         pfd[0] = (struct pollfd){ .fd = ls, .events = POLLIN };
         for (size_t i = 0; i < CLIENTS; i++)
             pfd[i + 1] = (struct pollfd){ .fd = clients[i].fd, .events = POLLIN };
+        bool answering_now = false;
+        for (size_t i = 0; i < ANSWERING; i++) {
+            pfd[CLIENTS + 1 + i] = (struct pollfd){ .fd = answering[i].pid ? answering[i].fd : -1,
+                                                    .events = POLLIN };
+            answering_now = answering_now || answering[i].pid;
+        }
         time_t due = last_tick + (time_t)all.ranking.interval;
         time_t now_wall = time(nullptr);
         int timeout = due > now_wall ? (int)(due - now_wall) * 1000 : 0;
-        int r = poll(pfd, CLIENTS + 1, timeout);
+        if (answering_now && timeout > 100) timeout = 100; /* reap and time out promptly */
+        int r = poll(pfd, CLIENTS + 1 + ANSWERING, timeout);
         if (r < 0 && errno != EINTR) { perror("poll"); return 1; }
         now_wall = time(nullptr);
         while (now_wall - last_tick >= (time_t)all.ranking.interval) {
@@ -737,6 +925,7 @@ static int serve(const char *sock, const char *principals_path, const char *tran
         }
         if (pfd[0].revents & POLLIN) {
             int fd = accept(ls, nullptr, nullptr);
+            fcntl(fd, F_SETFD, FD_CLOEXEC);
             size_t i = 0; while (i < CLIENTS && clients[i].fd >= 0) i++;
             if (i == CLIENTS) { dprintf(fd, "refused: capacity is %zu connections\n", CLIENTS); close(fd); }
             else clients[i] = (typeof(clients[0])){ .fd = fd, .user = -1, .len = 0 };
@@ -755,6 +944,8 @@ static int serve(const char *sock, const char *principals_path, const char *tran
             }
             if (clients[i].fd >= 0 && clients[i].len >= sizeof clients[i].buf - 1) { close(clients[i].fd); clients[i].fd = -1; }
         }
+        tend_answerers(pfd + CLIENTS + 1);
+        ask_pending();
     }
 }
 
@@ -768,7 +959,13 @@ static int connect_to(const char *sock, const char *token)
     char line[LINE];
     /* send everything, then half-close, then drain the replies: the
      * server answers in order, so the drain reads every response */
-    while (fgets(line, sizeof line, stdin)) write(fd, line, strlen(line));
+    bool sending = true;
+    while (sending && fgets(line, sizeof line, stdin))
+        for (size_t off = 0, len = strlen(line); sending && off < len; ) {
+            ssize_t w = write(fd, line + off, len - off);
+            sending = w > 0;          /* the server went away: stop, then drain */
+            if (sending) off += (size_t)w;
+        }
     shutdown(fd, SHUT_WR);
     /* the server keeps the connection until we close; give it a moment
      * per line, then read what is there */

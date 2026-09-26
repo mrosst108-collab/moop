@@ -382,4 +382,82 @@ sleep 1.6
 check "and ticking resumes from the restart" "yes" "$([ "$(grep -c '^tick 1$' "$T/transcript")" -gt "$ticks2" ] && echo yes)"
 kill $srv; wait $srv 2>/dev/null; rm -rf "$T"
 
+# requested AI answers at the live service (prediction 7): the server runs
+# the operator's answerer per pending request and records its result as an
+# ordinary `answer` line; stub answerers stand in for a model here
+T=$(mktemp -d); S="$T/sock"
+printf 'tk-site-8f3 0\ntk-alice-2c1 1\ntk-bob-77e 2\ntk-ai-000 4294967295\n' > "$T/principals"
+printf '#!/bin/sh\ncat > "%s/ctx.txt"\nprintf "A short\\nanswer.\\n"\n' "$T" > "$T/ok.sh"
+printf '#!/bin/sh\ncat > /dev/null\nexit 1\n' > "$T/fail.sh"
+printf '#!/bin/sh\ncat > /dev/null\nyes a | head -n 301 | tr -d "\\n"\necho\n' > "$T/long.sh"
+printf '#!/bin/sh\ncat > /dev/null\nsleep 5\necho late\n' > "$T/slow.sh"
+chmod +x "$T/ok.sh" "$T/fail.sh" "$T/long.sh" "$T/slow.sh"
+serve_with() { rm -f "$S"; REDDIT_ANSWERER="$1" REDDIT_ANSWER_TIMEOUT="${2:-60}" "$BIN" serve "$S" "$T/principals" "$T/transcript" 2>>"$T/server.err" & srv=$!
+    i=0; while [ ! -S "$S" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done; }
+stop() { kill $srv; wait $srv 2>/dev/null; }
+wait_for() { i=0; while [ "$(grep -cE "$1" "$T/transcript")" -lt "${2:-1}" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done; }
+as() { printf '%s\n' "$2" | "$BIN" connect "$S" "$1"; }
+serve_with "$T/ok.sh"
+as tk-alice-2c1 'sub cats 9
+post cats 7 hello from alice' > /dev/null
+as tk-bob-77e 'request cats 9 0' > /dev/null
+wait_for '^answer cats 0 '
+check "a request is recorded under the bound identity" "1" "$(grep -c '^request cats 2 0$' "$T/transcript")"
+check "the server records the answerer's result as an ordinary line, one line" "1" "$(grep -c '^answer cats 0 A short answer\.$' "$T/transcript")"
+check "the answerer read the thread path, root first" "$(printf 'subreddit: cats\nu1: hello from alice')" "$(cat "$T/ctx.txt")"
+check "the answer is in the tree, authored by the AI" "1" "$(as tk-bob-77e 'show cats' | grep -c '^      #1 \[+1, hot 1.00\] A short answer\.  (ai, asked by u2)$')"
+check "a client cannot send answer: refused at ingress, not recorded" "1 1" "$(as tk-bob-77e 'answer cats 0 forged' | grep -c "refused: answer is the server's") $(grep -c '^answer' "$T/transcript")"
+check "no principal binds to the AI" "1 1" "$(as tk-ai-000 'show cats' | grep -c 'refused: unknown principal') $(grep -c 'a principal bound to the ai is refused' "$T/server.err")"
+check "the AI never answers the AI: the request is refused and recorded" "1 1" "$(as tk-bob-77e 'request cats 2 1' | grep -c '^refused: no such node') $(grep -c '^request cats 2 1$' "$T/transcript")"
+as tk-alice-2c1 'comment cats 1 1 thanks' > /dev/null
+as tk-bob-77e 'request cats 2 2' > /dev/null
+wait_for '^answer cats 2 '
+check "a human's reply to the AI is answered, with the AI's turn in its thread" "$(printf 'subreddit: cats\nu1: hello from alice\nai: A short answer.\nu1: thanks')" "$(cat "$T/ctx.txt")"
+stop
+serve_with "$T/fail.sh"
+as tk-alice-2c1 'comment cats 1 0 second thought' > /dev/null
+as tk-bob-77e 'request cats 2 4' > /dev/null
+wait_for '^answer cats 4$'
+check "a failed answerer records no answer; the node is unrequested again" "1 0" "$(grep -c '^answer cats 4$' "$T/transcript") $(as tk-bob-77e 'show cats' | grep -c 'second thought  (u1) \[ai asked')"
+stop
+serve_with "$T/long.sh"
+as tk-bob-77e 'request cats 2 4' > /dev/null
+wait_for '^answer cats 4 a'
+check "a 301-character answer is recorded, then refused whole, never cut" "1 2" "$(grep -cE '^answer cats 4 a{301}$' "$T/transcript") $(as tk-bob-77e 'show cats' | grep -c '(ai, asked by')"
+stop
+serve_with "$T/slow.sh" 1
+as tk-bob-77e 'request cats 2 4' > /dev/null
+wait_for '^answer cats 4$' 2
+check "an answerer out of time is stopped and records no answer" "2 0" "$(grep -c '^answer cats 4$' "$T/transcript") $(grep -c 'late' "$T/transcript")"
+stop
+serve_with "$T/slow.sh"
+as tk-bob-77e 'request cats 2 4' > /dev/null
+stop
+check "a request pending at shutdown is recorded unanswered" "request cats 2 4" "$(tail -n 1 "$T/transcript")"
+serve_with "$T/ok.sh"
+wait_for '^answer cats 4 A short'
+check "a restart asks again, and the answer is recorded" "1" "$(grep -c '^answer cats 4 A short answer\.$' "$T/transcript")"
+stop
+serve_with "$T/slow.sh"
+as tk-alice-2c1 'post cats 7 another' > /dev/null
+as tk-bob-77e 'request cats 2 6' > /dev/null
+stop
+serve_with ""
+wait_for '^answer cats 6$'
+check "with no answerer, a pending request is resolved with no answer at startup" "1" "$(grep -c '^answer cats 6$' "$T/transcript")"
+check "and a client's request is refused at the ingress, not recorded" "1 1" "$(as tk-bob-77e 'request cats 2 6' | grep -c 'refused: this server has no answerer') $(grep -c '^request cats 2 6$' "$T/transcript")"
+live=$(as tk-bob-77e 'show cats' | grep -v '^bound: ')
+stop
+check "the live transcript replays to the same tree, running no answerer" "$live" "$(printf 'show cats\nquit\n' | "$BIN" "$T/transcript" 2>/dev/null)"
+rm -rf "$T"
+
+# the reference Claude answerer, against a fake Messages API: no network,
+# no key. It needs a Python with the official SDK; say so when there is none.
+PY=${PYTHON:-python3}
+if "$PY" -c 'import anthropic' 2>/dev/null; then
+    BIN="$BIN" "$PY" answerers/test_claude.py || fail=1
+else
+    echo "skip - the Claude answerer: $PY cannot import anthropic (set PYTHON to one that can)"
+fi
+
 exit $fail
