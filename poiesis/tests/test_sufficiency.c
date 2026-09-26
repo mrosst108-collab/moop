@@ -6,15 +6,16 @@
  *     distinctions required to reconstruct E_GS -- or is E_GS merely
  *     INJECTED at system level?
  *
- * The experiment that settles it is a discrimination test.  If two systems
- * classify differently while their prototype representations are
- * INDISTINGUISHABLE, then no function whatsoever of the prototypes alone --
- * present or future, however written -- can reproduce the classification.
- * Sufficiency is refuted, not left open.
+ * The experiment that settles it is a discrimination test.  If the cycle
+ * check answers two systems differently while their prototype
+ * representations are INDISTINGUISHABLE, then no function whatsoever of the
+ * prototypes alone -- present or future, however written -- can reproduce
+ * the answer.  Sufficiency is refuted, not left open.
  *
  * A pair of systems with that property is not contrived here: K8b already
- * uses it.  Flipping the governed marking on ONE SLOT promotes AWV from
- * RME-6B to RME-7 while touching no prototype at all.
+ * uses it.  Flipping the governed marking on ONE SLOT turns AWV's cycle
+ * from environmental (6B) to governed (RME-7) while touching no prototype
+ * at all.
  */
 #include <stddef.h>
 #include <string.h>
@@ -63,15 +64,18 @@ void rme_test_sufficiency(void)
     }
     governed_behaviour[AWV_BEHAVIOUR].governed = true;
     RmeSystem promoted = { governed_behaviour, AWV_SLOT_COUNT,
-                           op->transitions, op->transition_count, false };
+                           op->transitions, op->transition_count };
 
-    /* ---- E1: the two systems genuinely classify differently.  Positive
-     * control: without this the discrimination test would be vacuous. */
-    RmeClassification c_op, c_pr;
-    bool both = rme_classify(op, &c_op) && rme_classify(&promoted, &c_pr);
+    /* ---- E1: the cycle check genuinely answers the two systems
+     * differently.  Positive control: without this the discrimination test
+     * would be vacuous.  A refusal on either side leaves `both` false. */
+    bool op_gov = true, pr_gov = false, op_all = false;
+    bool both = rme_has_cycle(op, true, &op_gov)
+             && rme_has_cycle(&promoted, true, &pr_gov)
+             && rme_has_cycle(op, false, &op_all);
     {
-        rme_check(both && c_op == RME_CLASS_RME6B && c_pr == RME_CLASS_RME7,
-                  "E1", "control: the two systems classify 6B and 7 respectively");
+        rme_check(both && !op_gov && op_all && pr_gov,
+                  "E1", "control: the operative system is 6B, the promoted one has a governed cycle (7)");
     }
 
     /* ---- E2: AWV's prototypes are IDENTICAL across the two systems.  The
@@ -88,12 +92,12 @@ void rme_test_sufficiency(void)
                  && prototypes_indistinguishable(&c1, &c2);
 
         rme_check(same, "E2",
-                  "the prototype representation is identical under both classifications");
+                  "the prototype representation is identical under both answers");
     }
 
-    /* ---- E3: THE RESULT.  Different classification, indistinguishable
+    /* ---- E3: THE RESULT.  Different answers, indistinguishable
      * prototypes.  Therefore no function of the prototype representation
-     * alone can reproduce rme_classify()'s verdict, and E_GS is NOT
+     * alone can reproduce rme_has_cycle()'s answer, and E_GS is NOT
      * reconstructible at prototype level with the frozen schema.
      *
      * This is a NEGATIVE result and it is decisive, not provisional: it does
@@ -111,28 +115,28 @@ void rme_test_sufficiency(void)
     {
         RmePrototype a1 = awv_authority_prototype();
         RmePrototype a2 = awv_authority_prototype();
-        bool classifications_differ = both && c_op != c_pr;
+        bool answers_differ = both && op_gov != pr_gov;
         bool prototypes_same = prototypes_indistinguishable(&a1, &a2);
 
-        rme_check(classifications_differ && prototypes_same,
+        rme_check(answers_differ && prototypes_same,
                   "E3", "prototype-level E_GS reconstruction is IMPOSSIBLE, not merely absent");
     }
 
-    /* ---- E4: what IS demonstrated, stated exactly.  The classifier was
-     * added without changing any prototype's declared ontology or
+    /* ---- E4: what IS demonstrated, stated exactly.  The observational
+     * check exists without changing any prototype's declared ontology or
      * interface, because its input arrives through a separately declared
-     * type.  That is classifier extensibility BY DEPENDENCY INJECTION.  It
-     * is a real property and it is not preservation, and the specification
-     * must not report the one as evidence of the other. */
+     * type.  That is extensibility BY DEPENDENCY INJECTION.  It is a real
+     * property and it is not preservation, and the specification must not
+     * report the one as evidence of the other. */
     {
         RmePrototype a = awv_authority_prototype();
         RmeConformance k = rme7_conforms(&a);
-        RmeClassification c;
-        bool classified = rme_classify(op, &c);
+        bool gov = true, all = false;
+        bool answered = rme_has_cycle(op, true, &gov) && rme_has_cycle(op, false, &all);
 
-        /* Conformance and classification are computed from disjoint inputs:
+        /* Conformance and the cycle check are computed from disjoint inputs:
          * neither call can see the other's argument. */
-        rme_check(k.ok && classified && c == RME_CLASS_RME6B,
-                  "E4", "classification and conformance succeed from disjoint inputs (injection, not preservation)");
+        rme_check(k.ok && answered && !gov && all,
+                  "E4", "the cycle check and conformance succeed from disjoint inputs (injection, not preservation)");
     }
 }

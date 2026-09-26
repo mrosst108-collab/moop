@@ -240,8 +240,15 @@ int main(void)
         cell("D-S7a", "S7", true, p, a, "the envelope is status-independent");
     }
 
-    /* ---- S4: the four graph consequences.  MECHANISMS DIFFER
-     * (reachability vs SCC+self-check) -- pre-registered slack. */
+    /* ---- S4: the four graph consequences.  The mechanisms were pre-
+     * registered as differing (reachability vs SCC+self-check).  Since the
+     * classifier reduction, poiesis also answers S4 by reachability, so the
+     * slack is no longer exercised here: these cells now compare two
+     * independent IMPLEMENTATIONS of one mechanism (bitset rows over a
+     * declared graph vs bitset rows built from read-sets).  The invariant
+     * is still what is compared (SEMANTICS.md: invariants, not
+     * mechanisms); what is lost is mechanism diversity against a
+     * common-mode error.  See DIFFERENTIAL.md, note after the first pass. */
     {
         uint64_t rows[4], gov[1], scr[4];
         PcDepGraph g; pc_graph_init(&g, 4, rows, gov, 1);
@@ -252,9 +259,8 @@ int main(void)
         static const RmeSlot sl[] = { { "X", true }, { "Y", true } };
         static const size_t ry[] = { 0 };
         static const RmeTransitionDecl tr[] = { { "T_Y", 1, ry, 1 } };
-        RmeSystem s = { sl, 2, tr, 1, false };
-        RmeEdge ed[8]; size_t m = rme_project(&s, true, ed, 8);
-        bool a1c = true; rme_graph_has_cycle(2, ed, m, &a1c);
+        RmeSystem s = { sl, 2, tr, 1 };
+        bool a1c = true; rme_has_cycle(&s, true, &a1c);
         cell("D-S4a", "S4", true, c1 ? X_YES : X_NO, a1c ? X_YES : X_NO,
              "one-way governed dependency is not reciprocity");
 
@@ -262,9 +268,8 @@ int main(void)
         bool c2 = false; pc_graph_has_cycle(&g, gov, scr, &c2);
         static const size_t rx2[] = { 1 };
         static const RmeTransitionDecl tr2[] = { { "T_X", 0, rx2, 1 }, { "T_Y", 1, ry, 1 } };
-        RmeSystem s2 = { sl, 2, tr2, 2, false };
-        size_t m2 = rme_project(&s2, true, ed, 8);
-        bool a2c = false; rme_graph_has_cycle(2, ed, m2, &a2c);
+        RmeSystem s2 = { sl, 2, tr2, 2 };
+        bool a2c = false; rme_has_cycle(&s2, true, &a2c);
         cell("D-S4b", "S4", true, c2 ? X_YES : X_NO, a2c ? X_YES : X_NO,
              "reciprocal governed dependency IS a directed cycle");
 
@@ -275,9 +280,8 @@ int main(void)
         static const RmeSlot sl1[] = { { "X", true } };
         static const size_t rs[] = { 0 };
         static const RmeTransitionDecl tr3[] = { { "T_X", 0, rs, 1 } };
-        RmeSystem s4 = { sl1, 1, tr3, 1, false };
-        size_t m3 = rme_project(&s4, true, ed, 8);
-        bool a3c = false; rme_graph_has_cycle(1, ed, m3, &a3c);
+        RmeSystem s4 = { sl1, 1, tr3, 1 };
+        bool a3c = false; rme_has_cycle(&s4, true, &a3c);
         cell("D-S4c", "S4", true, c3 ? X_YES : X_NO, a3c ? X_YES : X_NO,
              "a governed SELF-EDGE is a directed cycle");
 
@@ -286,9 +290,8 @@ int main(void)
         pc_graph_mark_governed(&gn, 0);
         bool c4 = true; pc_graph_has_cycle(&gn, g4, s5, &c4);
         static const RmeTransitionDecl tr4[] = { { "T_X", 0, nullptr, 0 } };
-        RmeSystem s6 = { sl1, 1, tr4, 1, false };
-        size_t m4 = rme_project(&s6, true, ed, 8);
-        bool a4c = true; rme_graph_has_cycle(1, ed, m4, &a4c);
+        RmeSystem s6 = { sl1, 1, tr4, 1 };
+        bool a4c = true; rme_has_cycle(&s6, true, &a4c);
         cell("D-S4d", "S4", true, c4 ? X_YES : X_NO, a4c ? X_YES : X_NO,
              "no declared dependency: execution structure cannot promote");
     }
@@ -310,7 +313,7 @@ int main(void)
         static const RmeSlot sl[] = { { "X", true }, { "Y", true } };
         static const size_t bad_r[] = { 99 };
         static const RmeTransitionDecl trb[] = { { "T", 1, bad_r, 1 } };
-        RmeSystem sb = { sl, 2, trb, 1, false };
+        RmeSystem sb = { sl, 2, trb, 1 };
         RmeEdge ed[4];
         XCons a2c = (rme_project(&sb, true, ed, 4) == SIZE_MAX) ? X_REFUSED : X_YES;
         cell("D-S8b", "S8", true, p2, a2c, "an out-of-range dependency is refused, not dropped");
@@ -430,6 +433,11 @@ int main(void)
     printf("K-3     S3     DECLARED-SLACK (not executed)   compatibility symmetry: flag vs fixed choice\n");
     printf("K-5     S6     DECLARED-SLACK (not executed)   ownership: value identity vs opaque handle\n");
     printf("K-6     S4     DECLARED-SLACK (not executed)   cycle mechanism: reachability vs SCC+self-check\n");
+    /* K-6 above is pre-registered and stays verbatim.  Its premise changed
+     * with the code under test, not with any result: this note says so
+     * rather than editing the declaration. */
+    printf("note    K-6's premise no longer holds: since the classifier reduction poiesis\n"
+           "        also answers S4 by reachability; the declaration stands, unexercised\n");
 
     printf("\nAGREE %d   DISAGREE %d   UNDECIDABLE %d   ORACLE-DEFECT %d\n",
            n_agree, n_disagree, n_undec, n_oracle);

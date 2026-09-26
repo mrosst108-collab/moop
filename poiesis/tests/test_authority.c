@@ -14,7 +14,7 @@
  */
 #include <stddef.h>
 
-#include "rme/classify.h"
+#include "rme/graph.h"
 #include "rme/validate.h"
 
 extern void rme_check(bool cond, const char *id, const char *what);
@@ -188,22 +188,23 @@ void rme_test_authority(void)
                   "F7a", "conformance is nonhereditary: conformant parent, non-conformant child");
     }
 
-    /* ---- F7b: classification does not descend either.  Same capability
-     * context; the parent's system is RME-7 and the child's is RME-6, and
-     * each verdict follows from its own declared governed edges. */
+    /* ---- F7b: the cycle observation does not descend either.  Same
+     * capability context; the parent's system has a governed cycle and the
+     * child's has none, and each answer follows from its own declared
+     * governed edges. */
     {
         static const RmeSlot slots[] = { { "X", true }, { "Y", true } };
         static const size_t rx[] = { 1 };
         static const size_t ry[] = { 0 };
         static const RmeTransitionDecl parent_tr[] = { { "T_X", 0, rx, 1 }, { "T_Y", 1, ry, 1 } };
         static const RmeTransitionDecl child_tr[]  = { { "T_Y", 1, ry, 1 } };
-        RmeSystem parent_sys = { slots, 2, parent_tr, 2, false };
-        RmeSystem child_sys  = { slots, 2, child_tr,  1, false };
+        RmeSystem parent_sys = { slots, 2, parent_tr, 2 };
+        RmeSystem child_sys  = { slots, 2, child_tr,  1 };
 
-        RmeClassification pc, cc;
-        bool ok = rme_classify(&parent_sys, &pc) && rme_classify(&child_sys, &cc);
-        rme_check(ok && pc == RME_CLASS_RME7 && cc == RME_CLASS_RME6,
-                  "F7b", "classification is nonhereditary: RME-7 parent, RME-6 child");
+        bool pc = false, cc = true;
+        bool ok = rme_has_cycle(&parent_sys, true, &pc) && rme_has_cycle(&child_sys, true, &cc);
+        rme_check(ok && pc && !cc,
+                  "F7b", "the cycle observation is nonhereditary: governed-cycle parent, acyclic child");
     }
 
     /* ---- Grant is monotone toward attenuation: widening is refused. */

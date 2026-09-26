@@ -12,9 +12,10 @@
  * UsesEveryOperator(P), and any composition clause — composition validity
  * is relational and lives in compose.h.
  *
- * Note the name.  rme7_conforms() is NOT rme_classify(): a prototype whose
- * observed dynamics classify as RME-6 is normally RME-7-conformant, and an
- * asserted classification can never make a prototype conformant.
+ * Note the name.  rme7_conforms() is NOT rme_has_cycle(): a prototype whose
+ * declared system has no governed cycle is normally RME-7-conformant, and
+ * an observed cycle — or an asserted one — can never make a prototype
+ * conformant.  The two read disjoint inputs (a prototype; a system).
  */
 
 typedef struct {

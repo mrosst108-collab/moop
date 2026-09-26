@@ -5,15 +5,24 @@
 #include <stddef.h>
 
 /* poiesis — AXIS C input: the declarations a system makes about its own
- * dynamics, and the projection the classifier is allowed to see.
+ * dynamics, the one question Axis C asks of them, and the projection the
+ * scheduler builds from them.
  *
- * These are the classification declarations, kept separate from the port
- * schema:
+ * These are the declarations, kept separate from the port schema:
  *
  *     STATE · INPUTS · PARAMETERS · TRANSITION · OUTPUTS · GOVERNED STATE
  *
  * `governed` is a MARKING ON STATE SLOTS, not a port.  That single bit is
- * what separates RME-7 from RME-6B.
+ * what separates a governed cycle from a cycle that closes only through
+ * environmental state.
+ *
+ * THERE IS NO CLASSIFIER HERE.  Axis C is observational (SPEC §11): the
+ * substrate answers one graph question — does a directed cycle lie among
+ * the selected slots — and names no RME level.  An observer reads the
+ * answer: a cycle among governed slots is the RME-7 criterion; a cycle
+ * over all slots with none among the governed ones returns through
+ * environmental state.  The earlier five-level classifier answered more
+ * than the invariant requires, and was reduced to this check.
  */
 
 typedef struct {
@@ -35,20 +44,23 @@ typedef struct {
     size_t                   slot_count;
     const RmeTransitionDecl *transitions;
     size_t                   transition_count;
-    /* RME-5: a transition adapts a parameter rather than composing state. */
-    bool                     adapts_parameters;
 } RmeSystem;
 
-/* Edge set of the decisive projection.
+/* The largest system this build represents.  A larger one is refused by
+ * the cycle check and by the scheduler, never truncated or downgraded. */
+#define RME_MAX_SLOTS 2048u
+
+/* Edge set of a projection, materialized for the scheduler.
  *
  *     G_GS = (V_G, E_SS)     V_G  = governed state objects
  *                            E_SS = state->state dependency edges,
  *                                   Y -> X iff T_X reads Y
  *
  * `governed_only` selects the projection: true builds G_GS; false builds
- * the same construction over ALL slots, which is used only to tell RME-6B
- * (a cycle that needs an environmental node) from RME-6 (no cycle at all).
- * Nothing else in the classifier may look at the full execution graph.
+ * the same construction over ALL slots, which is what the scheduler orders.
+ * The cycle check below does NOT use this: it reads the declarations
+ * directly and applies the governed restriction during its computation, so
+ * no capped edge list stands between a system and its answer.
  */
 typedef struct {
     size_t from;
@@ -74,17 +86,35 @@ size_t rme_project(const RmeSystem *s, bool governed_only,
 bool rme_graph_scc(size_t n, const RmeEdge *e, size_t m,
                    size_t *comp, size_t *component_count);
 
-/* Directed-cycle predicate, exposed so acyclicity can be asserted directly
- * rather than inferred from a classification (K1).
+/* THE Axis C check: does a directed cycle lie among the selected slots?
  *
- * FROZEN self-loop rule: a self-edge X -> X counts as a directed cycle.
- * Tarjan reports it as a single-member SCC, so cardinality alone would miss
- * it; the check is explicit.  See classify.h for why the rule is semantic
- * rather than algorithmic.
+ * `governed_only` selects the slots — true asks the RME-7 question (SPEC
+ * §11: a directed cycle entirely among governed state objects); false asks
+ * whether any cycle exists over all slots.  An edge Y -> X exists iff T_X
+ * declares a read of Y and both X and Y are selected.
  *
- * Returns false if no verdict could be computed, so an allocation failure
- * can never be silently reported as "acyclic" — which would downgrade an
- * RME-7 system to RME-6. */
-bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m, bool *out);
+ * MECHANISM: transitive-closure reachability over bitset rows, with the
+ * selection applied while the rows are built — no projected edge list is
+ * materialized, so nothing can be truncated between the declarations and
+ * the answer.  A cycle exists iff some selected slot reaches itself by a
+ * path of length >= 1.
+ *
+ * FROZEN self-loop rule (SPEC §11): a governed self-read X -> X is a
+ * directed cycle.  Under reachability that needs NO SPECIAL CASE — a
+ * self-edge is already a path of length 1 from X to X.  (A check by SCC
+ * cardinality must add one, since a self-loop is a one-member component.)
+ * Execution self-recursion is not declared as a read, so it cannot count.
+ *
+ * REFUSAL (never a guess): returns false, writing nothing to *out, when
+ * `s` or `out` is null, the system exceeds RME_MAX_SLOTS, any declaration
+ * is malformed — a target or read outside the slot table, a transition
+ * that claims reads but supplies none, a non-empty table that is null —
+ * or working storage cannot be obtained.  The WHOLE declaration is
+ * validated before either selection is computed, so a malformed read is
+ * refused even where the governed selection would not have looked at it.
+ *
+ * OBSERVATIONAL: reads `s` only.  It has no access to any prototype and
+ * cannot establish or mutate conformance. */
+bool rme_has_cycle(const RmeSystem *s, bool governed_only, bool *out);
 
 #endif /* RME_GRAPH_H */

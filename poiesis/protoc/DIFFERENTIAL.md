@@ -139,3 +139,20 @@ Not a ProtoC bug. It would be a DISAGREE that survives reproduction and turns ou
 **S1–S11 do not determine the disputed consequence** — a specification discovery, correctly
 recorded as UNDECIDABLE. The converse, where the derivation genuinely entails one side and the
 other violates it, is the valuable DISAGREE.
+
+## Note after the first pass — the classifier reduction (2026-09-26)
+
+By operator ruling, poiesis's five-level classifier was reduced to a single reachability check,
+`rme_has_cycle(S, governed_only)` (`../SPEC.md` §11 and its amendment record). Consequences for this
+harness, recorded rather than folded into the pass above:
+
+- **D-S4a–d** now call `rme_has_cycle` on the poiesis side instead of projecting and running the
+  SCC-based predicate, which no longer exists. All four still AGREE, and the run's totals are
+  unchanged (AGREE 15, DISAGREE 0, UNDECIDABLE 2, ORACLE-DEFECT 0).
+- **K-6**'s premise — "cycle mechanism: reachability vs SCC+self-check" — no longer holds: both
+  substrates now answer S4 by reachability. The pre-registration is left verbatim; the harness prints
+  a note beside it. The S4 cells therefore compare two independent *implementations* of one
+  mechanism (bitset rows over a declared graph; bitset rows built from read-sets), not two
+  mechanisms. The invariant is still what is compared, which is all `SEMANTICS.md` asks; what is lost
+  is protection against an error common to the mechanism.
+- ProtoC and `SEMANTICS.md` are untouched.

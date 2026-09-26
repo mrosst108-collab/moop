@@ -572,11 +572,27 @@ the declared dependency set — that would require static analysis or instrument
 
 ---
 
-## 11. Classification — observational
+## 11. Axis C — observational: the governed-cycle check
 
-**RME-4** fixed relation · **RME-5** parameter adaptation · **RME-6** one-way governed composition ·
-**RME-6B** return through environmental state · **RME-7** a directed cycle entirely among governed
-state objects.
+> **Amended 2026-09-26 by operator ruling — the classifier is reduced to the reachability check.**
+> Poiesis no longer names RME levels. It answers one graph question of a declared system — *does a
+> directed cycle lie among the selected slots?* — as `rme_has_cycle(S, governed_only)`, by
+> transitive-closure reachability with the governed restriction applied during the computation, so
+> no projection is materialized that could be truncated. Every normative proposition below survives
+> unchanged; the RME-7 criterion is read directly off the check. What was removed: the five-level
+> `rme_classify()` and the `adapts_parameters` bit that only its RME-5 branch read. See the
+> amendment record after §15 Status for what this cost.
+
+The vocabulary, as **readings** an observer takes from the two answers:
+
+```
+RME-7    a directed cycle entirely among governed state objects    rme_has_cycle(S, true)
+6B       return through environmental state                        ¬rme_has_cycle(S, true) ∧ rme_has_cycle(S, false)
+not 7                                                               ¬rme_has_cycle(S, true)
+```
+
+RME-4 (fixed relation), RME-5 (parameter adaptation) and RME-6 (one-way governed composition) remain
+names, but the substrate does not observe them: this section never gave them a graph criterion.
 
 **Normative graph definition.**
 
@@ -587,8 +603,7 @@ G_GS(S) = (V_G, E_SS)
   E_SS  = explicitly declared governed-state → governed-state dependency edges,
           Y → X  iff  T_X declares a read of Y
 
-Classify(S) = RME_CLASS_RME7  ⟺  G_GS(S) contains a directed cycle
-                              ⟺  ∃ C ⊆ G_GS(S) : C is a nontrivial strongly connected component
+RME-7(S)  ⟺  G_GS(S) contains a directed cycle  ⟺  rme_has_cycle(S, true)
 ```
 
 **Self-loop rule — FROZEN: directed-cycle semantics.** The two formulations diverge on a governed
@@ -604,7 +619,8 @@ Rationale: the fundamental criterion is mutual governed dependency, and self-dep
 governed-state dependency**, not an execution loop, recursion artifact, or syntactic recursion.
 Tarjan's SCC decomposition represents this correctly **when cyclicity is tested by the presence of a
 self-edge rather than by SCC cardinality alone** — the normative claim is independent of any one
-algorithm.
+algorithm. The realization now uses reachability, under which a self-edge is a path of length 1 and
+the rule needs no special case (ProtoC reached the same observation independently).
 
 The distinction this makes normative:
 
@@ -613,35 +629,39 @@ governed self-dependency  ≠  execution self-recursion
 ```
 
 K7 and K10 together establish it: K7 declares **no** governed reads (execution self-recursion only)
-and must classify **not 7**; K10 declares a governed self-read with no execution recursion and must
-classify **RME-7**.
+and must read **not 7**; K10 declares a governed self-read with no execution recursion and must read
+**RME-7**.
 
 Direct criterion is a **conjunction** (`∂T_X/∂Y ≠ 0 AND ∂T_Y/∂X ≠ 0`); the disjunctive form
 classifies every pipeline as RME-7. Mediated criterion: `X₁→…→Xₙ→X₁`, every node governed.
 
 **The derivative expression is the semantic interpretation of a governed-state dependency edge — it
-is not an independent classifier authority.** The implementation classifier operates on the
-explicitly represented typed edge relation `E_SS`. There is one computational authority, not two.
+is not an independent authority.** The implementation check operates on the explicitly declared
+typed relation `E_SS`. There is one computational authority, not two.
 
-`G_GS` is decisive for **RME-7 promotion**, not the sole input to every verdict — RME-6B is precisely
-the case where a cycle requires a non-governed node.
+`G_GS` is decisive for **RME-7 promotion**, not the sole input to every reading — 6B is precisely the
+case where a cycle requires a non-governed node, which is why the check also answers over all slots.
+
+**Malformed is refused, never answered around.** The whole declaration is validated before either
+selection is computed: an out-of-range target or read, a transition claiming reads it does not
+supply, a system beyond `RME_MAX_SLOTS`, or unavailable working storage yields no answer, and a
+refusal is never reported as "acyclic".
 
 > **No promotion.** Nesting, recursion, execution loops, environmental return, or one-way dependency
 > cannot promote a structure to RME-7. Promote only when the cycle is internal to `G_GS`.
 
-`rme_classify` is observational and defined independently of conformance. It does not require
-`RME7Conforms(P) = true`, and classification has no authority to establish or mutate conformance.
+`rme_has_cycle` is observational and defined independently of conformance. It does not require
+`RME7Conforms(P) = true`, and it has no authority to establish or mutate conformance (C17).
 
-### 11.1 Classifier Extension Condition
+### 11.1 Observer Extension Condition (formerly Classifier Extension Condition)
 
 > An observational component may be added without changing the declared ontology or interface **iff
 > every datum on which its specified decision procedure depends is already represented in the
 > retained substrate representation and is accessible through the declared public interface.**
 
-For Axis C, **the representation supplied through the classifier's declared interface** must include
-the typed relation-bearing data required to reconstruct `E_GS`. Classification may derive its
-projection from that data but may not require information absent from the declared public
-representation.
+For Axis C, **the representation supplied through the check's declared interface** must include the
+typed relation-bearing data required to reconstruct `E_GS`. The check may derive its answer from that
+data but may not require information absent from the declared public representation.
 
 **Where the poiesis prototype itself is claimed sufficient for Axis-C reconstruction, that
 sufficiency is a separate Gate 3 obligation** — this section does not assume it.
@@ -695,22 +715,22 @@ explicitly.
 | C15 | new undeclared read, `ArgType` unchanged | rejected, with the reason |
 | C15b | changed `ArgType`, newly declared read represented | valid |
 | C16 | fixed argument struct, all declared reads represented | valid |
-| C17 | `rme_classify` returns RME-7 for a non-conformant prototype's system | does not make `rme7_conforms(P)` true |
+| C17 | `rme_has_cycle` reports a governed cycle for a non-conformant prototype's system | does not make `rme7_conforms(P)` true |
 | C18a | retained compatible endpoints; later specify `R_new` | `Admissible(R_new, P, Q)` holds; `R_new` may subsequently be declared without redesigning either boundary |
 | C18b | endpoints exist, contracts incompatible | rejected; no silent redesign |
 | C18c | `R_new` requires an undeclared port | cannot be admitted without changing the declared boundary |
 
-| # | construction | must classify |
+| # | construction | must read |
 |---|---|---|
-| K1 | `P₁→…→P₁₀₀₀` one-way governed dependencies, nesting represented separately | RME-6, `G_GS` acyclic — asserts both depth and acyclicity |
+| K1 | `P₁→…→P₁₀₀₀` one-way governed dependencies, nesting represented separately | not 7 and no cycle at all, with all 999 governed edges declared — asserts depth, acyclicity and that the chain exists |
 | K2 | `P₁ ⇄ P₂`, mutual governed reads | RME-7 |
-| K3 | `X → environment → X` | RME-6B |
+| K3 | `X → environment → X` | 6B |
 | K4 | one direction only | not 7 |
 | K5 | `X₁→X₂→X₃→X₁`, all governed | RME-7 |
-| K6 | same cycle, one node environmental | RME-6B |
+| K6 | same cycle, one node environmental | 6B |
 | K7 | self-recursion + execution loop, no governed reads | not 7 |
 | K8 | AWV's declared prototypes | 6B — AWV gate only |
-| K9 | conformant prototype classified 6 | both hold simultaneously |
+| K9 | conformant prototype; its system has no governed cycle | both hold simultaneously |
 | K10 | single governed state `X`, explicit governed self-dependency `X → X`, **no** execution recursion | **RME-7** — governed self-dependency is a directed cycle |
 
 **Audit standard.** Each question asks whether an invalid state can *bypass* a check, not whether the
@@ -1227,6 +1247,45 @@ and S6. No second test has been invented to make the phrase "both directions" tr
 claim was simply stronger than the evidence, and the useful architectural fact is that omission-only
 dispatch makes the subset relation hold by construction.
 ```
+
+### Amendment — the classifier reduced to the reachability check (2026-09-26)
+
+**Provenance.** Operator ruling, in session: *"reduce poiesis's classifier to the ProtoC reachability
+check."* Under the discovery discipline below this is **not a discovery** — no inconsistency was found
+and no frozen proposition is contradicted. Every normative statement of §11 survives; what the
+substrate no longer does is name levels the section never defined.
+
+**Changed.** `src/rme/classify.{h,c}` deleted. `src/rme/graph.{h,c}`: `rme_has_cycle(S, governed_only)`
+replaces both `rme_classify()` and the edge-list `rme_graph_has_cycle()`; `RME_MAX_SLOTS` moved here;
+`RME_MAX_EDGES` and `RmeSystem.adapts_parameters` removed (their only reader was the classifier).
+`rme_project` and `rme_graph_scc` are unchanged — the scheduler orders by them. Tests: every K item
+keeps its ID and intent, asserted as answers of the check (`tests/test_cycle.c`, renamed from
+`test_classify.c`); K8a now checks the declared loop edges instead of repeating K8; D4b is new.
+
+**Evidence.** A seeded comparison of 40,000 declared systems against the removed classifier: all
+28,673 well-formed systems read identically (16,158 RME-7, 4,373 6B, 8,142 not 7 and acyclic). All
+11,327 malformed systems are refused; 3,506 of them the old classifier had answered around — 775 as
+RME-7 (a governed cycle found before an out-of-range read behind an environmental target was
+examined) and 2,731 as RME-4 (no slots, transitions naming slots that cannot exist). That change is
+deliberate (S8) and pinned by D4b. 95 runtime tests, 0 failures, under `-Werror`; ProtoC 26/26;
+negative and layering pass; the differential's cells are unchanged — AGREE 15, DISAGREE 0,
+UNDECIDABLE 2, ORACLE-DEFECT 0.
+
+**Cost.**
+1. RME-4, RME-5 and RME-6 are no longer distinguished. K1 and K9, which expected "RME-6", are
+   restated as the graph content they asserted (acyclicity with declared governed edges).
+2. The differential loses mechanism diversity on S4. K-6 pre-registered "reachability vs
+   SCC+self-check" as slack; both substrates now use reachability, so K-6 is no longer exercised. The
+   pre-registration is left verbatim and the harness prints a note beside it. The S4 cells now compare
+   two independent implementations of one mechanism — weaker against a common-mode error.
+3. `protoc/SEMANTICS.md` (frozen, untouched) assigns classification to "AWV/RME … the existing
+   observer". The observer is now the reading of the check's two answers; ProtoC is unchanged and
+   still contains no classifier.
+
+**Found while verifying, pre-existing, not fixed here:** an ASan build of the suite reports a
+stack-use-after-return in `rme_context_depth` (`src/rme/actor.c:58`), reached from
+`tests/test_authority.c:220`. It reproduces on `claude/awv-reddit-file-8b76ff` before this change and
+lies outside Axis C.
 
 **Toolchain fact, not a conformance claim:** GCC 13.3.0 rejects `-std=c23` and accepts `-std=c2x`;
 the local bootstrap verifies compilation under that compiler's C2x mode, not certified ISO C23.

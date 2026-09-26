@@ -13,43 +13,62 @@
 
 extern void rme_check(bool cond, const char *id, const char *what);
 
-static bool classifies(const RmeSystem *s, RmeClassification want)
+/* An answer, compared in one step; a refusal is never read as "no cycle".
+ * "6B" and "7" are AWV's own names for these answers — poiesis names no
+ * level (SPEC §11): 7 is a cycle among the governed slots, 6B a cycle over
+ * all slots with none among the governed ones. */
+static bool cycle_is(const RmeSystem *s, bool governed_only, bool want)
 {
-    RmeClassification got;
-    return rme_classify(s, &got) && got == want;
+    bool got;
+    return rme_has_cycle(s, governed_only, &got) && got == want;
+}
+
+static bool has_edge(const RmeEdge *e, size_t m, size_t from, size_t to)
+{
+    for (size_t i = 0; i < m; i++) {
+        if (e[i].from == from && e[i].to == to) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void rme_test_awv(void);
 
 void rme_test_awv(void)
 {
-    /* ---- K8: AWV's declared prototypes and read-sets classify RME-6B.
-     * Observed from the declarations, not asserted by them. */
+    /* ---- K8: AWV's declared prototypes and read-sets are 6B: a cycle over
+     * all slots, none among the governed ones.  Observed from the
+     * declarations, not asserted by them. */
     {
-        rme_check(classifies(awv_system_operative(), RME_CLASS_RME6B),
-                  "K8", "AWV as declared classifies RME-6B");
+        const RmeSystem *op = awv_system_operative();
+        rme_check(cycle_is(op, false, true) && cycle_is(op, true, false),
+                  "K8", "AWV as declared is 6B: a cycle over all slots, none governed");
     }
 
-    /* ---- The decisive bit.  The loop A -> behaviour -> Sigma_U -> A is a
-     * genuine directed cycle; it is 6B and not 7 solely because behaviour
-     * is not a governed state object (v0.16).  Checked by projecting both
-     * ways: cyclic over all slots, acyclic within G_GS. */
+    /* ---- The decisive bit.  The loop A -> behaviour -> Sigma_U -> A is the
+     * DECLARED one, and it is 6B and not 7 solely because behaviour is not
+     * a governed state object (v0.16).  Checked on the projected edges,
+     * independently of the cycle check: all three loop edges are declared
+     * over all slots, and the governed projection keeps the A read but
+     * drops exactly the two edges through behaviour. */
     {
-        static RmeEdge edges[16];
+        static RmeEdge all[16], gs[16];
         const RmeSystem *s = awv_system_operative();
+        size_t m_all = rme_project(s, false, all, 16);
+        size_t m_gs  = rme_project(s, true,  gs,  16);
 
-        size_t m_gs = rme_project(s, true, edges, 16);
-        bool gs_cyclic = true;
-        bool gs_ok = (m_gs != SIZE_MAX)
-                  && rme_graph_has_cycle(AWV_SLOT_COUNT, edges, m_gs, &gs_cyclic);
+        bool loop_declared = m_all != SIZE_MAX
+            && has_edge(all, m_all, AWV_A, AWV_BEHAVIOUR)
+            && has_edge(all, m_all, AWV_BEHAVIOUR, AWV_SIGMA_U)
+            && has_edge(all, m_all, AWV_SIGMA_U, AWV_A);
+        bool only_behaviour_dropped = m_gs != SIZE_MAX
+            && has_edge(gs, m_gs, AWV_SIGMA_U, AWV_A)
+            && !has_edge(gs, m_gs, AWV_A, AWV_BEHAVIOUR)
+            && !has_edge(gs, m_gs, AWV_BEHAVIOUR, AWV_SIGMA_U);
 
-        size_t m_all = rme_project(s, false, edges, 16);
-        bool all_cyclic = false;
-        bool all_ok = (m_all != SIZE_MAX)
-                   && rme_graph_has_cycle(AWV_SLOT_COUNT, edges, m_all, &all_cyclic);
-
-        rme_check(gs_ok && !gs_cyclic && all_ok && all_cyclic,
-                  "K8a", "the loop is real: cyclic over all slots, acyclic within G_GS");
+        rme_check(loop_declared && only_behaviour_dropped,
+                  "K8a", "the loop is the declared one: G_GS drops exactly its two behaviour edges");
     }
 
     /* ---- One bit is load-bearing.  Marking behaviour governed — changing
@@ -62,28 +81,28 @@ void rme_test_awv(void)
             flipped[i] = op->slots[i];
         }
         flipped[AWV_BEHAVIOUR].governed = true;
-        RmeSystem s = { flipped, AWV_SLOT_COUNT, op->transitions, op->transition_count, false };
+        RmeSystem s = { flipped, AWV_SLOT_COUNT, op->transitions, op->transition_count };
 
-        rme_check(classifies(&s, RME_CLASS_RME7),
-                  "K8b", "governing behaviour would promote AWV to RME-7: the marking is decisive");
+        rme_check(cycle_is(&s, true, true),
+                  "K8b", "governing behaviour would give a governed cycle (RME-7): the marking is decisive");
     }
 
     /* ---- Route 7C (v0.13, withdrawn v0.14, retained as a near-miss).  The
      * median-band fallback reads the previous epoch's median of A, adding
      * one entry to one read-set.  AWV's finding was that "a numerical
      * convention can cross the RME-7 boundary without announcing it";
-     * here the classifier announces it.  Note the shape: a governed
+     * here the cycle check announces it.  Note the shape: a governed
      * self-dependency, which is exactly K10 reached from a numerical
      * convention rather than from governance. */
     {
-        rme_check(classifies(awv_system_route_7c(), RME_CLASS_RME7),
-                  "K8c", "Route 7C: a numerical convention crosses into RME-7");
+        rme_check(cycle_is(awv_system_route_7c(), true, true),
+                  "K8c", "Route 7C: a numerical convention crosses into a governed cycle (RME-7)");
     }
 
     /* ---- Fork G (v0.12): the reserved A -> theta -> A loop, were the
      * A-weighted supermajority rows made operative. */
     {
-        rme_check(classifies(awv_system_fork_g(), RME_CLASS_RME7),
+        rme_check(cycle_is(awv_system_fork_g(), true, true),
                   "K8d", "Fork G: A-weighted governance would close a governed 2-cycle");
     }
 
@@ -109,8 +128,8 @@ void rme_test_awv(void)
 
     /* ---- Each AWV prototype crosses its own validation boundary and is
      * assessed against its own schema (F7).  Validity is not inherited from
-     * AWV's structure, from the authority prototype, or from the system's
-     * classification. */
+     * AWV's structure, from the authority prototype, or from what the cycle
+     * check observes of the system. */
     {
         rme_validation_reset();
         RmePrototype a = awv_authority_prototype();

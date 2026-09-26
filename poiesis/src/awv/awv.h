@@ -1,7 +1,7 @@
 #ifndef AWV_AWV_H
 #define AWV_AWV_H
 
-#include "rme/classify.h"
+#include "rme/graph.h"
 #include "rme/schedule.h"
 #include "rme/validate.h"
 
@@ -13,9 +13,12 @@
  * by convention.  Everything below is expressed in poiesis' vocabulary:
  * slots, a governed marking, declared read-sets, ports and statuses.
  *
- * WHAT IS DECLARED HERE IS AWV'S, NOT POIESIS'.  The classification that
- * follows is not asserted by this file — the slots and read-sets are, and
- * rme_classify() observes what follows from them.  Every marking below is
+ * WHAT IS DECLARED HERE IS AWV'S, NOT POIESIS'.  The verdict that follows
+ * is not asserted by this file — the slots and read-sets are, and
+ * rme_has_cycle() observes what follows from them: whether a cycle lies
+ * among the governed slots (the RME-7 criterion) and whether one lies over
+ * all slots.  "6B" and "7" are AWV's own names for those two answers;
+ * poiesis names no level.  Every marking below is
  * traceable to an explicit statement in AWV's own change log:
  *
  *   v0.18  delta retyped as a DERIVED OPERATOR rather than a state object,
@@ -47,7 +50,8 @@ enum {
     AWV_SLOT_COUNT
 };
 
-/* The operative system: what AWV is as deployed.  K8 expects RME-6B. */
+/* The operative system: what AWV is as deployed.  K8 expects 6B: a cycle
+ * over all slots and none among the governed ones. */
 const RmeSystem *awv_system_operative(void);
 
 /* Route 7C (v0.13, withdrawn by v0.14, retained in 15.0 as a documented
@@ -57,7 +61,7 @@ const RmeSystem *awv_system_operative(void);
  *
  * AWV's own methodological finding was that "a numerical convention can
  * cross the RME-7 boundary without announcing it".  This system exists so
- * that claim is checked by the classifier instead of argued: it is exactly
+ * that claim is checked by the cycle check instead of argued: it is exactly
  * the shape K10 pins, arrived at from a numerical convention rather than
  * from governance. */
 const RmeSystem *awv_system_route_7c(void);

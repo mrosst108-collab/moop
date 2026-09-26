@@ -1,7 +1,7 @@
 #ifndef RME_SCHEDULE_H
 #define RME_SCHEDULE_H
 
-#include "classify.h"
+#include "graph.h"
 #include "contract.h"
 
 /* poiesis — GATE 2: flattening, elision, and fixed-point groups (§7, §12).
@@ -72,7 +72,7 @@ typedef struct {
     size_t count;     /* members in this group */
     bool   iterate;   /* fixed-point iteration required: |SCC| > 1, or a
                        * self-dependency, which a one-member SCC would
-                       * otherwise hide (the same rule classify.h freezes) */
+                       * otherwise hide (the self-loop rule SPEC §11 freezes) */
 } RmeScheduleGroup;
 
 typedef struct {

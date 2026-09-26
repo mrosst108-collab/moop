@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "rme/classify.h"
+#include "rme/graph.h"
 #include "rme/compose.h"
 #include "rme/schedule.h"
 #include "rme/validate.h"
@@ -104,40 +104,68 @@ void rme_test_regress(void)
 
     /* ---- D4: a transition naming a slot outside the declared table is a
      * malformed SYSTEM.  It used to be silently skipped, so a system with a
-     * garbage index returned a confident classification computed from a
-     * truncated projection -- the third instance of the silent-wrong-answer
-     * shape, after rme_classify (capacity) and rme_graph_has_cycle
-     * (allocation). */
+     * garbage index returned a confident answer computed from a truncated
+     * projection -- the third instance of the silent-wrong-answer shape,
+     * after the old classifier (capacity) and the old edge-list cycle
+     * predicate (allocation).  Refused under BOTH selections. */
     {
         static const RmeSlot slots[] = { { "X", true }, { "Y", true } };
         static const size_t bad_read[] = { 99 };              /* no such slot */
         static const RmeTransitionDecl tr[] = { { "T_Y", 1, bad_read, 1 } };
-        RmeSystem s = { slots, 2, tr, 1, false };
+        RmeSystem s = { slots, 2, tr, 1 };
 
-        RmeClassification c;
-        bool refused = !rme_classify(&s, &c);
+        bool got = false;
+        bool refused = !rme_has_cycle(&s, true, &got) && !rme_has_cycle(&s, false, &got);
 
         static const RmeTransitionDecl tr2[] = { { "T", 42, nullptr, 0 } };  /* no such target */
-        RmeSystem s2 = { slots, 2, tr2, 1, false };
-        bool refused2 = !rme_classify(&s2, &c);
+        RmeSystem s2 = { slots, 2, tr2, 1 };
+        bool refused2 = !rme_has_cycle(&s2, true, &got) && !rme_has_cycle(&s2, false, &got);
 
         rme_check(refused && refused2,
                   "D4", "a system naming an out-of-range slot is refused, not silently truncated");
     }
 
-    /* ---- D5: the graph primitives take n and the edge array as
-     * INDEPENDENT arguments, so nothing but an explicit check makes them
+    /* ---- D4b: the WHOLE declaration is validated before either selection
+     * is computed.  The old classifier projected the governed slots first,
+     * so an out-of-range read behind an environmental target was never
+     * examined once a governed cycle had been found: it answered RME-7 for
+     * a malformed system.  And a system with no slots answered RME-4
+     * whatever its transitions named.  Both are confident answers computed
+     * around a malformed declaration (S8); both are now refused. */
+    {
+        static const RmeSlot slots[] = { { "X", true }, { "Y", true }, { "E", false } };
+        static const size_t rx[] = { 1 };
+        static const size_t ry[] = { 0 };
+        static const size_t bad[] = { 7 };                    /* no such slot */
+        static const RmeTransitionDecl tr[] = {
+            { "T_X", 0, rx, 1 }, { "T_Y", 1, ry, 1 },   /* a governed 2-cycle */
+            { "T_E", 2, bad, 1 },                        /* environmental target */
+        };
+        RmeSystem s = { slots, 3, tr, 3 };
+        bool got = false;
+        bool refused_gov = !rme_has_cycle(&s, true, &got);
+        bool refused_all = !rme_has_cycle(&s, false, &got);
+
+        static const RmeTransitionDecl tr0[] = { { "T", 0, nullptr, 0 } };
+        RmeSystem empty = { slots, 0, tr0, 1 };              /* targets a slot that cannot exist */
+        bool refused_empty = !rme_has_cycle(&empty, true, &got);
+
+        rme_check(refused_gov && refused_all && refused_empty,
+                  "D4b", "a malformed declaration is refused under either selection, never answered around");
+    }
+
+    /* ---- D5: a graph primitive that takes n and the edge array as
+     * INDEPENDENT arguments needs an explicit check to make them
      * consistent.  An out-of-range endpoint indexed the CSR arrays out of
-     * bounds; it is now refused. */
+     * bounds; it is now refused.  (The cycle check no longer takes n and
+     * edges separately: it reads the declared system, whose indices D4 and
+     * D4b cover.) */
     {
         const RmeEdge e[] = { { 0, 7 } };     /* 7 >= n */
-        bool cyclic = true;
-        bool refused = !rme_graph_has_cycle(2, e, 1, &cyclic);
-
         size_t comp[2], ncomp = 0;
         bool refused_scc = !rme_graph_scc(2, e, 1, comp, &ncomp);
 
-        rme_check(refused && refused_scc,
+        rme_check(refused_scc,
                   "D5", "edge endpoints outside [0,n) are refused, not written out of bounds");
     }
 
@@ -239,14 +267,16 @@ void rme_test_regress(void)
         static const RmeSlot slots[] = { { "X", true } };
         static const size_t bad_read[] = { 5 };
         static const RmeTransitionDecl tr[] = { { "T", 0, bad_read, 1 } };
-        RmeSystem s = { slots, 1, tr, 1, false };
+        RmeSystem s = { slots, 1, tr, 1 };
 
         RmeSchedule sch;
         bool refused = !rme_schedule_build(&s, &sch);
         if (!refused) {
             rme_schedule_release(&sch);
         }
-        rme_check(refused,
-                  "D6", "the scheduler refuses the same malformed system the classifier does");
+        bool got = false;
+        bool check_refused = !rme_has_cycle(&s, true, &got) && !rme_has_cycle(&s, false, &got);
+        rme_check(refused && check_refused,
+                  "D6", "the scheduler refuses the same malformed system the cycle check does");
     }
 }

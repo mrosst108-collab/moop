@@ -12,9 +12,10 @@ size_t rme_project(const RmeSystem *s, bool governed_only,
         const RmeTransitionDecl *d = &s->transitions[t];
         /* An index outside the declared slot table is a MALFORMED system,
          * not an edge to skip.  Dropping it silently would hand back a
-         * truncated projection that classifies confidently and wrongly --
-         * the same silent-wrong-answer shape already removed from
-         * rme_classify (capacity) and rme_graph_has_cycle (allocation). */
+         * truncated projection that answers confidently and wrongly -- the
+         * same silent-wrong-answer shape once removed from the old
+         * classifier (capacity) and edge-list cycle predicate (allocation),
+         * both since replaced by rme_has_cycle, which builds no projection. */
         if (d->target >= s->slot_count) {
             return SIZE_MAX;
         }
@@ -181,53 +182,100 @@ bool rme_graph_scc(size_t n, const RmeEdge *e, size_t m,
     return true;
 }
 
-bool rme_graph_has_cycle(size_t n, const RmeEdge *e, size_t m, bool *out)
+/* The WHOLE declaration, validated before either selection is computed: a
+ * malformed read is refused even where the governed selection would skip
+ * the transition holding it.  Answering around a malformed declaration is
+ * a confident answer computed from an incomplete relation. */
+static bool declaration_ok(const RmeSystem *s)
 {
-    if (out == nullptr) {
+    if (s->slot_count > 0 && s->slots == nullptr) {
         return false;
     }
+    if (s->transition_count > 0 && s->transitions == nullptr) {
+        return false;
+    }
+    for (size_t t = 0; t < s->transition_count; t++) {
+        const RmeTransitionDecl *d = &s->transitions[t];
+        if (d->target >= s->slot_count) {
+            return false;
+        }
+        if (d->read_count > 0 && d->reads == nullptr) {
+            return false;
+        }
+        for (size_t r = 0; r < d->read_count; r++) {
+            if (d->reads[r] >= s->slot_count) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool rme_has_cycle(const RmeSystem *s, bool governed_only, bool *out)
+{
+    if (s == nullptr || out == nullptr) {
+        return false;
+    }
+    if (s->slot_count > RME_MAX_SLOTS) {
+        return false;   /* unrepresentable: refuse, never downgrade */
+    }
+    if (!declaration_ok(s)) {
+        return false;   /* malformed: refuse, never answer around it */
+    }
+    const size_t n = s->slot_count;
     if (n == 0) {
         *out = false;
         return true;
     }
-    if (m > 0 && e == nullptr) {
-        return false;
+
+    const size_t w = (n + 63) / 64;
+    uint64_t *row = calloc(n * w, sizeof *row);
+    if (row == nullptr) {
+        return false;   /* no answer — never silently "acyclic" */
     }
-    for (size_t i = 0; i < m; i++) {
-        if (e[i].from >= n || e[i].to >= n) {
-            return false;   /* malformed: no verdict */
+
+    /* row[X] holds bit Y iff T_X declares a read of Y and both slots are
+     * selected.  The selection is applied HERE, while the rows are built,
+     * so no projected structure exists to be truncated.  (This reads the
+     * arrow as X -> Y where the projection writes Y -> X; cycle existence
+     * is invariant under reversing every edge, so nothing depends on it.) */
+    for (size_t t = 0; t < s->transition_count; t++) {
+        const RmeTransitionDecl *d = &s->transitions[t];
+        if (governed_only && !s->slots[d->target].governed) {
+            continue;
         }
-    }
-    /* FROZEN self-loop rule: a self-edge is a directed cycle.  Tarjan would
-     * report it as a one-member SCC, which cardinality alone would miss. */
-    for (size_t i = 0; i < m; i++) {
-        if (e[i].from == e[i].to) {
-            *out = true;
-            return true;
+        uint64_t *rx = &row[d->target * w];
+        for (size_t r = 0; r < d->read_count; r++) {
+            const size_t y = d->reads[r];
+            if (governed_only && !s->slots[y].governed) {
+                continue;
+            }
+            rx[y / 64] |= (uint64_t)1 << (y % 64);
         }
     }
 
-    size_t *comp = calloc(n, sizeof *comp);
-    size_t *size = calloc(n, sizeof *size);
-    if (!comp || !size) {
-        free(comp); free(size);
-        return false;   /* no verdict — never silently "acyclic" */
+    /* Transitive closure: row[i] ends as the set of slots i reaches by a
+     * path of length >= 1. */
+    for (size_t k = 0; k < n; k++) {
+        const uint64_t *rk = &row[k * w];
+        for (size_t i = 0; i < n; i++) {
+            uint64_t *ri = &row[i * w];
+            if (ri[k / 64] & ((uint64_t)1 << (k % 64))) {
+                for (size_t q = 0; q < w; q++) {
+                    ri[q] |= rk[q];
+                }
+            }
+        }
     }
 
-    size_t ncomp = 0;
-    if (!rme_graph_scc(n, e, m, comp, &ncomp)) {
-        free(comp); free(size);
-        return false;
-    }
+    /* A cycle exists iff some slot reaches itself.  A self-read needs NO
+     * special case: it is already a path of length 1.  An unselected slot
+     * has an empty row and appears in none, so it can never qualify. */
     bool found = false;
-    for (size_t v = 0; v < n; v++) {
-        size[comp[v]]++;
-        if (size[comp[v]] > 1) {
-            found = true;
-            break;
-        }
+    for (size_t i = 0; i < n && !found; i++) {
+        found = ((row[i * w + i / 64] >> (i % 64)) & 1u) != 0;
     }
-    free(comp); free(size);
+    free(row);
     *out = found;
     return true;
 }

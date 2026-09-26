@@ -47,8 +47,7 @@ You are auditing a C23 substrate at ${ROOT}. Read the ACTUAL CODE; do not reason
   src/rme/bind.*        BindValid(T): Reads(T) vs Fields(ArgType(T))
   src/rme/compose.*     rme_admissible() and rme_compose_valid() - Axis B
   src/rme/nest.*        NestedValid
-  src/rme/graph.*       rme_project(), rme_graph_scc(), rme_graph_has_cycle()
-  src/rme/classify.*    rme_classify() - Axis C
+  src/rme/graph.*       rme_project(), rme_graph_scc(); rme_has_cycle() - Axis C
   src/rme/schedule.*    rme_envelope/rme_dispatch, SCC groups
   src/rme/actor.*       RmeActor, RmeCapability, RmeConstructionContext (Grant)
   src/rme/validate.*    OPAQUE RmeValidated, rme_validate() - THE validation boundary
@@ -116,11 +115,11 @@ const QUESTIONS = [
   { id: 'Q5',  q: 'At what boundary does an object acquire the validated-prototype type, and can any path reach it without crossing? Scrutinise validate.c: opacity, the arena, monotonic allocation, epoch checks, rme_validated_proto.' },
   { id: 'Q6',  q: 'Can an optimizer/elision path destroy a required boundary distinction? Examine schedule.c. NOTE: the E_dispatch subset-of E_envelope check is KNOWN to be structurally vacuous; do not re-report it, look for anything else.' },
   { id: 'Q7',  q: 'Can the API expose an operation whose TYPE permits violating its contract? Look for void*, non-const self on queries, out-params left uninitialised on refusal, enums accepting out-of-domain values.' },
-  { id: 'Q8',  q: 'Can classification MUTATE or ESTABLISH conformance? Check rme_classify and callees for writes to prototype state or paths where classification influences rme7_conforms.' },
+  { id: 'Q8',  q: 'Can the Axis C cycle check MUTATE or ESTABLISH conformance? Check rme_has_cycle and callees for writes to prototype state or paths where its answer influences rme7_conforms.' },
   { id: 'Q9',  q: 'Can composition be INFERRED where no R_C was declared (F5)? Check compose.c for coexistence, name equality, adjacency or ordering treated as a connection.' },
   { id: 'Q10', q: 'Can a VESTIGIAL endpoint enter R_C? Verify the ACTIVE requirement on every path, both sides, including empty relation, duplicate edges, self-composition P==Q.' },
   { id: 'Q11', q: 'Can an undeclared transition dependency enter without changing ArgType? Check bind.c for ways a read counts as represented when it is not.' },
-  { id: 'Q12', q: 'Can the classifier obtain information the declared interface does not expose? Check rme_classify/rme_project for statics, globals, reentrancy and aliasing.' },
+  { id: 'Q12', q: 'Can the Axis C cycle check obtain information the declared interface does not expose? Check rme_has_cycle/rme_project for statics, globals, reentrancy and aliasing.' },
 ]
 
 const failures = []

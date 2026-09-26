@@ -3,7 +3,7 @@
 /* ---- slots -------------------------------------------------------------
  *
  * Exactly one bit is doing the constitutional work: AWV_BEHAVIOUR is NOT
- * governed.  Flip it and the same read-sets classify RME-7. */
+ * governed.  Flip it and the same read-sets hold a governed cycle (RME-7). */
 static const RmeSlot awv_slots[AWV_SLOT_COUNT] = {
     [AWV_SIGMA_U]   = { "Sigma_U",   true  },
     [AWV_A]         = { "A",         true  },
@@ -37,7 +37,7 @@ static const RmeTransitionDecl awv_operative_tr[] = {
 };
 
 static const RmeSystem awv_operative = {
-    awv_slots, AWV_SLOT_COUNT, awv_operative_tr, 4, false
+    awv_slots, AWV_SLOT_COUNT, awv_operative_tr, 4
 };
 
 const RmeSystem *awv_system_operative(void)
@@ -59,7 +59,7 @@ static const RmeTransitionDecl awv_7c_tr[] = {
 };
 
 static const RmeSystem awv_7c = {
-    awv_slots, AWV_SLOT_COUNT, awv_7c_tr, 4, false
+    awv_slots, AWV_SLOT_COUNT, awv_7c_tr, 4
 };
 
 const RmeSystem *awv_system_route_7c(void)
@@ -81,7 +81,7 @@ static const RmeTransitionDecl awv_fork_g_tr[] = {
 };
 
 static const RmeSystem awv_fork_g = {
-    awv_slots, AWV_SLOT_COUNT, awv_fork_g_tr, 4, false
+    awv_slots, AWV_SLOT_COUNT, awv_fork_g_tr, 4
 };
 
 const RmeSystem *awv_system_fork_g(void)

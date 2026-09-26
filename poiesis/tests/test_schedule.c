@@ -164,7 +164,7 @@ void rme_test_schedule(void)
         static const size_t rb[] = { 0 };   /* T_B reads A */
         static const size_t rc[] = { 1 };   /* T_C reads B */
         static const RmeTransitionDecl tr[] = { { "T_B", 1, rb, 1 }, { "T_C", 2, rc, 1 } };
-        RmeSystem s = { slots, 3, tr, 2, false };
+        RmeSystem s = { slots, 3, tr, 2 };
 
         RmeSchedule sch;
         bool built = rme_schedule_build(&s, &sch);
@@ -181,14 +181,14 @@ void rme_test_schedule(void)
     }
 
     /* ---- S8: a mutual pair becomes ONE group marked for fixed-point
-     * iteration.  Note this is a scheduling fact, not a classification:
-     * `iterate` is not RME-7. */
+     * iteration.  Note this is a scheduling fact, not an Axis C
+     * observation: `iterate` is not RME-7. */
     {
         static const RmeSlot slots[] = { { "X", true }, { "Y", true } };
         static const size_t rx[] = { 1 };
         static const size_t ry[] = { 0 };
         static const RmeTransitionDecl tr[] = { { "T_X", 0, rx, 1 }, { "T_Y", 1, ry, 1 } };
-        RmeSystem s = { slots, 2, tr, 2, false };
+        RmeSystem s = { slots, 2, tr, 2 };
 
         RmeSchedule sch;
         bool built = rme_schedule_build(&s, &sch);
@@ -206,7 +206,7 @@ void rme_test_schedule(void)
         static const RmeSlot slots[] = { { "X", true } };
         static const size_t rx[] = { 0 };
         static const RmeTransitionDecl tr[] = { { "T_X", 0, rx, 1 } };
-        RmeSystem s = { slots, 1, tr, 1, false };
+        RmeSystem s = { slots, 1, tr, 1 };
 
         RmeSchedule sch;
         bool built = rme_schedule_build(&s, &sch);
@@ -218,31 +218,34 @@ void rme_test_schedule(void)
 
     /* ---- S10: the schedule respects ENVIRONMENTAL dependencies too.  It
      * uses the full projection, not G_GS: restricting it to governed slots
-     * would leak a classification concept into execution order. */
+     * would leak an Axis C concept (the governed restriction) into
+     * execution order. */
     {
         static const RmeSlot slots[] = { { "X", true }, { "E", false } };
         static const size_t re[] = { 0 };   /* T_E reads X */
         static const size_t rx[] = { 1 };   /* T_X reads E  -> a cycle through E */
         static const RmeTransitionDecl tr[] = { { "T_E", 1, re, 1 }, { "T_X", 0, rx, 1 } };
-        RmeSystem s = { slots, 2, tr, 2, false };
+        RmeSystem s = { slots, 2, tr, 2 };
 
         RmeSchedule sch;
         bool built = rme_schedule_build(&s, &sch);
         bool grouped = built && sch.group_count == 1 && sch.groups[0].iterate;
 
-        /* The same system classifies RME-6B, not RME-7: iterate != RME-7. */
-        RmeClassification c;
-        bool classified = rme_classify(&s, &c) && c == RME_CLASS_RME6B;
+        /* The same system is 6B, not RME-7: a cycle over all slots and none
+         * among the governed ones.  iterate != RME-7. */
+        bool gov = true, all = false;
+        bool six_b = rme_has_cycle(&s, true, &gov) && !gov
+                  && rme_has_cycle(&s, false, &all) && all;
 
         rme_schedule_release(&sch);
-        rme_check(grouped && classified,
-                  "S10", "schedule groups an environmental cycle; the same system is RME-6B");
+        rme_check(grouped && six_b,
+                  "S10", "schedule groups an environmental cycle; the same system is 6B, not 7");
     }
 
     /* ---- S11: a system too large to schedule is refused, not truncated. */
     {
         static const RmeSlot slots[] = { { "X", true } };
-        RmeSystem s = { slots, (size_t)RME_MAX_SLOTS + 1, nullptr, 0, false };
+        RmeSystem s = { slots, (size_t)RME_MAX_SLOTS + 1, nullptr, 0 };
         RmeSchedule sch;
         bool built = rme_schedule_build(&s, &sch);
         rme_check(!built, "S11", "unschedulable system is refused, never partially flattened");
