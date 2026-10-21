@@ -1,6 +1,8 @@
 #define _POSIX_C_SOURCE 200809L /* dprintf, poll, unix sockets */
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
@@ -287,7 +289,10 @@ static void refuse(const char *what)
  * through here, so there is one order of execution and one semantics. */
 static bool execute(char *line)
 {
-    char cmd[16] = "", a[REDDIT_NAME] = "", b[REDDIT_NAME] = "";
+    /* names are read one byte wider than any name can be, so an over-long
+     * one (a name with the next field glued to it) matches no track and is
+     * refused whole, never split into a name and a field */
+    char cmd[16] = "", a[REDDIT_NAME + 1] = "", b[REDDIT_NAME + 1] = "";
     int consumed = 0;
     if (sscanf(line, "%15s%n", cmd, &consumed) != 1)
         return true;
@@ -329,7 +334,7 @@ static bool execute(char *line)
             reddit_set_ban(&t->rules, site_bans[i], true);
     } else if (strcmp(cmd, "post") == 0) {
         unsigned user; int n;
-        if (sscanf(rest, "%23s %u%n", a, &user, &n) != 2) { refuse("post SUB USER TITLE"); return true; }
+        if (sscanf(rest, "%24s %u%n", a, &user, &n) != 2) { refuse("post SUB USER TITLE"); return true; }
         Track *t = find_sub(a);
         const char *title = rest + n + strspn(rest + n, " ");
         if (!t) { refuse("no such subreddit"); return true; }
@@ -337,7 +342,7 @@ static bool execute(char *line)
         if (!t->sigma(t, user, -1, title, now)) refuse("the rules do not admit that post");
     } else if (strcmp(cmd, "comment") == 0) {
         unsigned user; int parent, n;
-        if (sscanf(rest, "%23s %u %d%n", a, &user, &parent, &n) != 3) { refuse("comment SUB USER PARENT TEXT"); return true; }
+        if (sscanf(rest, "%24s %u %d%n", a, &user, &parent, &n) != 3) { refuse("comment SUB USER PARENT TEXT"); return true; }
         Track *t = find_sub(a);
         const char *text = rest + n + strspn(rest + n, " ");
         if (!t) { refuse("no such subreddit"); return true; }
@@ -345,7 +350,7 @@ static bool execute(char *line)
         if (!t->sigma(t, user, parent, text, now)) refuse("the rules do not admit that comment");
     } else if (strcmp(cmd, "vote") == 0) {
         int id, d;
-        if (sscanf(rest, "%23s %d %d", a, &id, &d) != 3) { refuse("vote SUB ID DELTA"); return true; }
+        if (sscanf(rest, "%24s %d %d", a, &id, &d) != 3) { refuse("vote SUB ID DELTA"); return true; }
         Track *t = find_sub(a); /* a profile's X is evidence: nobody votes into it */
         if (!t) { refuse("no such subreddit"); return true; }
         if (!reddit_vote(t, id, d)) refuse("no such node");
@@ -356,13 +361,14 @@ static bool execute(char *line)
         for (size_t i = 0; i < ntracks; i++)
             tracks[i].gsharp(&tracks[i], now);
     } else if (strcmp(cmd, "show") == 0) {
-        if (sscanf(rest, "%23s", a) != 1) { refuse("show SUB"); return true; }
+        if (sscanf(rest, "%24s", a) != 1) { refuse("show SUB"); return true; }
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         show(t);
     } else if (strcmp(cmd, "cross") == 0) {
-        int id; unsigned user;
-        if (sscanf(rest, "%23s %d %23s %u", a, &id, b, &user) != 4) { refuse("cross FROM ID TO USER"); return true; }
+        int id, m = 0; unsigned user;
+        if (sscanf(rest, "%24s %d%n %24s %u", a, &id, &m, b, &user) != 4 ||
+            !isspace((unsigned char)rest[m])) { refuse("cross FROM ID TO USER"); return true; }
         /* subreddits only, at both ends: a profile is fed by `profile`
          * alone, so nobody writes another user's X by crossposting */
         Track *from = find_sub(a), *to = find_sub(b);
@@ -370,7 +376,7 @@ static bool execute(char *line)
         if (!reddit_port(from, id, to, user, now, REDDIT_FRESH)) refuse("the port did not admit it");
     } else if (strcmp(cmd, "lock") == 0) {
         unsigned user; int id;
-        if (sscanf(rest, "%23s %u %d", a, &user, &id) != 3) { refuse("lock SUB USER ID"); return true; }
+        if (sscanf(rest, "%24s %u %d", a, &user, &id) != 3) { refuse("lock SUB USER ID"); return true; }
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         Rules r = t->rules;
@@ -378,7 +384,7 @@ static bool execute(char *line)
         if (!t->f(t, user, r, t->ranking)) refuse("not a moderator");
     } else if (strcmp(cmd, "rules") == 0) {
         unsigned user; Rules r; Ranking k; int allow, export;
-        if (sscanf(rest, "%23s %u %zu %lf %lf %d %d", a, &user, &r.max_title,
+        if (sscanf(rest, "%24s %u %zu %lf %lf %d %d", a, &user, &r.max_title,
                    &r.min_hot, &k.half_life, &allow, &export) != 7) {
             refuse("rules SUB USER MAXTITLE MINHOT HALFLIFE ALLOWCROSS EXPORT"); return true;
         }
@@ -412,8 +418,10 @@ static bool execute(char *line)
         if (reddit_set_ban(&standing, user, add)) {
             nsite_bans = standing.nbanned;
             memcpy(site_bans, standing.banned, sizeof site_bans);
-        } else if (add && nsite_bans == REDDIT_BANS) {
-            fprintf(stderr, "refused: capacity is %zu standing bans\n", REDDIT_BANS);
+        } else if (add && nsite_bans == REDDIT_BANS && !replaying) {
+            bool present = false;     /* already barred: nothing was refused */
+            for (size_t i = 0; i < nsite_bans; i++) present = present || site_bans[i] == user;
+            if (!present) fprintf(stderr, "refused: capacity is %zu standing bans\n", REDDIT_BANS);
         }
     } else if (strcmp(cmd, "profile") == 0) {
         unsigned user; size_t k;
@@ -437,12 +445,12 @@ static bool execute(char *line)
         if (!replaying) printf("  karma %d\n", reddit_karma(u));
     } else if (strcmp(cmd, "cast") == 0) {
         unsigned user; int id, d;
-        if (sscanf(rest, "%23s %u %d %d", a, &user, &id, &d) != 4) { refuse("cast SUB USER ID DELTA"); return true; }
+        if (sscanf(rest, "%24s %u %d %d", a, &user, &id, &d) != 4) { refuse("cast SUB USER ID DELTA"); return true; }
         Track *t = find_sub(a);
         if (!t) { refuse("no such subreddit"); return true; }
         if (!reddit_cast(t, user, id, d)) refuse("delta not +/-1, banned, no such node, already cast, or ballots full");
     } else if (strcmp(cmd, "weigh") == 0) {
-        if (sscanf(rest, "%23s", a) != 1) { refuse("weigh SUB"); return true; }
+        if (sscanf(rest, "%24s", a) != 1) { refuse("weigh SUB"); return true; }
         Track *t = find_sub(a);
         if (!t) { refuse("no such subreddit"); return true; }
         /* the receiver forgets its W, then each voter's track exports
@@ -466,7 +474,7 @@ static bool execute(char *line)
         if (!all.f(&all, admin, all.rules, k)) refuse("not the site, or interval out of range");
     } else if (strcmp(cmd, "blend") == 0) {
         unsigned admin; double lam;
-        if (sscanf(rest, "%u %23s %lf", &admin, a, &lam) != 3) { refuse("blend ADMIN SUB LAMBDA"); return true; }
+        if (sscanf(rest, "%u %24s %lf", &admin, a, &lam) != 3) { refuse("blend ADMIN SUB LAMBDA"); return true; }
         Track *t = find(a);
         if (!t) { refuse("no such track"); return true; }
         if (admin != REDDIT_SITE) { refuse("only the site sets lambda"); return true; }
@@ -548,27 +556,27 @@ static bool execute(char *line)
         }
         show(&all);
     } else if (strcmp(cmd, "sweep") == 0) {
-        if (sscanf(rest, "%23s", a) != 1) { refuse("sweep SUB"); return true; }
+        if (sscanf(rest, "%24s", a) != 1) { refuse("sweep SUB"); return true; }
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         t->gsharp(t, now);
         size_t dropped = reddit_sweep(t);
         if (!replaying) printf("dropped %zu\n", dropped);
     } else if (strcmp(cmd, "gamma") == 0) {
-        if (sscanf(rest, "%23s", a) != 1) { refuse("gamma SUB"); return true; }
+        if (sscanf(rest, "%24s", a) != 1) { refuse("gamma SUB"); return true; }
         Track *t = find(a);
         if (!t) { refuse("no such subreddit"); return true; }
         if (!replaying) printf("gamma %zu\n", reddit_gamma(t, now));
     } else if (strcmp(cmd, "request") == 0) {
         unsigned user; int id;
-        if (sscanf(rest, "%23s %u %d", a, &user, &id) != 3) { refuse("request SUB USER ID"); return true; }
+        if (sscanf(rest, "%24s %u %d", a, &user, &id) != 3) { refuse("request SUB USER ID"); return true; }
         Track *t = find_sub(a);
         if (!t) { refuse("no such subreddit"); return true; }
         if (!reddit_request(t, user, id))
             refuse("no such node, the ai's own, already asked or answered, answers off or locked there, you or the ai barred, or the track full");
     } else if (strcmp(cmd, "answer") == 0) {
         int id, n;
-        if (sscanf(rest, "%23s %d%n", a, &id, &n) != 2) { refuse("answer SUB ID TEXT"); return true; }
+        if (sscanf(rest, "%24s %d%n", a, &id, &n) != 2) { refuse("answer SUB ID TEXT"); return true; }
         Track *t = find_sub(a);
         const char *text = rest + n + strspn(rest + n, " ");
         if (!t) { refuse("no such subreddit"); return true; }
@@ -578,7 +586,7 @@ static bool execute(char *line)
         if (!reddit_answer(t, id, text, now) && *text) refuse("the rules do not admit that answer");
     } else if (strcmp(cmd, "ai") == 0) {
         unsigned user; int on;
-        if (sscanf(rest, "%23s %u %d", a, &user, &on) != 3) { refuse("ai SUB USER 0|1"); return true; }
+        if (sscanf(rest, "%24s %u %d", a, &user, &on) != 3) { refuse("ai SUB USER 0|1"); return true; }
         Track *t = find_sub(a);
         if (!t) { refuse("no such subreddit"); return true; }
         Rules r = t->rules;
@@ -593,7 +601,8 @@ static bool execute(char *line)
 /* Run one stream of commands. Returns false on quit. */
 static bool run(FILE *in)
 {
-    char line[LINE];  /* the ingress's bound: a recorded line fits */
+    char line[LINE + 1]; /* the ingress records at most LINE - 1 characters:
+                            with the newline, every recorded line fits */
     while (fgets(line, sizeof line, in)) {
         size_t got = strlen(line);
         if (got == sizeof line - 1 && line[got - 1] != '\n') {
@@ -621,7 +630,7 @@ constexpr size_t CLIENTS = 16;
 constexpr size_t PRINCIPALS = 64;
 static struct { char token[64]; unsigned user; } principals[PRINCIPALS];
 static size_t nprincipals;
-static struct { int fd; int user; char buf[LINE]; size_t len; } clients[CLIENTS];
+static struct { int fd; long long user; char buf[LINE]; size_t len; } clients[CLIENTS];
 
 /* Which argument carries the actor, per command (0: none). */
 static int actor_field(const char *cmd)
@@ -639,12 +648,12 @@ static int actor_field(const char *cmd)
 }
 
 /* Rewrite the actor field of `line` to `user`, in place of whatever the
- * client claimed. Tokens are split on ANY whitespace and rejoined with
- * single spaces, so a tab cannot make the field count disagree with the
- * executor (which splits on all whitespace) and smuggle a claimed actor
- * past the binding. Returns false if the actor field is missing or the
- * result would not fit — serve_line then refuses the line rather than
- * running it under an unbound actor. */
+ * client claimed. Tokens are split on ANY whitespace — space, tab, \r, \v,
+ * \f, the set the executor's sscanf splits on — and rejoined with single
+ * spaces, so no separator can make the field count disagree with the
+ * executor and smuggle a claimed actor past the binding. Returns false if
+ * the actor field is missing or the result would not fit — serve_line then
+ * refuses the line rather than running it under an unbound actor. */
 static bool bind_actor(const char *line, unsigned user, char *out, size_t outlen)
 {
     char cmd[16] = "";
@@ -656,9 +665,9 @@ static bool bind_actor(const char *line, unsigned user, char *out, size_t outlen
     if (w < 0 || (size_t)w >= outlen) return false;
     size_t n = (size_t)w;
     for (int i = 1; ; i++) {
-        p += strspn(p, " \t");
+        p += strspn(p, " \t\n\v\f\r");
         if (*p == '\0') return field == 0 || i > field; /* actor field present? */
-        const char *e = p + strcspn(p, " \t");
+        const char *e = p + strcspn(p, " \t\n\v\f\r");
         if (i == field) w = snprintf(out + n, outlen - n, " %u", user);
         else            w = snprintf(out + n, outlen - n, " %.*s", (int)(e - p), p);
         if (w < 0 || (size_t)w >= outlen - n) return false;
@@ -832,7 +841,7 @@ static void serve_line(size_t c, char *raw)
         }
         for (size_t i = 0; i < nprincipals; i++)
             if (strcmp(principals[i].token, token) == 0) {
-                clients[c].user = (int)principals[i].user;
+                clients[c].user = principals[i].user;
                 dprintf(fd, "bound: u%u\n", principals[i].user); return;
             }
         dprintf(fd, "refused: unknown principal\n"); close(fd); clients[c].fd = -1; return;
@@ -912,7 +921,8 @@ static int serve(const char *sock, const char *principals_path, const char *tran
         }
         time_t due = last_tick + (time_t)all.ranking.interval;
         time_t now_wall = time(nullptr);
-        int timeout = due > now_wall ? (int)(due - now_wall) * 1000 : 0;
+        long long wait_ms = due > now_wall ? (long long)(due - now_wall) * 1000 : 0;
+        int timeout = wait_ms > INT_MAX ? INT_MAX : (int)wait_ms;
         if (answering_now && timeout > 100) timeout = 100; /* reap and time out promptly */
         int r = poll(pfd, CLIENTS + 1 + ANSWERING, timeout);
         if (r < 0 && errno != EINTR) { perror("poll"); return 1; }

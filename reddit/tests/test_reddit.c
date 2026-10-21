@@ -480,6 +480,21 @@ int main(void)
     for (size_t i = 0; i <= REDDIT_AI_CHARS; i++) strcat(wide, "\xC3\xA9"); /* e-acute */
     check(reddit_request(&ra, 2, 0) && !reddit_answer(&ra, 0, wide, 40) && ra.nposts == 5,
           "answer: 301 two-byte characters are refused");
+    /* well-formed UTF-8 only: a stray continuation byte, an overlong form, a
+     * surrogate, a cut sequence, or a code point past U+10FFFF has no
+     * honest character count */
+    const char *malformed[] = { "\x80", "\xC0\xAF", "\xED\xA0\x80", "\xE2\x82",
+                                "\xF4\x90\x80\x80" };
+    bool refused_all = true;
+    for (size_t i = 0; i < sizeof malformed / sizeof malformed[0]; i++)
+        refused_all = refused_all && reddit_request(&ra, 2, 0) &&
+                      !reddit_answer(&ra, 0, malformed[i], 40);
+    char stray[REDDIT_TEXT] = "a";
+    memset(stray + 1, 0x80, 1199);
+    stray[1200] = '\0';
+    check(refused_all && reddit_request(&ra, 2, 0) && !reddit_answer(&ra, 0, stray, 40) &&
+          reddit_find(&ra, 0)->ai == REDDIT_AI_NONE && ra.nposts == 5,
+          "answer: text that is not well-formed UTF-8 is refused, not counted short");
     wide[2 * REDDIT_AI_CHARS] = '\0';
     check(reddit_request(&ra, 2, 0) && reddit_answer(&ra, 0, wide, 40) &&
           strlen(reddit_find(&ra, 5)->title) == 2 * REDDIT_AI_CHARS,

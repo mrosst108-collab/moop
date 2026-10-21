@@ -17,20 +17,24 @@ failed = False
 
 
 class Fake(http.server.BaseHTTPRequestHandler):
-    replies = []  # (status, body) per request, in order
+    replies = []  # (status, body[, delay]) per request, in order
     seen = []     # (path, headers, body) per request
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
         Fake.seen.append((self.path, {k.lower(): v for k, v in self.headers.items()}, body))
-        status, reply = Fake.replies.pop(0) if Fake.replies else (500, {})
+        status, reply, *delay = Fake.replies.pop(0) if Fake.replies else (500, {})
+        time.sleep(delay[0] if delay else 0)
         data = json.dumps(reply).encode()
-        self.send_response(status)
-        self.send_header("content-type", "application/json")
-        self.send_header("request-id", "req_fake")
-        self.send_header("content-length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.send_response(status)
+            self.send_header("content-type", "application/json")
+            self.send_header("request-id", "req_fake")
+            self.send_header("content-length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except OSError:
+            pass  # the client gave up waiting
 
     def log_message(self, *args):
         pass
@@ -51,6 +55,7 @@ def run(replies, stdin=THREAD, env=None):
     e.update(env or {})
     p = subprocess.run([sys.executable, os.path.join(HERE, "claude.py")], input=stdin,
                        capture_output=True, text=True, env=e, timeout=60)
+    run.stderr = p.stderr
     return p.returncode, p.stdout, Fake.seen
 
 
@@ -60,7 +65,7 @@ def check(desc, ok):
     failed = failed or not ok
 
 
-server = http.server.HTTPServer(("127.0.0.1", 0), Fake)
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Fake)  # a slow reply blocks no other
 port = server.server_address[1]
 threading.Thread(target=server.serve_forever, daemon=True).start()
 
@@ -110,6 +115,17 @@ check("answerer: REDDIT_MODEL chooses the model", code == 0 and seen[0][2]["mode
 
 code, out, seen = run([], stdin="")
 check("answerer: no thread, no request, no answer", code == 1 and seen == [])
+
+code, out, seen = run([(400, {"type": "error", "error": {"type": "invalid_request_error",
+                                                         "message": "unsupported"}})],
+                      env={"REDDIT_MODEL": "claude-haiku-4-5"})
+check("answerer: a REDDIT_MODEL that rejects the request says why on stderr",
+      code == 1 and "REDDIT_MODEL=claude-haiku-4-5 must accept adaptive thinking" in run.stderr)
+
+began = time.monotonic()
+code, out, seen = run([message("too late", stop="end_turn") + (8,)], env={"REDDIT_ANSWER_TIMEOUT": "5"})
+check("answerer: the whole run ends inside REDDIT_ANSWER_TIMEOUT, before the server would kill it",
+      code == 1 and out == "" and len(seen) == 1 and time.monotonic() - began < 5)
 
 # end to end: `reddit serve` runs this answerer on a request and records
 # what it printed as an ordinary answer line

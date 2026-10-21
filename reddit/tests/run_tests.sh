@@ -96,6 +96,10 @@ check "a second site ban keeps the first: the set holds both" "1" "$(printf 'sub
 check "a re-banned user cannot post; the earlier ban still bars its user" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\npost cats 3 after two bans\nshow cats\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: the rules do not admit that post')"
 check "unban is site-held: a moderator cannot lift a ban" "1" "$(printf 'sub cats 1\nban 0 3\nunban 1 3\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
 check "the site lifts one ban and the other stays" "1" "$(printf 'sub cats 1\nban 0 3\nban 0 4\nunban 0 3\nshow cats\nquit\n' | "$BIN" 2>/dev/null | grep -c 'banned=u4 ')"
+bans=$(for u in $(seq 101 116); do echo "ban 0 $u"; done); Tb=$(mktemp -d); printf '%s\nban 0 101\nban 0 117\n' "$bans" > "$Tb/bans.txt"
+check "with the standing set full, a re-ban is no capacity refusal; a new ban is" "1" "$(printf 'quit\n' | cat "$Tb/bans.txt" - | "$BIN" 2>&1 >/dev/null | grep -c 'refused: capacity is 16 standing bans')"
+check "and replaying those bans is silent" "0" "$(printf 'quit\n' | "$BIN" "$Tb/bans.txt" 2>&1 | wc -c)"
+rm -rf "$Tb"
 check "a subreddit founded after a ban is founded under it" "1" "$(printf 'sub cats 1\nban 0 3\nsub dogs 1\npost dogs 3 banned here too\nshow dogs\nquit\n' | "$BIN" 2>&1 | grep -c 'refused: the rules do not admit that post')"
 check "kappa_Sigma: a banned user's attributed vote is refused" "1" "$(printf 'sub cats 1\npost cats 1 a post\nban 0 3\ncast cats 3 0 1\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: delta not')"
 check "a ballot is +/-1: a large delta is refused" "1" "$(printf 'sub cats 1\npost cats 1 a post\ncast cats 2 0 1000000\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: delta not')"
@@ -224,7 +228,7 @@ check "a second request on a pending node is refused" "yes" "$(printf '%s\n' "$o
 check "the answer enters under the node asked, authored by the AI" "4" "$(printf '%s\n' "$out" | grep -c '^          #2 \[+1, hot 1.00\] NASA reported it in 2015.  (ai, asked by u3)$')"
 check "the AI never answers the AI; asked twice, answered once; off: refused" "3" "$(printf '%s\n' "$out" | grep -c '^refused: no such node, the ai.s own')"
 check "a human's reply to the AI can be asked about; an empty answer withdraws it" "yes" "$(printf '%s\n' "$out" | grep -q '^              #3 \[+1, hot 1.00\] Which mission?  (u2)$' && [ "$(printf '%s\n' "$out" | grep -c 'Which mission?  (u2) \[ai asked')" = 0 ] && echo yes)"
-check "an AI node does not cross, even into its own subreddit" "1" "$(printf '%s\n' "$out" | grep -c '^refused: the port did not admit it$')"
+check "an AI answer is a comment, and crossposting it is refused (the port's AI rule: C tests)" "1" "$(printf '%s\n' "$out" | grep -c '^refused: the port did not admit it$')"
 check "the switch is the moderator's: a stranger is refused" "1" "$(printf '%s\n' "$out" | grep -c '^refused: not a moderator$')"
 check "the rules line shows ai=off only when off, and rules preserves it" "2" "$(printf '%s\n' "$out" | grep -c ' export=yes ai=off locked=')"
 check "no AI node reaches r/all or a profile" "0" "$(printf '%s\n' "$out" | sed -n '/^r\/all/,$p' | grep -c '(ai')"
@@ -294,6 +298,8 @@ twohop=$(printf 'pagerank 0 0.85 0 2\nfollow 1 2\nfollow 2 3\nrank\nshow u3\nqui
 check "with one round, influence travels one hop; with two, further" "yes" "$([ "$onehop" != "$twohop" ] && echo yes)"
 check "pagerank parameters are the site's theta, shown on r/all" "1" "$(printf 'pagerank 0 0.5 0.001 7\nall 1\nquit\n' | "$BIN" 2>/dev/null | grep -c 'alpha=0.50 tolerance=0.001 rounds=7')"
 check "only the site may set them" "1" "$(printf 'pagerank 5 0.5 0.001 7\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'refused: not the site')"
+clk=$(printf 'clock 0 -1\nclock 0 86401\nclock 0 86400\nall 1\nquit\n' | "$BIN" 2>&1)
+check "the live tick interval is 1..86400: -1 (wrapping to SIZE_MAX) and 86401 are refused" "2 1" "$(printf '%s\n' "$clk" | grep -c 'refused: not the site, or interval out of range') $(printf '%s\n' "$clk" | grep -c 'interval=86400')"
 check "only the user may change whom they follow" "1" "$(printf 'follow 1 2\nshow u1\nquit\n' | "$BIN" 2>/dev/null | grep -c 'subs=u2')"
 
 # rank-weighted ranking: authority arrives through the port; one-way dependency
@@ -345,7 +351,7 @@ check "the binary reproduces the eight committed corner observations" "8" "$eq"
 
 # the live ingress: identity bound at the socket, one serialized order,
 # wall time as recorded ticks, downtime is not time
-T=$(mktemp -d); S="$T/sock"; printf 'tk-site-8f3 0\ntk-alice-2c1 1\ntk-bob-77e 2\n' > "$T/principals"
+T=$(mktemp -d); S="$T/sock"; printf 'tk-site-8f3 0\ntk-alice-2c1 1\ntk-bob-77e 2\ntk-big-9a0 3000000000\n' > "$T/principals"
 "$BIN" serve "$S" "$T/principals" "$T/transcript" & srv=$!
 i=0; while [ ! -S "$S" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
 printf 'sub cats 9\npost cats 7 hello from alice\nshow cats\n' | "$BIN" connect "$S" tk-alice-2c1 > "$T/alice.out"
@@ -356,9 +362,26 @@ check "the client sees the executor's output" "1" "$(grep -c '^r/cats' "$T/alice
 printf 'post cats\t0 7 tabbed\n' | "$BIN" connect "$S" tk-bob-77e > /dev/null
 check "a tab cannot smuggle a claimed actor: u0 is not recorded" "0" "$(grep -cE '^post cats 0 ' "$T/transcript")"
 check "the tabbed line binds the real actor (u2)" "1" "$(grep -cE '^post cats 2 7 tabbed$' "$T/transcript")"
-# an over-long line is refused whole, never split into a second command
-pad=$(printf 'x%.0s' $(seq 1 2100)); printf 'post cats 1 %ssub sneaky 7\n' "$pad" > "$T/long.txt"
+# nor \r, \v or \f: the binder splits on every separator the executor does
+printf 'rules cats\r0 7 50 1800 1 1\npost cats\v0 7 vtab\npost cats\f0 7 ftab\n' | "$BIN" connect "$S" tk-bob-77e > /dev/null
+check "\\r, \\v and \\f never reach the transcript: the binder splits on them" "0" "$(tr -cd '\r\v\f' < "$T/transcript" | wc -c)"
+check "they bind the real actor (u2), and alice's rules stand" "3 1" "$(grep -cE '^(rules cats 2 7 50 1800 1 1|post cats 2 7 [vf]tab)$' "$T/transcript") $(printf 'show cats\n' | "$BIN" connect "$S" tk-alice-2c1 | grep -c '^  rules: max_title=95 ')"
+# nor a glued field: a name is read one byte wider than any name, and
+# cross reads its id as a whole token
+printf 'sub alicesphotographyclubxx 9\npost alicesphotographyclubxx 9 photo\nsub dogs 9\n' | "$BIN" connect "$S" tk-alice-2c1 > /dev/null
+printf 'rules alicesphotographyclubxx0 7 50 1800 1 1\npost alicesphotographyclubxx0 7 forged\ncross cats 0dogs 7 9\n' | "$BIN" connect "$S" tk-bob-77e > "$T/glued.out"
+check "digits glued to a 23-character name, or a letter to cross's id, are refused" "3" "$(grep -c '^refused: ' "$T/glued.out")"
+check "and alice's 23-character subreddit and r/dogs are as she left them" "2 0" "$(printf 'show alicesphotographyclubxx\nshow dogs\n' | "$BIN" connect "$S" tk-alice-2c1 > "$T/glued2.out"; grep -c '^  rules: max_title=95 ' "$T/glued2.out") $(grep -cE 'forged|\((u7|u0)\)' "$T/glued2.out")"
+printf 'post cats 7 from a big number\n' | "$BIN" connect "$S" tk-big-9a0 > "$T/big.out"
+check "a principal numbered 2^31 or more stays bound, and its number is recorded" "0 1" "$(grep -c 'refused' "$T/big.out") $(grep -c '^post cats 3000000000 from a big number$' "$T/transcript")"
+# one line bound: every line the ingress can record (at most LINE - 1
+# characters) replays whole; a longer one is refused, never split, and the
+# split point is placed exactly before `sub sneaky 7` so splitting would show
+line_max=$(sed -n 's/^constexpr size_t LINE = \([0-9]*\);.*/\1/p' src/main.c)
+pad=$(printf 'x%.0s' $(seq 1 $((line_max - 12)))); printf 'post cats 1 %ssub sneaky 7\n' "$pad" > "$T/long.txt"
 check "an over-long line replays refused, not split into 'sub sneaky'" "0" "$(printf 'show sneaky\nquit\n' | "$BIN" "$T/long.txt" 2>/dev/null | grep -c '^r/sneaky')"
+prefix='cast c 12 0 1 '; pad=$(printf 'x%.0s' $(seq 1 $((line_max - 1 - ${#prefix})))); printf 'sub c 1\npost c 1 hi\n%s%s\n' "$prefix" "$pad" > "$T/edge.txt"
+check "a recorded line of LINE - 1 characters replays whole" "1" "$(printf 'show c\nquit\n' | "$BIN" "$T/edge.txt" 2>/dev/null | grep -c '^  #0 \[+2,')"
 printf 'ban 0 1\n' | "$BIN" connect "$S" tk-bob-77e > "$T/bob.out"
 check "a refused attempt is admitted to the order and recorded" "1" "$(grep -c '^ban 2 1$' "$T/transcript")"
 check "and refused by kappa under the bound identity" "1" "$(grep -c 'refused: not the site' "$T/bob.out")"
@@ -371,7 +394,7 @@ printf 'clock 0 1\n' | "$BIN" connect "$S" tk-site-8f3 > /dev/null
 sleep 2.6
 ticks1=$(grep -c '^tick 1$' "$T/transcript")
 check "wall time generates ordinary tick lines at the site's interval" "yes" "$([ "$ticks1" -ge 2 ] && echo yes)"
-kill $srv; wait $srv 2>/dev/null; sleep 2
+kill $srv; wait $srv 2>/dev/null; sleep 2; rm -f "$S"   # the wait below is for the new socket
 "$BIN" serve "$S" "$T/principals" "$T/transcript" & srv=$!
 i=0; while [ ! -S "$S" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
 ticks2=$(grep -c '^tick 1$' "$T/transcript")

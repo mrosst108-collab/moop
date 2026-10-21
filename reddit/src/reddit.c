@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "rme7.h"
@@ -51,12 +52,28 @@ static void decay(Track *t, time_t now)
     }
 }
 
-/* Characters, not bytes: UTF-8 code points, counted by their lead bytes. */
+/* Characters, not bytes: UTF-8 code points. Text that is not well-formed
+ * UTF-8 (RFC 3629) has no honest count, so it counts as too long. */
 static size_t chars(const char *s)
 {
+    const unsigned char *u = (const unsigned char *)s;
     size_t n = 0;
-    for (; *s; s++)
-        n += ((unsigned char)*s & 0xC0) != 0x80;
+    while (*u) {
+        unsigned char b = *u, lo = 0x80, hi = 0xBF; /* the second byte's range */
+        size_t len = b < 0x80 ? 1 : b >= 0xC2 && b <= 0xDF ? 2 :
+                     b >= 0xE0 && b <= 0xEF ? 3 : b >= 0xF0 && b <= 0xF4 ? 4 : 0;
+        if (len == 0)
+            return SIZE_MAX;          /* a stray continuation byte, or no lead */
+        if (b == 0xE0) lo = 0xA0;     /* no overlong forms, */
+        if (b == 0xED) hi = 0x9F;     /* no surrogates, */
+        if (b == 0xF0) lo = 0x90;
+        if (b == 0xF4) hi = 0x8F;     /* nothing past U+10FFFF */
+        for (size_t k = 1; k < len; k++)
+            if (u[k] < (k == 1 ? lo : 0x80) || u[k] > (k == 1 ? hi : 0xBF))
+                return SIZE_MAX;      /* stops at the NUL: it is out of range */
+        u += len;
+        n++;
+    }
     return n;
 }
 
@@ -153,7 +170,8 @@ static bool adapt(Track *t, unsigned user, Rules rules, Ranking ranking)
         !(ranking.tolerance >= 0 && isfinite(ranking.tolerance)) ||
         ranking.rounds == 0 || rules.nsubs > REDDIT_SUBS ||
         !(ranking.lambda >= 0 && ranking.lambda <= 1) ||
-        ranking.interval == 0 || rules.nbanned > REDDIT_BANS)
+        ranking.interval == 0 || ranking.interval > REDDIT_INTERVAL_MAX ||
+        rules.nbanned > REDDIT_BANS)
         return false;
     t->rules = rules;
     t->ranking = ranking;

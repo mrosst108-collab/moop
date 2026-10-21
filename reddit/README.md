@@ -648,6 +648,21 @@ list of intended fixes, not from re-running each forcing failure against
 the binary. The checks that would have caught it were the ones the
 outcome said already existed.
 
+**Second correction**, from the review of 2026-10-21; the paragraphs above
+are left as written. Channel 3 was still open in two forms, and either one
+let a stranger act as the site. The binder split fields on space and tab,
+but the executor's `sscanf` splits on every whitespace byte, so a `\r`,
+`\v` or `\f` inside a field let a client choose its own actor. And every
+command but `sub` read a name with `%23s`, so digits glued to a
+23-character name became the actor; a letter glued to `cross`'s id did the
+same for its user field. "One line bound governs the ingress and replay"
+was also off by one: a recorded line of exactly 2047 characters was
+refused on replay. All are closed at the commit carrying this paragraph.
+The binder splits on ` \t\n\v\f\r`; a name is read one byte wider than
+any name, so an over-long one matches nothing; `cross` reads its id as a
+whole token; and replay reads one character more than the ingress
+records. Each is re-run as a check that fails on the previous binary.
+
 **7. requested AI answers (an author that holds nothing).**
 
 Ruled by the operator. Any human may request an AI answer to any
@@ -823,6 +838,12 @@ The whole live transcript replayed to the same tree with no answerer
 configured. No AI node reached r/all or a profile. The eight committed
 corner observations still reproduce, and the prediction 6 batteries pass
 with `request`, `answer` and `ai` added to them.
+
+Correction, from the review of 2026-10-21: the 300-character rule
+counted UTF-8 lead bytes, so text that was not well-formed UTF-8 could pass
+it (an `a` followed by 1199 stray continuation bytes counted as one
+character). `gtildesharp` now refuses AI text that is not well-formed
+UTF-8, and a C test holds it.
 
 Recorded, not closed. An answerer still running when the server dies
 finishes unobserved, and the restart asks again, so one request can cost

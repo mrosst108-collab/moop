@@ -40,6 +40,8 @@ constexpr size_t REDDIT_SUBS  = 8;   /* subscriptions a user may hold */
 constexpr size_t REDDIT_BALLOTS = 8; /* attributed votes a node may hold */
 constexpr size_t REDDIT_BANS  = 16;  /* users a track's theta may bar */
 constexpr unsigned REDDIT_SITE = 0;  /* the site's own identity: admin */
+constexpr size_t REDDIT_INTERVAL_MAX = 86400; /* the longest live tick
+                                        interval, in seconds: a day */
 constexpr unsigned REDDIT_AI = ~0u;  /* the AI's identity: an author that
                                         holds nothing — no track, rank,
                                         ballot, moderation or principal
@@ -114,7 +116,8 @@ typedef struct {
                               The site's policy, held per track, set only
                               by the site (README, prediction 5) */
     size_t interval;       /* live service: seconds of wall time per
-                              generated `tick`; on the site track */
+                              generated `tick`, 1..REDDIT_INTERVAL_MAX; on
+                              the site track */
 } Ranking;
 
 typedef struct Track Track;
