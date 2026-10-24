@@ -58,14 +58,16 @@
 Reversibility and homoiconicity are usually studied apart: the first as a
 property of the semantics and thermodynamics of computation, the second as
 a property of how a language represents its own code. We study them
-together in \moop{}, a small prototype-based language whose objects have
-reversible bodies: two counter-rotating circular tapes coupled by a pair
-of Toffoli gates, kept segregated from a conventional, irreversible user
-layer. We show that this core is exactly a pair of nonlinear feedback
+together in \moop{}, a small prototype-based language designed to be
+homoiconic throughout, with reversibility reserved for its system-facing
+code. Every object's body is two counter-rotating circular tapes coupled
+by a pair of Toffoli gates, and user-facing code is kept as data in a
+conventional, irreversible layer. We show that this core is exactly a pair of nonlinear feedback
 shift registers coupled by one AND term, and we define homoiconicity
 structurally, as the absence of an autonomous program subsystem. The
-language's own history supplies a control: its first wiring made one tape
-a read-only program, a Harvard machine in miniature. An exhaustive census
+language's own history supplies a control: an early implementation broke
+the intended homoiconicity by leaving one tape read-only---a Harvard
+machine in miniature---until the wiring was corrected. An exhaustive census
 of all $2^{21}$ tape states of the 8/13-cell machine makes the difference
 measurable. The control conserves its program and splits into 442,990
 orbits, none longer than 255 epochs; the homoiconic wiring has 8,938
@@ -82,8 +84,11 @@ boundary that \moop{}'s two-layer segregation draws. A transcript
 theorem, for a calculus of the layer crossings, shows that system
 information is lost only by pruning or by exporting it through
 observation; and causal pruning, the one internal erasure, provably never
-alters the past of the cells it keeps. Every measured number in the paper
-is reproduced by a single harness.
+alters the past of the cells it keeps. \moop{} thus occupies two cells of
+the reversibility--homoiconicity square on purpose: system-facing code
+sits in the causally closed cell, and user-facing code in the homoiconic
+but forgetful one, where answers live. Every measured number in the paper is reproduced
+by a single harness.
 \end{abstract}
 
 %======================================================================
@@ -112,7 +117,13 @@ external program keeps the system irreversible; homoiconicity without
 reversibility is self-modification with amnesia.}
 \end{quote}
 This paper turns that claim into definitions, theorems, and
-measurements. \moop{}'s objects have reversible bodies built on a single
+measurements. The design behind it is specific: \moop{} is meant to be
+homoiconic everywhere and reversible only where it faces the system.
+Homoiconicity is \emph{layered}---system code is data on the tapes, user
+code is data in ordinary memory---while reversibility belongs to the
+system-facing code alone. The two properties therefore meet in the
+system layer, and the user layer keeps homoiconicity without
+reversibility by choice. \moop{}'s objects have reversible bodies built on a single
 primitive---two counter-rotating circular tapes (``loops'') coupled by a
 pair of Toffoli (CCNOT) gates---and a conventional, forgetful user layer
 sits beside them. The core is small enough to enumerate: every state of
@@ -187,10 +198,11 @@ language's own data structures (Lisp~\cite{mccarthy1960}; reflection in
 the sense of Smith~\cite{smith1984}). \emph{Architectural}
 homoiconicity is the stored-program concept: code lives in memory that
 execution can write. Its opposite is the Harvard organisation, where
-the program store is separate and read-only to execution. Circulating
-memory as such is old---EDVAC's mercury delay lines were
-loops~\cite{vonneumann1945}---so nothing here depends on the loops being
-novel.
+the program store is separate and read-only to execution. \moop{} intends both, one per
+layer: the architectural kind on the tapes, the representational kind
+for user code. Circulating memory as such is old---EDVAC's mercury delay
+lines were loops~\cite{vonneumann1945}---so nothing here depends on the
+loops being novel.
 
 \paragraph{Shift registers.}
 A feedback shift register of length $n$ computes $s_{t+n}=f(s_t,\dots,
@@ -297,14 +309,16 @@ part self-inverse---and a unit test round-trips a full epoch. This shape
 returns in \S\ref{sec:surface}.
 
 \paragraph{The control: the original wiring.}
-\moop{}'s first core (commit \code{2231ab2}) had a single CCNOT,
+\moop{} was meant to be homoiconic from the start, but the first
+implementation of its core (commit \code{2231ab2}) had a single CCNOT,
 targeting $A$ only. Loop $B$ was then never written: a read-only program
-driving a data loop---a Harvard machine in miniature. Commit
-\code{745ecae} adopted homoiconicity as a requirement (``no loop may
-become a read-only program tape'') and, in the same change, added the
-symmetric target on $B$. We use the original wiring as a control throughout: the same
-gate, loops, and rotation, with and without architectural homoiconicity.
-We call it the \emph{Harvard wiring}.
+driving a data loop---a Harvard machine in miniature. That implementation
+broke the intent. Commit \code{745ecae} corrected it by adding the
+symmetric target on $B$, and in the same change wrote the requirement
+down (``no loop may become a read-only program tape''). We keep the
+original wiring as a control throughout: the same gate, loops, and
+rotation, with and without architectural homoiconicity. We call it the
+\emph{Harvard wiring}.
 
 %======================================================================
 \section{A closed form: two coupled shift registers}
@@ -385,9 +399,10 @@ autonomous loop is exactly a ``program tape''.
 By Theorem~\ref{thm:closed}, under \moop{}'s wiring each register's
 update depends on the other through $g_t$ (flip $x_t$ while $y_t=1$ and
 $y_{t+1}$ flips), so neither loop is autonomous. Under the Harvard wiring
-loop $B$ is autonomous. This definition is deliberately weaker than the
-representational sense: there is no instruction encoding on the tapes,
-and \S\ref{sec:surface} returns to the representational kind.
+loop $B$ is autonomous. This is the form \moop{}'s intended homoiconicity
+takes at the system layer, where there is no instruction encoding on the
+tapes; at the user layer it takes the representational form
+(\S\ref{sec:surface}).
 
 \begin{proposition}[Harvard conserves its program]
 \label{prop:harvard}
@@ -569,7 +584,9 @@ reversible & data history recoverable; the program never changes
 \bottomrule
 \end{tabular}
 \caption{The design notes' claim as a $2\times2$. Only the lower-right
-cell has a program history that is both non-trivial and recoverable.}
+cell has a program history that is both non-trivial and recoverable.
+\moop{}'s system layer is designed to occupy that cell and its user layer
+the upper-right one.}
 \label{tab:twobytwo}
 \end{table}
 
@@ -601,6 +618,14 @@ says only that a stored-program machine \emph{can} lose program history,
 not that it must. Only under both properties is there a program history
 that is guaranteed to be both non-trivial (homoiconicity) and recoverable
 (reversibility).
+
+\moop{} sits in two cells of Table~\ref{tab:twobytwo} by design. Its
+system-facing code, the tapes, is in the lower right: homoiconic and
+reversible, hence causally closed. Its user-facing code, the taught
+chains of \S\ref{sec:surface}, is in the upper right: homoiconic, and
+deliberately forgetful. Corollary~\ref{cor:answers} below says why the
+second cell is not a compromise. The Harvard row is the road the
+original wiring took by accident.
 Table~\ref{tab:twobytwo} summarises.
 
 \begin{proposition}[No convergence]
@@ -1049,14 +1074,18 @@ chain is an operation on code as data, so this route needs
 representational homoiconicity at the surface (reflection), which
 \moop{} does not yet have.
 
-\paragraph{Layered homoiconicity, and the synergy's missing half.}
+\paragraph{Layered homoiconicity: reversible where system-facing.}
 \moop{}'s user code is homoiconic in its own medium: a taught message
-body is the parser's chain structure, stored and run at each send. But
-re-teaching a message \emph{replaces} the chain---homoiconicity without
-reversibility, which the design notes themselves call self-modification
-with amnesia. The synergy stops at the layer boundary. We do not think
-this is a defect to fix. By Corollary~\ref{cor:answers}, the user layer
-is where answers live, and answers require forgetting. Keeping user
+body is the parser's chain structure, stored and run at each send.
+Re-teaching a message \emph{replaces} the chain---homoiconicity without
+reversibility, the upper-right cell of Table~\ref{tab:twobytwo}. That is
+the design, not a gap: \moop{} reserves reversibility for system-facing
+code, and by Corollary~\ref{cor:answers} the user layer is where answers
+live, and answers require forgetting. The causal closure of
+\S\ref{sec:synergy} therefore holds exactly where it was meant to, in
+system-facing code. User-layer homoiconicity is also only partly realised
+so far: chains are stored as data, but the surface cannot yet read them
+back as values, because reflection is still open. Keeping user
 programs in the irreversible layer, off the tapes, is consistent with the
 same corollary but not required by it, since compute--copy--uncompute
 could run them on a reversible core. The project's rule that nothing
@@ -1100,8 +1129,9 @@ and the generator's rewind.
   fixed-length loops. A universality result would need unbounded loops
   and an embedding of a known universal reversible system.
 \item \textbf{Structural, not instruction-level, homoiconicity.} There
-  is no instruction encoding on the tapes. Our results concern state,
-  not code in the usual sense.
+  is no instruction encoding on the tapes, so our results concern state,
+  not code in the usual sense. The representational homoiconicity
+  intended for user code awaits reflection.
 \item \textbf{The orbit-level property is not universal.} Observation~%
   \ref{obs:restoring} is exhaustive only up to $a+b\le22$, for one wiring,
   and it has exceptions; we have no characterisation of them.
@@ -1202,7 +1232,8 @@ removal lossless. A machine with both properties remembers every
 program it has been; because it never lets two states converge, it
 cannot itself say that two computations meant the same thing---only an
 observation can. \moop{}'s two memories put that observation at the
-boundary. Its one internal
+boundary: homoiconic everywhere, reversible where it faces the system,
+and forgetful only where answers are made. Its one internal
 act of forgetting, causal pruning, removes only what never decided
 anything, and every other loss is an export that the user layer, like
 Maxwell's demon, pays for when it forgets.
@@ -1283,8 +1314,8 @@ moop> box ask value
 \moop{}'s commit messages narrate its history as a sequence of
 derivations, each change justified by an axiom, with some constructs
 later derived away. The table lists the rationale each commit records.
-The homoiconicity requirement itself was adopted in the same commit as
-the symmetric wiring.
+Homoiconicity was intended from the start; it was first written down in
+the same commit that corrected the wiring.
 
 \begin{table}[h]
 \centering
