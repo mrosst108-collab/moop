@@ -10,15 +10,17 @@
  *
  * Each construct has one job (orthogonality):
  *   name is thing   binds a name (names are the mutable, user-layer
- *                   handle; lineage is fixed at generation)
+ *                   handle)
  *   a thing         birth — the indefinite article: a NEW proto
  *                   generated from thing; `rex is a dog` introduces,
  *                   `rex is dog` aliases. There is no creation message.
  *   x -> message    sends: `maybe` observes x's reversible body,
  *                   `value` decodes it, anything else is looked up in
  *                   x's taught and hosted tables (delegating)
- *   child <- parent lineage predicate: true iff parent is child's
- *                   birth-fixed delegation parent
+ *   child <- parent declares inheritance: child now defers to parent
+ *                   (a birth starts with its generator as parent);
+ *                   loops and layer crossings are refused; answers
+ *                   the child, so pipelines continue
  *   x <-> y         gate-backed involutions: value deposit / body
  *                   exchange; applying the same one twice is identity
  *   "code"          a quote mentions code instead of using it: the

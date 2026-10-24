@@ -24,11 +24,13 @@
  *     costs the generator nothing irreversible — step it back and it
  *     returns to the moment before the birth. Provenance needs no
  *     pointer: the substrate can always run backward.
- *   - INHERITANCE (`<-`) is a pointer (whom you defer to). Message
- *     lookup delegates up parent links among user-facing protos only.
- *     Delegation NEVER crosses the layer boundary: a user-facing root
- *     has no parent, and nothing delegates into the system-facing
- *     root or the actor.
+ *   - INHERITANCE (`<-`) is a pointer (whom you defer to), declared by
+ *     `child <- parent`; a birth starts with its generator as parent.
+ *     Message lookup delegates up parent links among user-facing protos
+ *     only. Delegation NEVER crosses the layer boundary: a user-facing
+ *     root starts with no parent, and nothing delegates into the
+ *     system-facing root or the actor. A declaration that would close a
+ *     loop is refused, so every lineage ends.
  */
 
 typedef enum {
@@ -69,6 +71,19 @@ void moop_proto_generate(MoopProto *generator, MoopProto *child,
                          bool *cells_a, bool *marks_a, size_t len_a,
                          bool *cells_b, bool *marks_b, size_t len_b,
                          MoopProtoMessage *table, size_t capacity);
+
+/* Declare inheritance: child now defers to parent (replacing any
+ * earlier parent). Refused — nothing changes — if the two are the same
+ * proto, if parent already inherits from child (a loop), or if either
+ * is system-facing (delegation never crosses the layer boundary). */
+typedef enum {
+    MOOP_INHERIT_OK,
+    MOOP_INHERIT_SELF,
+    MOOP_INHERIT_LOOP,
+    MOOP_INHERIT_BOUNDARY,
+} MoopInheritResult;
+
+MoopInheritResult moop_proto_inherit(MoopProto *child, MoopProto *parent);
 
 /* Host a message. Returns false if the table is full. */
 bool moop_proto_host(MoopProto *proto, const char *name, MoopProtoHandler fn);

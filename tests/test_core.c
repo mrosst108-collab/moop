@@ -477,6 +477,29 @@ static void test_proto_generation(void)
     check(!moop_proto_send(&uroot, "system", &reply),
           "delegation never crosses into the system-facing root");
 
+    /* <- declares inheritance among user-facing protos: re-parenting
+     * works, and loops, self-inheritance and crossings are refused */
+    bool va[4] = {0}, vb[5] = {0}, mva[4], mvb[5];
+    MoopProtoMessage vtable[2];
+    MoopProto other;
+    moop_proto_generate(&sysroot, &other, va, mva, 4, vb, mvb, 5, vtable, 2);
+    moop_proto_host(&other, "other", msg_observe);
+    check(moop_proto_inherit(&proto, &other) == MOOP_INHERIT_OK &&
+              proto.parent == &other &&
+              moop_proto_send(&proto, "other", &reply) &&
+              !moop_proto_send(&proto, "observe", &reply),
+          "<- re-declares the parent; lookup follows the new lineage");
+    check(moop_proto_inherit(&other, &proto) == MOOP_INHERIT_LOOP &&
+              other.parent == NULL,
+          "a declaration that would loop is refused and changes nothing");
+    check(moop_proto_inherit(&proto, &proto) == MOOP_INHERIT_SELF,
+          "a proto cannot inherit from itself");
+    check(moop_proto_inherit(&proto, &sysroot) == MOOP_INHERIT_BOUNDARY &&
+              moop_proto_inherit(&sysroot, &other) == MOOP_INHERIT_BOUNDARY,
+          "inheritance never crosses the layer boundary");
+    check(moop_proto_inherit(&proto, &uroot) == MOOP_INHERIT_OK,
+          "the original parent can be declared again");
+
     /* every generated body inherits reversibility from the substrate */
     bool pa0[4], pb0[5];
     memcpy(pa0, pa, sizeof pa0);
@@ -667,10 +690,10 @@ static void test_parser(void)
 
     /* writing code back out is the inverse of parsing */
     static const char *const round[] = {
-        "rex ask mood is 'ask maybe'",
-        "ask value mirrors 5",
-        "an animal inherits world",
-        "'ask maybe'",
+        "rex -> mood is '-> maybe'",
+        "-> value <-> 5",
+        "an animal <- world",
+        "'-> maybe'",
     };
     bool same = true;
     for (size_t i = 0; i < sizeof round / sizeof round[0]; i++) {

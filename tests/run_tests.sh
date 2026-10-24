@@ -14,7 +14,14 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.8.0" "$("$BIN" --version)"
+# R 'lines' [n]: run lines in a fresh REPL, print the last n output lines
+R() {
+    printf "$1\nquit\n" | "$BIN" 2>&1 |
+        sed -e ':a' -e 's/^moop> //' -e 'ta' -e 's/^\.\.\.\.> //' -e 'ta' -e '/^$/d' |
+        tail -n "${2:-1}"
+}
+
+check "--version prints version" "moop 0.9.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -23,12 +30,20 @@ check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @
 check "is binds and names evaluate" "1" "$(printf 'x is 42\nx\nquit\n' | "$BIN" 2>/dev/null | grep -c 42)"
 check "the article births protos" "1" "$(printf 'a world\nquit\n' | "$BIN" 2>/dev/null | grep -c 'a proto')"
 check "an births too" "1" "$(printf 'an world\nquit\n' | "$BIN" 2>/dev/null | grep -c 'a proto')"
-check "is without an article aliases" "1" "$(printf 'd is a world\nalias is d\nalias inherits d\nquit\n' | "$BIN" 2>/dev/null | grep -c false)"
-check "is with the article introduces" "1" "$(printf 'd is a world\nr is a d\nr inherits d\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
+check "is without an article aliases" "2" "$(R 'd is a world\nalias is d\nalias -> m is 2\nd -> m')"
+check "is with the article introduces" "1" "$(R 'd is a world\nd -> m is 1\nr is a d\nr -> m is 2\nd -> m')"
 check "births come from protos only" "error: births come from protos" "$(printf 'a 5\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "generate is no longer a special word" "error: nothing in the lineage hosts \"generate\"" "$(printf 'world ask generate\nquit\n' | "$BIN" 2>&1 >/dev/null)"
-check "inheritance is a lineage predicate" "1" "$(printf 'c is a world\nc <- world\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
-check "grandchildren do not lie about lineage" "1" "$(printf 'c is a world\ng is a c\ng <- world\nquit\n' | "$BIN" 2>/dev/null | grep -c false)"
+
+# inheritance: <- declares whom a proto defers to
+D='dog is a world\ndog -> bark is 7\ncat is a world'
+check "<- declares inheritance" "7" "$(R "$D\ncat <- dog\ncat -> bark")"
+check "<- answers the child, so pipelines continue" "7" "$(R "$D\ncat <- dog -> bark")"
+check "grandchildren delegate through a declared parent" "7" "$(R "$D\nkit is a cat\ncat <- dog\nkit -> bark")"
+check "re-declaring replaces the parent" "error: nothing in the lineage hosts \"bark\"" "$(R "$D\ncat <- dog\nfish is a world\ncat <- fish\ncat -> bark")"
+check "inheritance cannot loop" "error: inheritance cannot loop: the parent already inherits from the child" "$(R 'dog is a world\nkit is a dog\ndog <- kit')"
+check "a proto cannot inherit from itself" "error: a proto cannot inherit from itself" "$(R 'dog is a world\ndog <- dog')"
+check "inheritance relates protos" "error: inheritance relates protos" "$(R 'dog is a world\ndog <- 5')"
 
 # maybe: unpredictable-looking but replayable
 run1=$(printf 'coin is a world\ncoin -> maybe\ncoin -> maybe\ncoin -> maybe\nquit\n' | "$BIN" 2>&1)
@@ -37,15 +52,15 @@ check "maybe is replayable across runs" "$run1" "$run2"
 
 # teaching: user-defined messages are stored chains
 check "taught messages answer and delegate" "1" "$(printf 'dog is a world\ndog -> answer is 42\nrex is a dog\nrex -> answer\nquit\n' | "$BIN" 2>/dev/null | grep -c 42)"
-check "the receiver is the one asked, even delegated" "1" "$(printf 'dog is a world\ndog ask who is inherits dog\nrex is a dog\nrex ask who\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
+check "the receiver is the one asked, even delegated" "$(R 'dog is a world\nrex is a dog\nrex -> value')" "$(R 'dog is a world\ndog -> who is -> value\nrex is a dog\nrex -> who')"
 check "headless chains address the world at top level" "1" "$(printf 'ask maybe\nquit\n' | "$BIN" 2>/dev/null | grep -cE 'true|false')"
 check "self is no longer a special word" "error: unknown name 'self'" "$(printf 'self\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "re-teaching replaces the chain" "1" "$(printf 'dog is a world\ndog -> answer is 1\ndog -> answer is 2\ndog -> answer\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 2$')"
 check "innate messages cannot be redefined" "error: value is innate" "$(printf 'world -> value is 1\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "runaway recursion is caught" "error: message recursion too deep" "$(printf 'dog is a world\ndog ask loop is ask loop\ndog ask loop\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
-# vocabulary: words and arrows are the same operators
-check "word vocabulary evaluates" "1" "$(printf 'c is a world\nc inherits world\nquit\n' | "$BIN" 2>/dev/null | grep -c true)"
+# vocabulary: the arrows are canonical; the words are the same operators
+check "word aliases are the same operators" "7" "$(R 'dog is a world\ndog ask bark is 7\ncat is a world\ncat inherits dog\ncat ask bark')"
 
 # pythonic whitespace: trailing is opens an indented block
 check "block teaching delegates" "1" "$(printf 'dog is a world\ndog ask mood is\n    ask maybe\n\nrex is a dog\nrex ask mood\nquit\n' | "$BIN" 2>/dev/null | grep -cE 'true|false')"
@@ -74,46 +89,40 @@ check "depositing an observed value exports it" "0" "$e2"
 check "the held value restores the body" "$e1" "$e3"
 
 # reflection: quotes mention code, so user code is a value
-# R 'lines' [n]: run lines in a fresh REPL, print the last n output lines
-R() {
-    printf "$1\nquit\n" | "$BIN" 2>&1 |
-        sed -e ':a' -e 's/^moop> //' -e 'ta' -e 's/^\.\.\.\.> //' -e 'ta' -e '/^$/d' |
-        tail -n "${2:-1}"
-}
-check "a quote is code, not its result" '"ask maybe"' "$(R 'plan is "ask maybe"\nplan')"
-check "code is written in canonical words" '"dog ask mood mirrors an animal"' "$(R 'x is "dog -> mood <-> a animal"\nx')"
-check "a quoted message reads the taught code" '"ask maybe"' "$(R 'dog is a world\ndog ask mood is ask maybe\ndog ask "mood"')"
-check "reading follows the lineage like a send" '"ask maybe"' "$(R 'dog is a world\ndog ask mood is ask maybe\nrex is a dog\nrex ask "mood"')"
-check "teaching from code installs it" "9" "$(R 'dog is a world\ndog ask "mood" is "9"\ndog ask mood')"
-check "the quote moves across is" "$(R 'd is a world\nd ask m is ask maybe\nd ask "m"')" "$(R 'd is a world\nd ask "m" is "ask maybe"\nd ask "m"')"
-check "behaviors copy as code" "42" "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ncat is a world\ncat ask "both" is dog ask "both"\ncat ask both')"
-check "block code reads back as a block" "a block:" "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ndog ask "both"' 3 | head -n 1)"
-check "code values do not alias teachings" '"1"' "$(R 'dog is a world\ndog ask m is 1\nold is dog ask "m"\ndog ask m is 2\nold')"
-check "nested quotes alternate the marks" "\"rex ask mood is 'ask maybe'\"" "$(R "meta is \"rex ask mood is 'ask maybe'\"\nmeta")"
-check "code that answers code reads back nested" "\"'ask maybe'\"" "$(R 'dog is a world\ndog ask tpl is "ask maybe"\ndog ask "tpl"')"
-check "running code is teaching it, then asking" "a proto" "$(R 'world ask "go" is "a world"\nask go')"
-check "innate messages have no code" "error: maybe is innate: it has no code" "$(R 'world ask "maybe"')"
-check "only code is taught to a quoted message" "error: only code can be taught to a quoted message" "$(R 'dog is a world\ndog ask "mood" is 5')"
-check "quoted definitions cannot be installed (yet)" "error: definitions cannot nest (yet)" "$(R 'dog is a world\ndog ask "m" is "x is 1"')"
-check "a quoted message is a single name" "error: a quoted message is a single name" "$(R 'world ask "ask maybe"')"
-check "an unclosed quote is reported" "error: a quote is never closed" "$(R 'x is "ask maybe')"
+check "a quote is code, not its result" '"-> maybe"' "$(R 'plan is "-> maybe"\nplan')"
+check "code is written with canonical arrows" '"dog -> mood <-> an animal <- world"' "$(R 'x is "dog ask mood mirrors a animal inherits world"\nx')"
+check "a quoted message reads the taught code" '"-> maybe"' "$(R 'dog is a world\ndog -> mood is -> maybe\ndog -> "mood"')"
+check "reading follows the lineage like a send" '"-> maybe"' "$(R 'dog is a world\ndog -> mood is -> maybe\nrex is a dog\nrex -> "mood"')"
+check "teaching from code installs it" "9" "$(R 'dog is a world\ndog -> "mood" is "9"\ndog -> mood')"
+check "the quote moves across is" "$(R 'd is a world\nd -> m is -> maybe\nd -> "m"')" "$(R 'd is a world\nd -> "m" is "-> maybe"\nd -> "m"')"
+check "behaviors copy as code" "42" "$(R 'dog is a world\ndog -> both is\n    -> maybe\n    42\n\ncat is a world\ncat -> "both" is dog -> "both"\ncat -> both')"
+check "block code reads back as a block" "a block:" "$(R 'dog is a world\ndog -> both is\n    -> maybe\n    42\n\ndog -> "both"' 3 | head -n 1)"
+check "code values do not alias teachings" '"1"' "$(R 'dog is a world\ndog -> m is 1\nold is dog -> "m"\ndog -> m is 2\nold')"
+check "nested quotes alternate the marks" "\"rex -> mood is '-> maybe'\"" "$(R "meta is \"rex -> mood is '-> maybe'\"\nmeta")"
+check "code that answers code reads back nested" "\"'-> maybe'\"" "$(R 'dog is a world\ndog -> tpl is "-> maybe"\ndog -> "tpl"')"
+check "running code is teaching it, then asking" "a proto" "$(R 'world -> "go" is "a world"\n-> go')"
+check "innate messages have no code" "error: maybe is innate: it has no code" "$(R 'world -> "maybe"')"
+check "only code is taught to a quoted message" "error: only code can be taught to a quoted message" "$(R 'dog is a world\ndog -> "mood" is 5')"
+check "quoted definitions cannot be installed (yet)" "error: definitions cannot nest (yet)" "$(R 'dog is a world\ndog -> "m" is "x is 1"')"
+check "a quoted message is a single name" "error: a quoted message is a single name" "$(R 'world -> "-> maybe"')"
+check "an unclosed quote is reported" "error: a quote is never closed" "$(R 'x is "-> maybe')"
 
 # taking code apart: every code value answers first and rest
-P='plan is "dog ask mood mirrors 5"'
-check "a chain's first part is its head" '"dog"' "$(R "$P\nplan ask first")"
-check "a chain's rest is a headless chain" '"ask mood mirrors 5"' "$(R "$P\nplan ask rest")"
-check "a headless chain's first part is a step" '"ask mood"' "$(R "$P\nplan ask rest ask first")"
-check "a step's rest is its operand" '"5"' "$(R "$P\nplan ask rest ask rest ask rest")"
-check "an operator is not code on its own" "error: the first part is the operator mirrors, which is not code on its own" "$(R "$P\nplan ask rest ask rest ask first")"
-check "a single number has no parts" "error: a single number has no parts" "$(R "$P\nplan ask rest ask rest ask rest ask first")"
-check "a definition's first part is what it defines" '"rex ask mood"' "$(R 'd is "rex ask mood is ask maybe"\nd ask first')"
-check "a definition's rest is what it is" '"ask maybe"' "$(R 'd is "rex ask mood is ask maybe"\nd ask rest')"
-check "a block's first part is its first line" '"ask maybe"' "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ndog ask "both" ask first')"
-check "a block's rest is its other lines" '"42"' "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ndog ask "both" ask rest')"
-check "a birth's rest is what it births from" '"dog"' "$(R '"a dog" ask rest')"
-check "a quote's first part is its inside" '"ask maybe"' "$(R "q is \"'ask maybe'\"\nq ask first")"
-check "parts can be taught" "5" "$(R "dog is a world\n$P\ndog ask \"m\" is plan ask rest ask rest ask rest\ndog ask m")"
-check "code answers only first and rest" "error: code answers only first and rest" "$(R "$P\nplan ask value")"
+P='plan is "dog -> mood <-> 5"'
+check "a chain's first part is its head" '"dog"' "$(R "$P\nplan -> first")"
+check "a chain's rest is a headless chain" '"-> mood <-> 5"' "$(R "$P\nplan -> rest")"
+check "a headless chain's first part is a step" '"-> mood"' "$(R "$P\nplan -> rest -> first")"
+check "a step's rest is its operand" '"5"' "$(R "$P\nplan -> rest -> rest -> rest")"
+check "an operator is not code on its own" "error: the first part is the operator <->, which is not code on its own" "$(R "$P\nplan -> rest -> rest -> first")"
+check "a single number has no parts" "error: a single number has no parts" "$(R "$P\nplan -> rest -> rest -> rest -> first")"
+check "a definition's first part is what it defines" '"rex -> mood"' "$(R 'd is "rex -> mood is -> maybe"\nd -> first')"
+check "a definition's rest is what it is" '"-> maybe"' "$(R 'd is "rex -> mood is -> maybe"\nd -> rest')"
+check "a block's first part is its first line" '"-> maybe"' "$(R 'dog is a world\ndog -> both is\n    -> maybe\n    42\n\ndog -> "both" -> first')"
+check "a block's rest is its other lines" '"42"' "$(R 'dog is a world\ndog -> both is\n    -> maybe\n    42\n\ndog -> "both" -> rest')"
+check "a birth's rest is what it births from" '"dog"' "$(R '"a dog" -> rest')"
+check "a quote's first part is its inside" '"-> maybe"' "$(R "q is \"'-> maybe'\"\nq -> first")"
+check "parts can be taught" "5" "$(R "dog is a world\n$P\ndog -> \"m\" is plan -> rest -> rest -> rest\ndog -> m")"
+check "code answers only first and rest" "error: code answers only first and rest" "$(R "$P\nplan -> value")"
 
 # honesty: what is not implemented says so
 check "oversized values are refused, not truncated" "error: an 8-cell loop carries at most 255" "$(printf 'c is a world\n256 <-> c\nquit\n' | "$BIN" 2>&1 >/dev/null)"

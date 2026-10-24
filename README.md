@@ -48,66 +48,72 @@ compilers such as GCC 13 — the Makefile detects which one to use).
 
 ## Status
 
-The first slice of the language runs. Four relational operators — `->`
-message passing, `<-` lineage, `<->` bijection, `is` naming (see
-[docs/syntax.md](docs/syntax.md)) — whose shapes mirror the machine:
-one-way arrows forget, the two-way arrow is reversible.
+The language runs. Io-like grammar, Quorum-like vocabulary: four
+relational operators — `->` message passing, `<-` inheritance, `<->`
+bijection, `is` naming (see [docs/syntax.md](docs/syntax.md)) — whose
+shapes mirror the machine: one-way arrows forget, the two-way arrow is
+reversible. Pythonic whitespace instead of `end`.
 
 ```
 moop> animal is a world
-moop> animal ask mood is
-....>     ask maybe
+moop> animal -> mood is
+....>     -> maybe
 ....>
 moop> cat is an animal
-moop> cat ask mood is 9
+moop> cat -> mood is 9
 moop> dog is an animal
-moop> dog ask mood
+moop> dog -> mood
 false
-moop> cat ask mood
+moop> cat -> mood
 9
-moop> dog inherits animal
-true
+moop> fish is a world
+moop> fish <- cat
+a proto
+moop> fish -> mood
+9
 moop> box is a world
-moop> box ask value
-52
-moop> 5 mirrors box
+moop> box -> value
+96
+moop> 5 <-> box
 a proto
-moop> box ask value
-49
-moop> 5 mirrors box
+moop> box -> value
+101
+moop> 5 <-> box
 a proto
-moop> box ask value
-52
+moop> box -> value
+96
 ```
 
-Words are the canonical operators (`ask`, `inherits`, `mirrors`, `is`);
-the arrows `->`, `<-`, `<->` are exact aliases. The indefinite article
-is birth: `cat is an animal` introduces a new proto generated from
+The arrows are canonical; the words `ask`, `inherits`, `mirrors` are
+exact aliases for readers who prefer words. The indefinite article is
+birth: `cat is an animal` introduces a new proto generated from
 `animal`, while `alias is animal` (no article) names the same one —
 exactly the identity/membership distinction English draws. There is no
-creation keyword. A trailing `is` opens an indented block; a blank line
-closes it.
+creation keyword. A birth inherits from its generator; `fish <- cat`
+declares (or re-declares) whom a proto defers to, and a declaration that
+would close a loop is refused. A trailing `is` opens an indented block;
+a blank line closes it.
 
 Prototype-based OOP works: teach a message with `receiver -> message is
 chain` (the body is stored as a chain — code as data — and runs at each
-send addressed to the receiver — headless chains like `ask maybe` speak to it), delegate up the lineage,
-override in children.
+send addressed to the receiver — headless chains like `-> maybe` speak
+to it), delegate up the lineage, override in children.
 
 User code is homoiconic: quotation marks mention code instead of using
 it, so code is a value you can name, read back, take apart (`first`,
 `rest`), and teach.
 
 ```
-moop> plan is "ask maybe"
+moop> plan is "-> maybe"
 moop> plan
-"ask maybe"
+"-> maybe"
 moop> cat is a world
-moop> cat ask mood is 9
-moop> cat ask "mood"
+moop> cat -> mood is 9
+moop> cat -> "mood"
 "9"
 moop> dog is a world
-moop> dog ask "mood" is cat ask "mood"
-moop> dog ask mood
+moop> dog -> "mood" is cat -> "mood"
+moop> dog -> mood
 9
 ```
 

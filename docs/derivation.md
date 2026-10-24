@@ -36,8 +36,8 @@ working rule — call it the **deletion test**:
 > construct must go; if none exists, the construct has earned its name.
 
 `self` failed the test and died; `generate` failed it once the article
-was seen; `is`, `ask`, `inherits`, `mirrors`, and the article itself
-have all survived it. So have quotation marks: reflection needed a way
+was seen; `is`, `->`, `<-`, `<->`, and the article itself have all
+survived it. So have quotation marks: reflection needed a way
 to mention code instead of using it, and no existing rule covered that —
 but running code did not need a form of its own (teach it, then ask), so
 `eval` died before it was born. Taking code apart then cost no syntax at
@@ -57,9 +57,13 @@ constitutionally, re-derived from its own substrate:
 
 - From Io it re-derived prototypes, messages, and differential
   inheritance — but declined `clone` (moop births are seeded from the
-  generator's dynamics, not copied), declined re-parenting (lineage is
-  physics), and ultimately declined `self` (Io's own word).
-- From Quorum it re-derived word-operators and the evidence standard —
+  generator's dynamics, not copied) and ultimately `self` (Io's own
+  word). Its grammar is Io's shape — everything a send — written with
+  arrows. Re-parenting it first declined, then re-derived as `<-`: a
+  birth's parent is its generator, `<-` declares another, and the loop
+  Io would permit is refused, so lineages still end.
+- From Quorum it re-derived its vocabulary (`is`, the article, word
+  aliases for the arrows) and the evidence standard —
   and followed Quorum's deepest precedent (no `new`; introduction
   instantiates) to a place Quorum itself never took it: the indefinite
   article as the creation form.

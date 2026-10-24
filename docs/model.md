@@ -193,12 +193,15 @@ apart where other object models fuse them:
   nothing irreversible*: step it back and it returns to the moment before
   the birth. Provenance needs no pointer; the substrate can always run
   backward.
-- **Inheritance is a pointer** (whom you defer to). Message lookup
-  delegates up parent links among user-facing protos, with the original
-  receiver remaining the one addressed (where Io answers to `self`, moop
-  keeps the receiver implicit). Delegation never crosses the layer
-  boundary: user-facing roots have no parent, nothing delegates into the
-  system-facing root, and nothing delegates into the actor.
+- **Inheritance is a pointer** (whom you defer to), declared by
+  `child <- parent`; a birth starts with its generator as parent.
+  Message lookup delegates up parent links among user-facing protos,
+  with the original receiver remaining the one addressed (where Io
+  answers to `self`, moop keeps the receiver implicit). A declaration
+  that would close a loop is refused, so every lineage ends. Delegation
+  never crosses the layer boundary: user-facing roots start with no
+  parent, nothing delegates into the system-facing root, and nothing
+  delegates into the actor.
 
 So the full object ladder is: actor (non-hereditary) → system root proto
 (delegation root, generative factory) → user root protos (roots of user

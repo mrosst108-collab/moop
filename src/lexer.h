@@ -3,12 +3,13 @@
 
 #include <stddef.h>
 
-/* Surface syntax operators. Each has a word form (canonical — Quorum's
- * evidence: words read better than symbols) and an arrow alias (compact
- * notation, same token):
- *   ask       ->   message passing      (asymmetric: left flows right)
- *   inherits  <-   lineage predicate    (asymmetric)
- *   mirrors   <->  bijection            (symmetric: an involution —
+/* Surface syntax operators: Io-like grammar, Quorum-like vocabulary.
+ * The arrows are canonical — their shapes wear their information
+ * behavior — and each has an exact word alias (same token):
+ *   ->   ask       message passing      (asymmetric: left flows right)
+ *   <-   inherits  declares inheritance (asymmetric: child defers to
+ *                                        parent)
+ *   <->  mirrors   bijection            (symmetric: an involution —
  *                                        mirroring twice restores)
  *   is             asymmetric identity  (the name becomes the thing)
  *   a / an         birth                (the indefinite article: `a dog`
@@ -21,7 +22,7 @@
  * to the gate layer. Semantics notes live in docs/syntax.md.
  *
  * Quotation marks mention code instead of using it, exactly as in
- * English: "ask maybe" is that code itself, as a value. Quotes nest the
+ * English: "-> maybe" is that code itself, as a value. Quotes nest the
  * way English prose nests them, alternating the marks — inside a quote
  * the same mark closes and the other mark opens a deeper quote:
  *   "rex ask mood is 'ask maybe'"

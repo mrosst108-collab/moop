@@ -15,8 +15,8 @@
  *                                                 ; when quotes nest
  *
  * `a -> b -> c` is ((a -> b) -> c): a pipeline, reading left to right.
- * The operators also have word spellings (ask, inherits, mirrors) —
- * same tokens, handled entirely by the lexer.
+ * The arrows are canonical; the words ask, inherits and mirrors are
+ * exact aliases — the same tokens, handled entirely by the lexer.
  *
  * A chain may begin with an operator: the missing head is the RECEIVER
  * — an English imperative, instructions addressed to whoever is being
@@ -85,8 +85,8 @@ void moop_ast_free(MoopAst *ast);
 /* True if node idx is a quote of a single name: "mood". */
 bool moop_quoted_name(const MoopAst *ast, int idx);
 
-/* Write the statement rooted at idx back out in canonical word
- * spelling — the inverse of parsing. depth is the quoting depth of the
+/* Write the statement rooted at idx back out in canonical spelling
+ * (arrows; `a`/`an` by the next word) — the inverse of parsing. depth is the quoting depth of the
  * surroundings (0 at top level); nested quotes alternate " and '. */
 void moop_ast_write(FILE *out, const MoopAst *ast, int idx, int depth);
 

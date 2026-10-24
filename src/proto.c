@@ -66,6 +66,20 @@ void moop_proto_generate(MoopProto *generator, MoopProto *child,
     }
 }
 
+MoopInheritResult moop_proto_inherit(MoopProto *child, MoopProto *parent)
+{
+    if (child->facing != MOOP_FACING_USER ||
+        parent->facing != MOOP_FACING_USER)
+        return MOOP_INHERIT_BOUNDARY;
+    if (child == parent)
+        return MOOP_INHERIT_SELF;
+    for (const MoopProto *p = parent; p != NULL; p = p->parent)
+        if (p == child)
+            return MOOP_INHERIT_LOOP;
+    child->parent = parent;
+    return MOOP_INHERIT_OK;
+}
+
 bool moop_proto_host(MoopProto *proto, const char *name, MoopProtoHandler fn)
 {
     if (proto->hosted == proto->capacity)

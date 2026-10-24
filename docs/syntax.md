@@ -2,8 +2,8 @@
 
 Design notes for the surface language. The pipeline is lex
 (`src/lexer.{h,c}`) → parse (`src/parser.{h,c}`) → eval
-(`src/eval.{h,c}`). `is`, `->`, and `<-` evaluate today (see status at
-the end); `<->` does not, and says so.
+(`src/eval.{h,c}`). Every construct below evaluates today (see status
+at the end).
 
 Guiding principle: **minimalism through synergy and orthogonality** —
 one grammar rule, four operators with one non-overlapping job each, and
@@ -12,17 +12,22 @@ beside it.
 
 ## The four relational operators
 
-Words are the canonical spellings (Quorum's evidence: words read better
-than symbols, especially for newcomers); the arrows are exact aliases —
-the lexer maps both to the same token, so there is one semantics with
-two notations. The words are reserved and cannot name values or
-messages.
+**Io-like grammar, Quorum-like vocabulary** (decided). The grammar is
+Io's shape — everything is a chain of sends — with arrows as its
+operators, and the arrows are canonical: their shapes wear the
+information behavior that words cannot show. Quorum's vocabulary lives
+in the words the language does use — `is`, `a`/`an`, message names —
+and in pythonic whitespace instead of `end`. The words `ask`,
+`inherits`, `mirrors` remain exact aliases (the lexer maps both
+spellings to the same token: one semantics, two notations) for readers
+who prefer words; they are reserved and cannot name values or messages.
+Code always prints with arrows.
 
-| Word | Arrow | Reading | Symmetry | Layer |
+| Arrow | Word alias | Reading | Symmetry | Layer |
 |---|---|---|---|---|
-| `ask` | `->` | message passing | asymmetric | user (irreversible) |
-| `inherits` | `<-` | lineage predicate | asymmetric | user (irreversible) |
-| `mirrors` | `<->` | bijection | symmetric | system (reversible) |
+| `->` | `ask` | message passing | asymmetric | user (irreversible) |
+| `<-` | `inherits` | declares inheritance | asymmetric | user (irreversible) |
+| `<->` | `mirrors` | bijection | symmetric | system (reversible) |
 | `is` | — | identity | asymmetric | binding |
 | `a` / `an` | — | birth | prefix | generation (the bridge) |
 
@@ -33,15 +38,21 @@ in their shape — the two-layer model surfacing in the syntax:
 - **`x -> y` (message passing).** Flow reads left to right: x is sent to y.
   Sending is consumption; the receiver is free to forget. Irreversible, so
   it belongs to the user layer.
-- **`child <- parent` (inheritance — decided: a lineage predicate).**
-  Parents are fixed at generation and can never be rewired; `<-` asks
-  "is parent my birth parent?" and evaluates to true/false. Reads
-  naturally as a statement of standing fact ("child inherits from
-  parent"), and facts that can't silently stop being true are what
-  naturalism wants. Immutable parents also make delegation cycles
-  impossible by construction — no cycle-detection machinery to carry
-  (minimalism). To change behavior, generate a fresh proto and rebind
-  names; lineage is physics, names are the mutable handle.
+- **`child <- parent` (inheritance — decided: `<-` declares it).**
+  The child now defers to the parent: messages it does not know are
+  looked up on the parent and its lineage, still addressed to the
+  child. A birth starts with its generator as parent (`rex is a dog`
+  inherits from dog); `<-` declares or re-declares it. This keeps the
+  two relations orthogonal — the article is who made you, `<-` is whom
+  you defer to — and matches Io, where a proto's parent can be set.
+  Answers the child, so pipelines continue: `cat <- dog -> bark`.
+  Refused, with nothing changed: inheriting from yourself, a
+  declaration that would close a loop (the parent already inherits
+  from the child — so every lineage still ends and lookups terminate),
+  and any declaration touching a system-facing proto (delegation never
+  crosses the layer boundary). This supersedes the earlier decision
+  that `<-` was a predicate over birth-fixed parents: acyclicity now
+  comes from one refusal instead of from immutability.
 - **`x <-> y` (bijection).** An information-preserving, invertible relation,
   compiled to gate-layer constructions — the syntax's window onto the
   reversible core. Every implemented form is an **involution**: applying
@@ -95,20 +106,21 @@ There is no `self`/`me` word. Every context has a **receiver**, and a
 *headless chain* — one that begins with an operator — addresses it:
 
 ```
-animal ask mood is
-    ask maybe            ; an imperative: "ask maybe", addressed to
-                         ; whoever was asked for mood
+animal -> mood is
+    -> maybe             ; an imperative, read "ask maybe", addressed
+                         ; to whoever was asked for mood
 ```
 
 Inside a taught body the receiver is the object that was asked (even
 when the message was found on an ancestor). At the top level the
 receiver is the world: the REPL session is itself a body whose receiver
-is `world`, so `ask generate` at the prompt births a proto from the
-world. English drops the subject of imperatives; moop does the same.
+is `world`, so `-> maybe` at the prompt observes the world's body.
+English drops the subject of imperatives; moop does the same.
 
 Known, accepted losses (revisit when messages take arguments): the
-receiver cannot appear as the right operand of `inherits`, and a body
-cannot answer with the receiver itself.
+receiver cannot appear as the right operand of `<-` (so a body can make
+its receiver inherit — `<- dog` — but cannot make something inherit from
+it), and a body cannot answer with the receiver itself.
 
 ## Ubiquitous homoiconicity (decided)
 
@@ -133,30 +145,30 @@ Quotation marks mark *mention* instead of *use*, exactly as they do in
 English. A quote is the quoted code itself, as a value:
 
 ```
-plan is "ask maybe"          ; plan names the code, not its result
-plan                         ; "ask maybe"
-dog ask "mood"               ; dog's code for mood (read)
-dog ask "mood" is plan       ; teach mood from a code value (write)
-cat ask "mood" is dog ask "mood"   ; copy a behavior
-world ask "go" is plan       ; running code is teaching it...
-ask go                       ; ...and asking
+plan is "-> maybe"               ; plan names the code, not its result
+plan                             ; "-> maybe"
+dog -> "mood"                    ; dog's code for mood (read)
+dog -> "mood" is plan            ; teach mood from a code value (write)
+cat -> "mood" is dog -> "mood"   ; copy a behavior
+world -> "go" is plan            ; running code is teaching it...
+-> go                            ; ...and asking
 ```
 
 - **A quote is code.** `"…"` holds one statement — a chain, or even a
   definition — parsed when it is read, never evaluated. Code values bind
-  to names, answer messages, and print in canonical spelling (word
-  operators, `a`/`an` chosen by the next word), so printed code can be
-  typed back in.
+  to names, answer messages, and print in canonical spelling (arrows,
+  `a`/`an` chosen by the next word), so printed code can be typed back
+  in.
 - **Nesting alternates the marks**, as English prose does: inside a
   quote the same mark closes and the other mark opens a deeper quote —
-  `"rex ask mood is 'ask maybe'"`. A quote that never closes is an
+  `"rex -> mood is '-> maybe'"`. A quote that never closes is an
   error, never a guess.
 - **A quoted message is mentioned, not sent.** In message position a
   quoted name designates the receiver's code for that message, found by
   the same lookup a send uses (innate, then taught up the lineage, then
   hosted). Innate and C-hosted messages have no moop code, and say so.
-- **The quote moves across `is`.** `dog ask mood is ask maybe` and
-  `dog ask "mood" is "ask maybe"` teach the same thing: with the
+- **The quote moves across `is`.** `dog -> mood is -> maybe` and
+  `dog -> "mood" is "-> maybe"` teach the same thing: with the
   unquoted designator the right side is written as code; with the quoted
   designator the right side evaluates now (like a name designator) and
   must be code. A block after a quoted designator evaluates now and its
@@ -190,12 +202,12 @@ messages, the way every proto answers `maybe` and `value`: `first` is
 its first part, and `rest` is the code that follows it.
 
 ```
-plan is "dog ask mood mirrors 5"
-plan ask first                    ; "dog"
-plan ask rest                     ; "ask mood mirrors 5"
-plan ask rest ask first           ; "ask mood"
-plan ask rest ask rest            ; "mirrors 5"
-plan ask rest ask rest ask rest   ; "5"
+plan is "dog -> mood <-> 5"
+plan -> first                  ; "dog"
+plan -> rest                   ; "-> mood <-> 5"
+plan -> rest -> first          ; "-> mood"
+plan -> rest -> rest           ; "<-> 5"
+plan -> rest -> rest -> rest   ; "5"
 ```
 
 | code | its parts |
@@ -209,11 +221,11 @@ plan ask rest ask rest ask rest   ; "5"
 | a quote | its inside |
 
 - **Every answer is code**: it prints, can be typed back in, and can be
-  taught — `dog ask "m" is plan ask rest` installs a piece of plan.
+  taught — `dog -> "m" is plan -> rest` installs a piece of plan.
   Taking apart plus teaching from code is editing by selection.
 - **An operator or an article is a part but not code on its own**, so
   `first` refuses it and says so; the part stays visible in the printed
-  step (`"mirrors 5"`). A single word or number has no parts.
+  step (`"<-> 5"`). A single word or number has no parts.
 - Code answers only `first` and `rest`. The names are innate to code
   values only; protos can still be taught messages called `first` or
   `rest`.
@@ -237,11 +249,11 @@ An `is` with nothing after it opens an indented block — the definition
 body follows, one chain per line, closed by a blank line:
 
 ```
-animal ask mood is
-    ask maybe
+animal -> mood is
+    -> maybe
 
 treasure is
-    world ask generate
+    a world
     42
 ```
 
@@ -268,7 +280,7 @@ Implemented: `name is chain` (binds; definitions are quiet), teaching
 (`receiver -> message is chain`, deferred body, implicit receiver,
 delegation, override — moop is a working prototype-based OOP language),
 the article (`a dog` births), `x -> maybe` (observes the body), `child
-<- parent` (lineage predicate), numbers, and the preopened `world`
+<- parent` (declares inheritance), numbers, and the preopened `world`
 (user-facing root proto, generated at startup through actor → system
 root). Chains associate left: `p -> q -> r` is a pipeline. Dispatch
 order: innate (`maybe`, `value`), then taught (walking the lineage),
@@ -288,12 +300,14 @@ message bodies (definitions cannot nest yet).
 
 ## Decisions
 
-- Words are canonical, arrows are aliases: `ask`/`inherits`/`mirrors`
-  are the same tokens as `->`/`<-`/`<->`, resolved in the lexer.
+- Io-like grammar, Quorum-like vocabulary: arrows are canonical (code
+  prints with them), the words `ask`/`inherits`/`mirrors` are the same
+  tokens, resolved in the lexer.
 - Blocks are indentation-shaped: trailing `is` opens, blank line
   closes, bodies are sequences whose last value answers.
 - Chains associate left (pipelines read naturally).
-- `<-` is a predicate; parents are birth-fixed (see above).
+- `<-` declares inheritance; a birth starts with its generator as
+  parent; loops and layer crossings are refused (see above).
 - Ubiquitous homoiconicity is layered: user code is data in RAM, system
   code is data on tapes; nothing user-facing on the tapes (see above).
 - No receiver keyword: headless chains address the receiver; the top

@@ -254,9 +254,9 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
 static const char *op_word(MoopNodeKind kind)
 {
     switch (kind) {
-    case MOOP_NODE_SEND:    return "ask";
-    case MOOP_NODE_INHERIT: return "inherits";
-    case MOOP_NODE_BIJECT:  return "mirrors";
+    case MOOP_NODE_SEND:    return "->";
+    case MOOP_NODE_INHERIT: return "<-";
+    case MOOP_NODE_BIJECT:  return "<->";
     default:                return "?";
     }
 }

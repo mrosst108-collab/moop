@@ -245,8 +245,8 @@ static bool is_op(MoopNodeKind kind)
 
 static const char *op_name(MoopNodeKind kind)
 {
-    return kind == MOOP_NODE_SEND ? "ask" :
-           kind == MOOP_NODE_INHERIT ? "inherits" : "mirrors";
+    return kind == MOOP_NODE_SEND ? "->" :
+           kind == MOOP_NODE_INHERIT ? "<-" : "<->";
 }
 
 /* One line of code: a copy of src whose statement is rooted at root.
@@ -636,9 +636,24 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
             snprintf(err, errlen, "inheritance relates protos");
             return false;
         }
-        *out = (MoopValue){ .kind = MOOP_VAL_BOOL,
-                            .truth = child.proto->parent == parent.proto };
-        return true;
+        switch (moop_proto_inherit(child.proto, parent.proto)) {
+        case MOOP_INHERIT_OK:
+            *out = child; /* the child, so pipelines continue */
+            return true;
+        case MOOP_INHERIT_SELF:
+            snprintf(err, errlen, "a proto cannot inherit from itself");
+            return false;
+        case MOOP_INHERIT_LOOP:
+            snprintf(err, errlen, "inheritance cannot loop: the parent "
+                     "already inherits from the child");
+            return false;
+        case MOOP_INHERIT_BOUNDARY:
+            snprintf(err, errlen, "delegation never crosses the layer "
+                     "boundary");
+            return false;
+        }
+        snprintf(err, errlen, "unreachable");
+        return false;
     }
     case MOOP_NODE_BIJECT: {
         MoopValue l, r;
