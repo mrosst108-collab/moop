@@ -130,9 +130,9 @@ void moop_eval_init(void)
 static MoopProto *birth_proto(MoopProto *generator)
 {
     MoopProto *p = malloc(sizeof *p);
-    bool *ca = malloc(LEN_A * sizeof *ca);
+    bool *ca = calloc(LEN_A, sizeof *ca); /* births need blank cells */
     bool *ma = malloc(LEN_A * sizeof *ma);
-    bool *cb = malloc(LEN_B * sizeof *cb);
+    bool *cb = calloc(LEN_B, sizeof *cb);
     bool *mb = malloc(LEN_B * sizeof *mb);
     MoopProtoMessage *table = malloc(TABLE_CAP * sizeof *table);
     if (!p || !ca || !ma || !cb || !mb || !table) {

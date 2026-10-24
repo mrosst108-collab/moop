@@ -1,18 +1,26 @@
+#include <assert.h>
 #include <string.h>
+#include "gates.h"
 #include "logic.h"
 #include "proto.h"
 
-/* Generation seeds the child's tapes by observing the generator's
- * reversible dynamics through the MAYBE bridge — one draw per cell.
- * Deterministic given the generator's state, and reversible for the
- * generator: stepping it back len_a + len_b ticks returns it to the
- * moment before the birth. */
+/* A birth is create + observe + deposit — no crossing of its own. The
+ * child's cells arrive blank (fresh storage carries no information;
+ * supplying it is the allocator's job, asserted here), and each MAYBE
+ * draw from the generator's reversible dynamics is deposited onto one
+ * with a gate-layer CNOT. Deterministic given the generator's state, and
+ * reversible for the generator: stepping it back len_a + len_b ticks
+ * returns it to the moment before the birth. */
 static void seed(MoopCore *generator, MoopCore *child)
 {
-    for (size_t i = 0; i < child->a.len; i++)
-        child->a.cells[i] = moop_maybe(generator);
-    for (size_t i = 0; i < child->b.len; i++)
-        child->b.cells[i] = moop_maybe(generator);
+    for (size_t i = 0; i < child->a.len; i++) {
+        assert(!child->a.cells[i]);
+        moop_cnot(moop_maybe(generator), &child->a.cells[i]);
+    }
+    for (size_t i = 0; i < child->b.len; i++) {
+        assert(!child->b.cells[i]);
+        moop_cnot(moop_maybe(generator), &child->b.cells[i]);
+    }
 }
 
 static void proto_init(MoopProto *proto,

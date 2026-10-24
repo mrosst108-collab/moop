@@ -22,16 +22,17 @@ both loops, so there is no designated program tape — code rewrites code —
 while every tick remains exactly invertible. The system is causally closed:
 running any state backward recovers the program that produced it.
 
-The loops auto-prune: cells that stay causally unrelated to the rest of the
-state through a full alignment cycle are discarded at the epoch boundary —
-the machine's single, explicit act of forgetting.
+The core can auto-prune: cells that stay causally unrelated to the rest of
+the state through a full alignment cycle are discarded at the epoch
+boundary — the system layer's single, explicit act of forgetting. (The
+interpreter does not prune yet; see [docs/model.md](docs/model.md).)
 
 Around that core sit two segregated memory systems with matching operator
 layers: gate-based system memory driven by reversible operators (NOT, CNOT,
 CCNOT, SWAP), and conventional user-facing RAM driven by irreversible ones
-(AND, OR, NAND, NOR, XOR, MAYBE). MAYBE is the one bridge between the
-layers: an unpredictable-looking but replayable truth value drawn from the
-reversible core. See [docs/model.md](docs/model.md) for the wiring and open
+(AND, OR, NAND, NOR, XOR, MAYBE). MAYBE is the primitive bridge between
+the layers: an unpredictable-looking but replayable truth value drawn from
+the reversible core. See [docs/model.md](docs/model.md) for the wiring and open
 design questions.
 
 ## Building

@@ -66,6 +66,13 @@ x2=$(echo "$ex" | sed -n 3p); y2=$(echo "$ex" | sed -n 4p)
 check "body <-> body exchanges one way" "$x2" "$y1"
 check "body <-> body exchanges the other way" "$y2" "$x1"
 
+# export: observing a value and depositing it back cancels it on the
+# tapes; the value lives on in the user layer and restores them
+exp=$(printf 'box is a world\nbox -> value\nn is box -> value\nn <-> box\nbox -> value\nn <-> box\nbox -> value\nquit\n' | "$BIN" 2>/dev/null | grep -oE '[0-9]+$' | tail -3)
+e1=$(echo "$exp" | sed -n 1p); e2=$(echo "$exp" | sed -n 2p); e3=$(echo "$exp" | sed -n 3p)
+check "depositing an observed value exports it" "0" "$e2"
+check "the held value restores the body" "$e1" "$e3"
+
 # honesty: what is not implemented says so
 check "oversized values are refused, not truncated" "error: an 8-cell loop carries at most 255" "$(printf 'c is a world\n256 <-> c\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "number-number bijection is honestly absent" "error: a bijection relates a value and a body, or two bodies" "$(printf '1 <-> 2\nquit\n' | "$BIN" 2>&1 >/dev/null)"

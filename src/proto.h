@@ -19,10 +19,11 @@
  *   - GENERATION is an act (who made you). It is the only downward
  *     path from the system layer to the user layer, and it has the
  *     sanctioned bridge shape: the child's initial tapes are seeded by
- *     observing the generator's reversible dynamics (MAYBE draws), so
- *     generating costs the generator nothing irreversible — step it
- *     back and it returns to the moment before the birth. Provenance
- *     needs no pointer: the substrate can always run backward.
+ *     observing the generator's reversible dynamics (MAYBE draws) and
+ *     depositing each draw onto a blank cell with CNOT, so generating
+ *     costs the generator nothing irreversible — step it back and it
+ *     returns to the moment before the birth. Provenance needs no
+ *     pointer: the substrate can always run backward.
  *   - INHERITANCE (`<-`) is a pointer (whom you defer to). Message
  *     lookup delegates up parent links among user-facing protos only.
  *     Delegation NEVER crosses the layer boundary: a user-facing root
@@ -62,7 +63,8 @@ void moop_actor_generate_root(MoopActor *actor, MoopProto *root,
 /* A proto generates a proto. A system-facing generator yields a
  * user-facing ROOT (parent NULL — delegation cannot cross the layer
  * boundary); a user-facing generator yields a hereditary child
- * (parent = generator). */
+ * (parent = generator). Births need blank (all-zero) cell storage, as
+ * does moop_actor_generate_root. */
 void moop_proto_generate(MoopProto *generator, MoopProto *child,
                          bool *cells_a, bool *marks_a, size_t len_a,
                          bool *cells_b, bool *marks_b, size_t len_b,

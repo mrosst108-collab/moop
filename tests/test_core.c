@@ -235,6 +235,171 @@ static void test_actor(void)
           "actor bodies inherit reversibility from the substrate");
 }
 
+static void test_rewind_lemma(void)
+{
+    /* zeroing inert cells never changes the past of the cells kept:
+     * run, prune mid-epoch, run back — every unpruned cell is where it
+     * started. (An unmarked set cell was only ever a control beside a
+     * 0, so it never decided a firing.) */
+    bool a[5] = {0, 1, 1, 1, 1}, b[7] = {1, 0, 0, 0, 0, 0, 0};
+    bool ma[5], mb[7], a0[5], b0[7];
+    memcpy(a0, a, sizeof a);
+    memcpy(b0, b, sizeof b);
+    MoopCore core;
+    moop_core_init(&core, a, ma, 5, b, mb, 7);
+    for (int i = 0; i < 20; i++)
+        moop_core_step(&core);
+    bool kept_a[5], kept_b[7];
+    for (int i = 0; i < 5; i++)
+        kept_a[i] = ma[i] || !a[i];
+    for (int i = 0; i < 7; i++)
+        kept_b[i] = mb[i] || !b[i];
+    size_t discarded = moop_core_prune(&core);
+    for (int i = 0; i < 20; i++)
+        moop_core_step_back(&core);
+    bool past = true;
+    for (int i = 0; i < 5; i++)
+        past = past && (!kept_a[i] || a[i] == a0[i]);
+    for (int i = 0; i < 7; i++)
+        past = past && (!kept_b[i] || b[i] == b0[i]);
+    check(discarded > 0, "the rewind case actually prunes");
+    check(past, "pruning leaves the past of every kept cell unchanged");
+}
+
+static void test_marks_within_epoch(void)
+{
+    /* stepping back inside an epoch re-fires the same alignments with
+     * the same controls, so it adds no marks: marks are a cache of the
+     * epoch's trajectory, recomputable by replay */
+    bool a[5] = {1, 1, 0, 1, 0}, b[7] = {0, 1, 1, 0, 1, 0, 1};
+    bool ma[5], mb[7], fa[5], fb[7];
+    MoopCore core;
+    moop_core_init(&core, a, ma, 5, b, mb, 7);
+    for (int i = 0; i < 30; i++)
+        moop_core_step(&core);
+    memcpy(fa, ma, sizeof ma);
+    memcpy(fb, mb, sizeof mb);
+    for (int i = 0; i < 30; i++)
+        moop_core_step_back(&core);
+    check(memcmp(fa, ma, sizeof ma) == 0 && memcmp(fb, mb, sizeof mb) == 0,
+          "stepping back within an epoch adds no marks");
+    memset(ma, 0, sizeof ma);
+    memset(mb, 0, sizeof mb);
+    for (int i = 0; i < 30; i++)
+        moop_core_step(&core);
+    check(memcmp(fa, ma, sizeof ma) == 0 && memcmp(fb, mb, sizeof mb) == 0,
+          "replaying the epoch recomputes the marks exactly");
+}
+
+/* --- homoiconicity, exactly ---------------------------------------- */
+
+enum { CENSUS_A = 4, CENSUS_B = 5 };
+
+/* One epoch (lcm = 20 ticks) from heads (0, 0) on a packed tape state:
+ * bit i is A cell i, bit 4 + j is B cell j. */
+static unsigned census_epoch(unsigned s)
+{
+    bool a[CENSUS_A], b[CENSUS_B], ma[CENSUS_A], mb[CENSUS_B];
+    for (int i = 0; i < CENSUS_A; i++)
+        a[i] = s >> i & 1;
+    for (int i = 0; i < CENSUS_B; i++)
+        b[i] = s >> (CENSUS_A + i) & 1;
+    MoopCore core;
+    moop_core_init(&core, a, ma, CENSUS_A, b, mb, CENSUS_B);
+    for (int i = 0; i < CENSUS_A * CENSUS_B; i++)
+        moop_core_step(&core);
+    unsigned out = 0;
+    for (int i = 0; i < CENSUS_A; i++)
+        out |= (unsigned)a[i] << i;
+    for (int i = 0; i < CENSUS_B; i++)
+        out |= (unsigned)b[i] << (CENSUS_A + i);
+    return out;
+}
+
+static void test_no_program_tape(void)
+{
+    /* no read-only program tape, checked exhaustively at 4/5: group
+     * every tape state into orbits of the epoch map; every orbit that is
+     * not a fixed point must change BOTH loops' epoch-boundary values
+     * somewhere along it. (The original one-target wiring fails this:
+     * loop B never changes. Every non-trivial orbit at least WRITES both
+     * loops, since each firing flips a cell of each; at some other sizes
+     * rare short orbits restore one loop at every boundary — see
+     * docs/paper.) */
+    enum { N = 1 << (CENSUS_A + CENSUS_B) };
+    unsigned mask_a = (1u << CENSUS_A) - 1;
+    bool seen[N] = {0};
+    int nontrivial = 0, rewrite_a = 0, rewrite_b = 0;
+    for (unsigned s = 0; s < N; s++) {
+        if (seen[s])
+            continue;
+        unsigned x = s;
+        int len = 0;
+        bool changes_a = false, changes_b = false;
+        do {
+            seen[x] = true;
+            unsigned y = census_epoch(x);
+            changes_a = changes_a || (y & mask_a) != (x & mask_a);
+            changes_b = changes_b || (y >> CENSUS_A) != (x >> CENSUS_A);
+            x = y;
+            len++;
+        } while (x != s);
+        nontrivial += len > 1;
+        rewrite_a += changes_a;
+        rewrite_b += changes_b;
+    }
+    check(nontrivial > 0, "the 4/5 machine has non-trivial orbits");
+    check(rewrite_a == nontrivial && rewrite_b == nontrivial,
+          "at 4/5 every non-trivial orbit rewrites both loops (no program tape)");
+}
+
+static void test_export(void)
+{
+    /* the bridge can export what it observes: deposit a body's own value
+     * back and loop A cancels to blank (reset by measurement and
+     * feedback). Nothing is lost while the user layer holds the value:
+     * that is where any forgetting happens. */
+    bool a[8] = {1, 0, 1, 1, 0, 1, 0, 0};
+    bool b[13] = {0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1};
+    bool ma[8], mb[13], a0[8], b0[13];
+    memcpy(a0, a, sizeof a);
+    memcpy(b0, b, sizeof b);
+    MoopCore core;
+    moop_core_init(&core, a, ma, 8, b, mb, 13);
+
+    unsigned long held = moop_decode(&core);
+    moop_encode_xor(&core, held);
+    check(moop_decode(&core) == 0,
+          "depositing an observed value back exports it from the tapes");
+    moop_encode_xor(&core, held);
+    check(memcmp(a, a0, sizeof a) == 0, "the held value restores the tapes");
+
+    /* closed loop through the user layer: draws feed a user register
+     * that is deposited back each time. The final tapes plus the
+     * transcript of draws alone are enough to undo the whole run. */
+    enum { DRAWS = 40 };
+    bool transcript[DRAWS];
+    unsigned long r = 0;
+    for (int i = 0; i < DRAWS; i++) {
+        transcript[i] = moop_maybe(&core);
+        r = (r << 1 | transcript[i]) & 0xFF;
+        moop_encode_xor(&core, r);
+    }
+    unsigned long deposits[DRAWS];
+    r = 0;
+    for (int i = 0; i < DRAWS; i++) {
+        r = (r << 1 | transcript[i]) & 0xFF; /* replay the user layer */
+        deposits[i] = r;
+    }
+    for (int i = DRAWS - 1; i >= 0; i--) {
+        moop_encode_xor(&core, deposits[i]);
+        moop_core_step_back(&core);
+    }
+    check(memcmp(a, a0, sizeof a) == 0 && memcmp(b, b0, sizeof b) == 0 &&
+          core.a.head == 0 && core.b.head == 0,
+          "final tapes plus the transcript recover the initial tapes");
+}
+
 static void test_encoding(void)
 {
     bool a[8] = {0}, b[13] = {0}, ma[8], mb[13];
@@ -278,9 +443,10 @@ static void test_proto_generation(void)
     MoopActor actor;
     moop_actor_init(&actor, aa, maa, 5, ab, mab, 7, atable, 2);
 
-    bool sa[4], sb[5], msa[4], msb[5];
-    bool ua[4], ub[5], mua[4], mub[5];
-    bool pa[4], pb[5], mpa[4], mpb[5];
+    /* births need blank cells: create, then observe + deposit */
+    bool sa[4] = {0}, sb[5] = {0}, msa[4], msb[5];
+    bool ua[4] = {0}, ub[5] = {0}, mua[4], mub[5];
+    bool pa[4] = {0}, pb[5] = {0}, mpa[4], mpb[5];
     MoopProtoMessage stable[2], utable[2], ptable[2];
     MoopProto sysroot, uroot, proto;
 
@@ -321,6 +487,17 @@ static void test_proto_generation(void)
     check(memcmp(pa0, pa, sizeof pa0) == 0 &&
           memcmp(pb0, pb, sizeof pb0) == 0,
           "generated protos inherit reversibility");
+
+    /* a birth deposits exactly the generator's draws onto blank cells,
+     * nothing else: rewind the parent past the birth and draw again */
+    for (int i = 0; i < 4 + 5; i++)
+        moop_core_step_back(&uroot.core);
+    bool draws[4 + 5];
+    for (int i = 0; i < 4 + 5; i++)
+        draws[i] = moop_maybe(&uroot.core);
+    check(memcmp(draws, pa, sizeof pa) == 0 &&
+          memcmp(draws + 4, pb, sizeof pb) == 0,
+          "a birth is the generator's draws deposited onto blank cells");
 
     /* generation itself is reversible for the generator: undo the
      * seeding draws and the actor is back before the birth */
@@ -455,10 +632,14 @@ int main(void)
     test_reversibility();
     test_causal_pruning();
     test_auto_prune_epoch();
+    test_rewind_lemma();
+    test_marks_within_epoch();
+    test_no_program_tape();
     test_irreversible_logic();
     test_maybe();
     test_ram();
     test_encoding();
+    test_export();
     test_actor();
     test_proto_generation();
     return failures;

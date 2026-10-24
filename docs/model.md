@@ -67,10 +67,13 @@ is discarded.
   state actually changes. Controls and target all join the web (the marking
   rule is actual-cause, not counterfactual: a 0 control that "prevented" a
   flip does not join).
-- **Inert = independent.** An unmarked cell has never influenced, nor been
-  influenced by, any other cell: the state factorizes into (causal web) ⊗
-  (inert cells). Zeroing an inert cell loses only its own value — nothing
-  about the rest of the state.
+- **Inert cells never decided anything.** An unmarked cell was never
+  changed by a firing, and whenever it served as a control the other
+  control was 0, so its value never decided a firing. Zeroing it loses
+  only its own value: run back from the pruned state and every kept cell
+  retraces its past exactly (the *rewind lemma*, tested). This is a
+  statement about the past, not a factorization of the state —
+  counterfactually, a 0 cell that blocked a firing did shape the rest.
 - **Epoch.** One full alignment cycle, `lcm(len_a, len_b)` ticks — every
   cell of A has met every cell of B exactly once. `moop_core_run()`
   auto-prunes at each epoch boundary; `moop_core_prune()` prunes on demand.
@@ -84,8 +87,19 @@ is discarded.
 Honest caveats of this initial design: an inert cell pruned today might
 have fired in a *future* epoch (its alignments repeat, but A's contents
 will have changed), so pruning trades never-yet-used information for a
-smaller live state; and marks are a conservative, monotone approximation
-(stepping backward also marks).
+smaller live state. Marks only grow within an epoch. Stepping backward
+re-fires the same alignments with the same controls, so inside an epoch
+it adds no marks — marks are a cache of the epoch's trajectory,
+recomputable by replay (tested). Only stepping back *past* the epoch
+start over-approximates, marking cells from the previous epoch's
+firings.
+
+**The interpreter does not prune yet.** Language-level bodies step
+through MAYBE (`moop_core_step`), never `moop_core_run`, so no moop
+program prunes today. Turning it on is not a one-line change: a birth
+draws len_a + len_b ticks from its generator, and a prune inside that
+window would break the generator's rewind to before the birth (see open
+questions).
 
 ## Two memories, two logics
 
@@ -110,6 +124,15 @@ Segregation rules:
   same answers), and its only effect on the system layer is a reversible
   step, so even the bridge loses no information. Actors (below) generalize
   this same shape into the object model.
+- **Export is accounted for.** A deposit whose value came from observing
+  the same cells cancels them: `n is box ask value` then `n mirrors box`
+  blanks box's loop A — reset by measurement and feedback, as in Bennett's
+  account of Maxwell's demon. Nothing is lost while the user layer holds
+  `n`; the loss happens when the user layer forgets it, which is the user
+  layer's prerogative. Precisely: in any prune-free run, the initial tapes
+  are a function of the final tapes, the user layer's initial state, and
+  the transcript of observations (tested). Pruning stays the only erasure
+  *inside* the system layer; every other loss is an export.
 
 ## Value encoding
 
@@ -161,9 +184,10 @@ Generation and inheritance are distinct relations, and moop keeps them
 apart where other object models fuse them:
 
 - **Generation is an act** (who made you). It is the only downward path
-  from system to user layer, and it has the sanctioned bridge shape: a
-  child's initial tapes are seeded by observing the generator's
-  reversible dynamics — one MAYBE draw per cell. Generation is therefore
+  from system to user layer, and it has no crossing of its own: a birth
+  is create + observe + deposit. The child's cells start blank, and each
+  receives one MAYBE draw from the generator's reversible dynamics through
+  a gate-layer CNOT. Generation is therefore
   deterministic given the generator's state, and *costs the generator
   nothing irreversible*: step it back and it returns to the moment before
   the birth. Provenance needs no pointer; the substrate can always run
@@ -187,9 +211,14 @@ delegation trees) → protos all the way down.
 - MAYBE's final semantics: nullary oracle draw (current design), or a binary
   operator (`a maybe b`) choosing between its operands.
 - How user RAM and the surface language exchange values with the system
-  layer beyond MAYBE (measurement/encoding discipline).
-- The causal marking rule: should firing in reverse mark (current,
-  conservative choice)? Should repeated-alignment history deepen the
-  criterion (prune only after k inert epochs)?
+  layer beyond MAYBE and deposits. Today the interpreter keeps user state
+  (names, taught chains) in C structures rather than `ram.c`, and of the
+  user logic only MAYBE is reachable from the surface.
+- Pruning in the running language: when may a body prune without
+  breaking the generator rewind that a birth promises?
+- The causal marking rule: should stepping back past an epoch start
+  mark (current, conservative choice — inside an epoch the question is
+  moot)? Should repeated-alignment history deepen the criterion (prune
+  only after k inert epochs)?
 - Whether pruned cells should be *reclaimed* (loops shrink) rather than
   zeroed in place.
