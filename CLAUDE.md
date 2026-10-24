@@ -72,7 +72,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
-- `docs/paper/` — a paper outline on the reversibility × homoiconicity synergy (`outline.md`) and the experiment harness whose numbers it cites (`experiments.c`; build command in its header comment, not part of `make`).
+- `docs/paper/` — the paper on the reversibility × homoiconicity synergy: `paper.tex` + `refs.bib` (built `paper.pdf`; build command in the `.tex` header, needs TeX Live with pgfplots), the experiment harness whose numbers it cites (`experiments.c`; build command in its header comment, not part of `make`), its output and figure data (`data/`), and the earlier outline (`outline.md`). Keep the paper's claims in sync with the code; rerun the harness when the core changes.
 - `tests/` — see the test layers above.
 
 ## Surface syntax and the interpreter pipeline

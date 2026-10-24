@@ -1,5 +1,13 @@
 # Paper outline: reversibility × homoiconicity in moop
 
+> Superseded by the full paper, `paper.tex` / `paper.pdf`. Kept as the
+> planning outline. Two of its claims changed when the work was done:
+> the "every non-trivial orbit rewrites B" observation holds at the nine
+> sizes below but not in general (a sweep over all 100 loop pairs with
+> a + b ≤ 22 found 184 short *restoring* orbits — paper §5), and births
+> are now literally create + observe + deposit, so the `seed()` note in
+> §8.6 no longer applies.
+
 Working title: **No Conserved Program: Reversibility and Homoiconicity
 as One Design Principle**
 

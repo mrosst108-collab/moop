@@ -6,13 +6,16 @@
  *      docs/paper/experiments.c src/tapeloop.c src/gates.c src/logic.c \
  *      src/encode.c -o build/experiments && ./build/experiments [DIR]
  *
- * With DIR, the figure data (orbits.dat, pruning.dat) is written there.
+ * With DIR, the figure data is written there: orbits-moop.dat and
+ * orbits-harvard.dat (8/13 orbit lengths, Fig. 2) and pruning.dat (Fig. 3).
  *
  * E1  closed form: the core is two coupled nonlinear shift registers
  * E2  orbit census of the epoch map, moop's wiring vs. the original
  *     one-target ("Harvard") wiring, every state enumerated; then every
- *     loop pair with a + b <= 22: does each non-trivial orbit rewrite
- *     both loops?
+ *     loop pair with a + b <= 22: does each non-trivial orbit change both
+ *     loops' epoch-boundary values? (Every non-trivial orbit WRITES both
+ *     loops — each firing flips one cell of each — so the question is
+ *     whether a loop can be restored at every boundary.)
  * E3  how much of program-space the longest 8/13 orbit tours
  * E4  pruning yield vs. tape density
  * E5  rewind lemma: pruning never changes the past of unpruned cells
@@ -170,6 +173,9 @@ static void tour(uint32_t start, size_t la, size_t lb)
 typedef struct {
     uint32_t orbits, fixed, rewrite_a, rewrite_b, silent, longest, longest_at;
     uint64_t on_rewriting; /* states on orbits along which B changes */
+    /* non-trivial orbits that restore a loop at every epoch boundary */
+    uint32_t restoring, longest_restoring;
+    uint64_t on_restoring;
 } Census;
 
 /* Every tape state, grouped into orbits of the epoch map. If lengths is
@@ -205,6 +211,12 @@ static Census census(size_t la, size_t lb, bool harvard, uint32_t *lengths)
         c.rewrite_b += changes_b;
         if (changes_b)
             c.on_rewriting += len;
+        if (len > 1 && !(changes_a && changes_b)) {
+            c.restoring++;
+            c.on_restoring += len;
+            if (len > c.longest_restoring)
+                c.longest_restoring = len;
+        }
         if (len > c.longest) {
             c.longest = len;
             c.longest_at = s;
@@ -233,7 +245,10 @@ static void census_row(size_t la, size_t lb, bool harvard, uint32_t *lengths,
 static void sweep(void)
 {
     size_t pairs = 0, coprime = 0, exceptions = 0;
-    uint64_t states = 0, nontrivial = 0;
+    uint64_t states = 0, nontrivial = 0, restoring = 0, on_restoring = 0;
+    uint32_t longest_restoring = 0;
+    printf("E2 sweep over every loop pair with a + b <= 22 (moop wiring); "
+           "pairs with restoring orbits:\n");
     for (size_t sum = 4; sum <= 22; sum++) {
         for (size_t la = 2; la <= sum / 2; la++) {
             size_t lb = sum - la;
@@ -248,34 +263,53 @@ static void sweep(void)
             coprime += x == 1;
             states += UINT64_C(1) << sum;
             nontrivial += c.orbits - c.fixed;
-            if (c.rewrite_a != c.orbits - c.fixed ||
-                c.rewrite_b != c.orbits - c.fixed) {
+            restoring += c.restoring;
+            on_restoring += c.on_restoring;
+            if (c.longest_restoring > longest_restoring)
+                longest_restoring = c.longest_restoring;
+            if (c.restoring > 0) {
                 exceptions++;
-                printf("   exception at %zu/%zu: %u non-trivial orbits, "
-                       "%u rewrite A, %u rewrite B\n",
-                       la, lb, c.orbits - c.fixed, c.rewrite_a, c.rewrite_b);
+                printf("   %2zu/%zu%s: %u restore A, %u restore B, of %u "
+                       "non-trivial orbits (%llu of %llu states, longest %u)\n",
+                       la, lb, x == 1 ? "" : "*",
+                       c.orbits - c.fixed - c.rewrite_a,
+                       c.orbits - c.fixed - c.rewrite_b, c.orbits - c.fixed,
+                       (unsigned long long)c.on_restoring,
+                       (unsigned long long)(UINT64_C(1) << sum),
+                       c.longest_restoring);
             }
         }
     }
-    printf("E2 sweep: %zu loop pairs (%zu coprime), %llu states, %llu "
-           "non-trivial orbits; pairs where some non-trivial orbit leaves a "
-           "loop unrewritten: %zu\n",
+    printf("E2 sweep: %zu loop pairs (%zu coprime; * = not coprime), %llu "
+           "states, %llu non-trivial orbits. %zu pairs have restoring "
+           "orbits: %llu orbits on %llu states, none longer than %u "
+           "epochs\n",
            pairs, coprime, (unsigned long long)states,
-           (unsigned long long)nontrivial, exceptions);
+           (unsigned long long)nontrivial, exceptions,
+           (unsigned long long)restoring, (unsigned long long)on_restoring,
+           longest_restoring);
 }
 
 /* Fraction of states on orbits no longer than each length, for Fig. 2. */
-static void write_lengths(FILE *f, const char *wiring, const uint32_t *lengths,
-                          uint32_t n)
+static void write_lengths(const char *dir, const char *wiring,
+                          const uint32_t *lengths, uint32_t n)
 {
+    char path[4096];
+    snprintf(path, sizeof path, "%s/orbits-%s.dat", dir, wiring);
+    FILE *f = fopen(path, "w");
+    if (f == NULL) {
+        perror(path);
+        exit(1);
+    }
+    fprintf(f, "length\torbits\tcumulative\n");
     uint64_t states = 0;
     for (uint32_t l = 1; l <= n; l++) {
         if (lengths[l] == 0)
             continue;
         states += (uint64_t)lengths[l] * l;
-        fprintf(f, "%s\t%u\t%u\t%.6f\n", wiring, l, lengths[l],
-                (double)states / n);
+        fprintf(f, "%u\t%u\t%.6f\n", l, lengths[l], (double)states / n);
     }
+    fclose(f);
 }
 
 /* --- E4 ---------------------------------------------------------------- */
@@ -509,14 +543,13 @@ int main(int argc, char **argv)
         { 2, 3 }, { 3, 4 }, { 3, 5 }, { 4, 5 }, { 5, 7 },
         { 5, 8 }, { 7, 8 }, { 8, 9 }, { 8, 13 },
     };
-    FILE *orbits_dat = NULL, *pruning_dat = NULL;
-    if (argc > 1) {
+    const char *dir = argc > 1 ? argv[1] : NULL;
+    FILE *pruning_dat = NULL;
+    if (dir != NULL) {
         char path[4096];
-        snprintf(path, sizeof path, "%s/orbits.dat", argv[1]);
-        orbits_dat = fopen(path, "w");
-        snprintf(path, sizeof path, "%s/pruning.dat", argv[1]);
+        snprintf(path, sizeof path, "%s/pruning.dat", dir);
         pruning_dat = fopen(path, "w");
-        if (orbits_dat == NULL || pruning_dat == NULL) {
+        if (pruning_dat == NULL) {
             perror(path);
             return 1;
         }
@@ -541,11 +574,9 @@ int main(int argc, char **argv)
         census_row(sizes[i][0], sizes[i][1], true,
                    last ? harvard_lengths : NULL, NULL);
     }
-    if (orbits_dat != NULL) {
-        fprintf(orbits_dat, "wiring\tlength\torbits\tcumulative\n");
-        write_lengths(orbits_dat, "moop", moop_lengths, n);
-        write_lengths(orbits_dat, "harvard", harvard_lengths, n);
-        fclose(orbits_dat);
+    if (dir != NULL) {
+        write_lengths(dir, "moop", moop_lengths, n);
+        write_lengths(dir, "harvard", harvard_lengths, n);
     }
     free(moop_lengths);
     free(harvard_lengths);
