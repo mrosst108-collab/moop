@@ -37,7 +37,10 @@ working rule — call it the **deletion test**:
 
 `self` failed the test and died; `generate` failed it once the article
 was seen; `is`, `ask`, `inherits`, `mirrors`, and the article itself
-have all survived it.
+have all survived it. So have quotation marks: reflection needed a way
+to mention code instead of using it, and no existing rule covered that —
+but running code did not need a form of its own (teach it, then ask), so
+`eval` died before it was born.
 
 ## 2. Derived from ancestors, without delegating to them
 

@@ -14,6 +14,7 @@ static void print_value(const MoopValue *v)
     case MOOP_VAL_NUMBER: printf("%ld\n", v->number);              break;
     case MOOP_VAL_BOOL:   printf(v->truth ? "true\n" : "false\n"); break;
     case MOOP_VAL_PROTO:  printf("a proto\n");                     break;
+    case MOOP_VAL_CODE:   moop_code_write(stdout, v->code);        break;
     }
 }
 

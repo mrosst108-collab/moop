@@ -561,6 +561,25 @@ static void test_lexer(void)
     t = moop_lexer_next(&lx);
     check(t.kind == MOOP_TOK_WORD && t.len == 5,
           "reserved words do not hijack longer words");
+
+    /* quotes mention code; nesting alternates the marks */
+    moop_lexer_init(&lx, "plan is \"ask maybe\"");
+    moop_lexer_next(&lx);
+    moop_lexer_next(&lx);
+    t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_QUOTE && t.len == 9 &&
+              strncmp(t.start, "ask maybe", 9) == 0,
+          "a quote is one token carrying its inner text");
+    moop_lexer_init(&lx, "\"a 'b \"c\" d' e\" x");
+    t = moop_lexer_next(&lx);
+    check(t.kind == MOOP_TOK_QUOTE && t.len == 13 &&
+              moop_lexer_next(&lx).kind == MOOP_TOK_WORD,
+          "quotes nest by alternating the marks, three levels deep");
+    moop_lexer_init(&lx, "x is \"ask 'maybe\"");
+    moop_lexer_next(&lx);
+    moop_lexer_next(&lx);
+    check(moop_lexer_next(&lx).kind == MOOP_TOK_UNCLOSED,
+          "a quote that never closes is an error, not a guess");
 }
 
 static void test_parser(void)
@@ -620,6 +639,56 @@ static void test_parser(void)
           "operators need operands");
     check(!moop_parse("p q", &ast, err, sizeof err),
           "adjacent terms need an operator");
+
+    /* reflection: quotes mention code */
+    check(moop_parse("plan is \"ask maybe\"", &ast, err, sizeof err),
+          "a quote parses as a term");
+    root = &ast.nodes[ast.root];
+    const MoopNode *q = &ast.nodes[root->right];
+    check(q->kind == MOOP_NODE_QUOTE &&
+              ast.nodes[q->left].kind == MOOP_NODE_SEND &&
+              ast.nodes[ast.nodes[q->left].left].kind == MOOP_NODE_RECEIVER,
+          "the quoted code is parsed in place, unevaluated");
+    check(moop_parse("rex ask \"mood\" is plan", &ast, err, sizeof err),
+          "a quoted message is a designator: its code as a place");
+    root = &ast.nodes[ast.root];
+    check(root->kind == MOOP_NODE_IS &&
+              moop_quoted_name(&ast, ast.nodes[root->left].right),
+          "the code designator keeps the quoted name");
+    check(!moop_parse("rex ask \"ask maybe\" is x", &ast, err, sizeof err),
+          "only a quoted single name designates a message's code");
+    check(!moop_parse("x is \"y is\"", &ast, err, sizeof err),
+          "quoted code must be whole");
+    check(!moop_parse("x is \"\"", &ast, err, sizeof err),
+          "an empty quote is refused");
+    check(moop_parse("x is \"rex ask mood is 'ask maybe'\"", &ast, err,
+                     sizeof err),
+          "quoted code may hold a definition and nested quotes");
+
+    /* writing code back out is the inverse of parsing */
+    static const char *const round[] = {
+        "rex ask mood is 'ask maybe'",
+        "ask value mirrors 5",
+        "an animal inherits world",
+        "'ask maybe'",
+    };
+    bool same = true;
+    for (size_t i = 0; i < sizeof round / sizeof round[0]; i++) {
+        char src[128], back[128] = {0};
+        snprintf(src, sizeof src, "\"%s\"", round[i]);
+        FILE *f = tmpfile();
+        bool parsed = f != NULL && moop_parse(src, &ast, err, sizeof err);
+        if (parsed) {
+            moop_ast_write(f, &ast, ast.nodes[ast.root].left, 1);
+            rewind(f);
+            if (fgets(back, sizeof back, f) == NULL)
+                back[0] = '\0';
+        }
+        if (f != NULL)
+            fclose(f);
+        same = same && parsed && strcmp(back, round[i]) == 0;
+    }
+    check(same, "code written back reads the same (canonical spelling)");
 }
 
 int main(void)

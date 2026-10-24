@@ -21,6 +21,10 @@
  *                   birth-fixed delegation parent
  *   x <-> y         gate-backed involutions: value deposit / body
  *                   exchange; applying the same one twice is identity
+ *   "code"          a quote mentions code instead of using it: the
+ *                   value is the code itself (user code is homoiconic)
+ *   x -> "m"        x's code for m, found up the lineage like a send
+ *   x -> "m" is c   teach m from the code value c (evaluated now)
  *
  * At startup the world is generated as the model prescribes: a
  * system-facing actor generates the system root, which generates the
@@ -30,14 +34,26 @@ typedef enum {
     MOOP_VAL_NUMBER,
     MOOP_VAL_BOOL,
     MOOP_VAL_PROTO,
+    MOOP_VAL_CODE,
 } MoopValueKind;
+
+/* User code as a value: one line (a chain or a statement) or the lines
+ * of a block. Immutable once made; teaching copies it. */
+typedef struct {
+    MoopAst **lines;  /* owned; each line's root is its statement */
+    size_t n;
+} MoopCode;
 
 typedef struct {
     MoopValueKind kind;
     long number;
     bool truth;
     MoopProto *proto;
+    const MoopCode *code;
 } MoopValue;
+
+/* Print code the way it is written: one line in quotes, or a block. */
+void moop_code_write(FILE *out, const MoopCode *code);
 
 void moop_eval_init(void);
 

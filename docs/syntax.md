@@ -119,11 +119,69 @@ medium — nothing user-facing lives on the tapes:
   simultaneously instruction (control) and data (target).
 - **User layer**: code is data *in RAM* — a taught message body is the
   same chain structure the parser produced, stored and evaluated on
-  send. Lisp-style homoiconicity in the user medium.
+  send, and reachable as a value through quotes (below). Lisp-style
+  homoiconicity in the user medium.
 
 The layer discipline is untouched: the two homoiconicities never share a
 substrate, and the bridge shape (reversible effect inside, observation
-outside) remains the only crossing.
+outside) remains the only crossing. Reversibility is reserved for
+system-facing code; user code is homoiconic and forgetful by design.
+
+## Reflection: quotes mention code (decided)
+
+Quotation marks mark *mention* instead of *use*, exactly as they do in
+English. A quote is the quoted code itself, as a value:
+
+```
+plan is "ask maybe"          ; plan names the code, not its result
+plan                         ; "ask maybe"
+dog ask "mood"               ; dog's code for mood (read)
+dog ask "mood" is plan       ; teach mood from a code value (write)
+cat ask "mood" is dog ask "mood"   ; copy a behavior
+world ask "go" is plan       ; running code is teaching it...
+ask go                       ; ...and asking
+```
+
+- **A quote is code.** `"…"` holds one statement — a chain, or even a
+  definition — parsed when it is read, never evaluated. Code values bind
+  to names, answer messages, and print in canonical spelling (word
+  operators, `a`/`an` chosen by the next word), so printed code can be
+  typed back in.
+- **Nesting alternates the marks**, as English prose does: inside a
+  quote the same mark closes and the other mark opens a deeper quote —
+  `"rex ask mood is 'ask maybe'"`. A quote that never closes is an
+  error, never a guess.
+- **A quoted message is mentioned, not sent.** In message position a
+  quoted name designates the receiver's code for that message, found by
+  the same lookup a send uses (innate, then taught up the lineage, then
+  hosted). Innate and C-hosted messages have no moop code, and say so.
+- **The quote moves across `is`.** `dog ask mood is ask maybe` and
+  `dog ask "mood" is "ask maybe"` teach the same thing: with the
+  unquoted designator the right side is written as code; with the quoted
+  designator the right side evaluates now (like a name designator) and
+  must be code. A block after a quoted designator evaluates now and its
+  last value must be code.
+- **Values never alias teachings.** Reading copies the code out;
+  teaching copies it in. Re-teaching cannot change a code value someone
+  already holds.
+- Quoted definitions are code too, but installing one as a message body
+  is refused — definitions cannot nest (yet), as in blocks.
+
+Derivation. *Forced by* ubiquitous homoiconicity: user code was data in
+RAM but unreachable as a value, so the user layer was homoiconic in
+storage only. *Compounds with* `is` (the quote moving across `is` means
+teaching needs no new form), delegation (reading follows the lineage
+exactly like a send), headless chains (a quoted headless chain is
+receiver-neutral code that addresses whoever it is taught to), and
+names (code binds like any value). *Deletion test*: running code needs
+no form of its own — teach it, then ask — so `eval` was derived away;
+quoting and reading are not covered by any existing rule (teaching
+mentions code only at definition time, and keeps it). *Naturalism*:
+quotation marks are written English's sign for mention.
+
+Costs, accepted: quotation marks now belong to code, so future string
+literals need another form; and taking code apart or building it from
+pieces waits for user-layer data operators and message arguments.
 
 ## Blocks (pythonic whitespace)
 
@@ -172,10 +230,13 @@ then C-hosted tables.
 (exchange); `x -> value` decodes a body. Interpreter bodies carry 8-cell
 A-loops: values 0..255.
 
+Reflection is implemented: quotes are code values, `x -> "m"` reads
+x's code for m, and `x -> "m" is code` teaches it (see above).
+
 Not implemented, and honestly erroring: number↔number bijections
 (general invertible functions — `celsius <-> fahrenheit` — remain the
-open design work), running files, reflection (reading a taught chain
-back as a value).
+open design work), running files, installing quoted definitions as
+message bodies (definitions cannot nest yet).
 
 ## Decisions
 
@@ -191,6 +252,9 @@ back as a value).
   level's receiver is the world (see above).
 - No creation word: the indefinite article births; `is` + article
   introduces, `is` alone aliases (see above).
+- Reflection by mention: quotes are code values; a quoted message reads
+  or (with `is`) writes a receiver's code; running code is teaching it
+  and asking (see above).
 
 ## Open questions
 
@@ -199,8 +263,10 @@ back as a value).
   into definable bijections is the next design step.
 - Whether inheritance interacts with `<->` (bijective inheritance would be
   strange — flag if it ever seems tempting).
-- Reflection: `is` stores chains as data, but the surface language
-  cannot yet read one back (quote a chain, inspect a body, rewrite a
-  teaching programmatically). The data is there; the mirror is missing.
-- String and boolean literal forms; whether the logic operator words
-  (and, or, nand, nor, xor) are keywords or ordinary messages.
+- Structural editing of code: taking a code value apart and building
+  one from pieces. Waits for user-layer data operators and message
+  arguments; with them, general bijections could be inverted by
+  reversing a chain of involutions.
+- String and boolean literal forms (quotation marks now mean code);
+  whether the logic operator words (and, or, nand, nor, xor) are
+  keywords or ordinary messages.

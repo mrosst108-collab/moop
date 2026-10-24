@@ -101,6 +101,50 @@ static Teaching *find_teaching(const MoopProto *owner,
     return NULL;
 }
 
+/* --- code as a value: user code is homoiconic --------------------------
+ * A quote, or a read of a teaching, yields a copy of the code; teaching
+ * from a code value copies it again. Values never alias a teaching, so
+ * re-teaching (which frees the old chain) cannot pull code out from
+ * under a name. Like births, code values live for the session. */
+
+static MoopCode *code_copy(MoopAst *const *lines, size_t n)
+{
+    MoopCode *code = malloc(sizeof *code);
+    MoopAst **copy = malloc(n * sizeof *copy);
+    if (code == NULL || copy == NULL) {
+        free(code);
+        free(copy);
+        return NULL;
+    }
+    for (size_t i = 0; i < n; i++) {
+        copy[i] = moop_ast_clone(lines[i]);
+        if (copy[i] == NULL) {
+            free_bodies(copy, i);
+            free(copy);
+            free(code);
+            return NULL;
+        }
+    }
+    *code = (MoopCode){ .lines = copy, .n = n };
+    return code;
+}
+
+void moop_code_write(FILE *out, const MoopCode *code)
+{
+    if (code->n == 1) {
+        fputc('"', out);
+        moop_ast_write(out, code->lines[0], code->lines[0]->root, 1);
+        fputs("\"\n", out);
+        return;
+    }
+    fputs("a block:\n", out);
+    for (size_t i = 0; i < code->n; i++) {
+        fputs("    ", out);
+        moop_ast_write(out, code->lines[i], code->lines[i]->root, 0);
+        fputc('\n', out);
+    }
+}
+
 /* Whoever a headless chain addresses. Taught bodies set it to the
  * object that was asked; between sends it is the world — the top level
  * is a body whose receiver is the world. */
@@ -177,6 +221,50 @@ static bool eval_teaching(const Teaching *t, MoopValue receiver,
     return ok;
 }
 
+static bool hosts(const MoopProto *p, const MoopNode *msg)
+{
+    for (size_t i = 0; i < p->hosted; i++)
+        if (strlen(p->messages[i].name) == msg->len &&
+            memcmp(p->messages[i].name, msg->start, msg->len) == 0)
+            return true;
+    return false;
+}
+
+/* Mention a message: the receiver's code for it, found by the same
+ * lookup a send uses (innate, then taught up the lineage, then hosted).
+ * Innate and C-hosted messages have no moop code, and say so. */
+static bool read_code(MoopProto *recv, const MoopNode *msg, MoopValue *out,
+                      char *err, size_t errlen)
+{
+    if (is_innate(msg)) {
+        snprintf(err, errlen, "%.*s is innate: it has no code",
+                 (int)msg->len, msg->start);
+        return false;
+    }
+    for (MoopProto *p = recv; p != NULL; p = p->parent) {
+        const Teaching *t = find_teaching(p, msg->start, msg->len);
+        if (t == NULL)
+            continue;
+        MoopCode *code = code_copy(t->bodies, t->nbodies);
+        if (code == NULL) {
+            snprintf(err, errlen, "out of memory");
+            return false;
+        }
+        *out = (MoopValue){ .kind = MOOP_VAL_CODE, .code = code };
+        return true;
+    }
+    for (MoopProto *p = recv; p != NULL; p = p->parent) {
+        if (hosts(p, msg)) {
+            snprintf(err, errlen, "\"%.*s\" is hosted in C: it has no code",
+                     (int)msg->len, msg->start);
+            return false;
+        }
+    }
+    snprintf(err, errlen, "nothing in the lineage hosts \"%.*s\"",
+             (int)msg->len, msg->start);
+    return false;
+}
+
 static bool eval_send(const MoopAst *ast, const MoopNode *node,
                       MoopValue *out, char *err, size_t errlen)
 {
@@ -185,6 +273,13 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
         return false;
 
     const MoopNode *msg = &ast->nodes[node->right];
+    bool mention = msg->kind == MOOP_NODE_QUOTE;
+    if (mention && !moop_quoted_name(ast, node->right)) {
+        snprintf(err, errlen, "a quoted message is a single name");
+        return false;
+    }
+    if (mention)
+        msg = &ast->nodes[msg->left];
     if (msg->kind != MOOP_NODE_WORD) {
         snprintf(err, errlen, "a message must be a name");
         return false;
@@ -193,6 +288,8 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
         snprintf(err, errlen, "only protos host messages (yet)");
         return false;
     }
+    if (mention)
+        return read_code(recv.proto, msg, out, err, errlen);
 
     /* dispatch: innate, then taught (delegating), then C-hosted */
     if (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) {
@@ -259,6 +356,46 @@ static bool teach_store(MoopProto *owner, const MoopNode *msg,
     memcpy(t->bodies, bodies, nbodies * sizeof *bodies);
     t->nbodies = nbodies;
     return true;
+}
+
+/* Teach a message from a code value. The quote moves across `is`:
+ * `x -> "m" is "c"` teaches exactly what `x -> m is c` does. */
+static bool teach_code(const MoopAst *ast, const MoopNode *designator,
+                       MoopValue recv, MoopValue code,
+                       char *err, size_t errlen)
+{
+    if (recv.kind != MOOP_VAL_PROTO) {
+        snprintf(err, errlen, "only protos host messages");
+        return false;
+    }
+    if (code.kind != MOOP_VAL_CODE) {
+        snprintf(err, errlen, "only code can be taught to a quoted message");
+        return false;
+    }
+    for (size_t i = 0; i < code.code->n; i++) {
+        const MoopAst *line = code.code->lines[i];
+        if (line->nodes[line->root].kind == MOOP_NODE_IS) {
+            snprintf(err, errlen, "definitions cannot nest (yet)");
+            return false;
+        }
+    }
+    MoopAst *bodies[BODY_MAX];
+    size_t n = code.code->n;
+    if (n > BODY_MAX) {
+        snprintf(err, errlen, "the definition body is too long");
+        return false;
+    }
+    for (size_t i = 0; i < n; i++) {
+        bodies[i] = moop_ast_clone(code.code->lines[i]);
+        if (bodies[i] == NULL) {
+            free_bodies(bodies, i);
+            snprintf(err, errlen, "out of memory");
+            return false;
+        }
+    }
+    const MoopNode *quote = &ast->nodes[designator->right];
+    return teach_store(recv.proto, &ast->nodes[quote->left], bodies, n,
+                       err, errlen);
 }
 
 static bool eval_teach(const MoopAst *ast, const MoopNode *designator,
@@ -329,6 +466,23 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
                             .number = strtol(buf, NULL, 10) };
         return true;
     }
+    case MOOP_NODE_QUOTE: {
+        MoopAst *line = moop_ast_clone(ast);
+        MoopCode *code = malloc(sizeof *code);
+        MoopAst **lines = malloc(sizeof *lines);
+        if (line == NULL || code == NULL || lines == NULL) {
+            moop_ast_free(line);
+            free(code);
+            free(lines);
+            snprintf(err, errlen, "out of memory");
+            return false;
+        }
+        line->root = node->left; /* the quoted statement, not the line */
+        lines[0] = line;
+        *code = (MoopCode){ .lines = lines, .n = 1 };
+        *out = (MoopValue){ .kind = MOOP_VAL_CODE, .code = code };
+        return true;
+    }
     case MOOP_NODE_SEND:
         return eval_send(ast, node, out, err, errlen);
     case MOOP_NODE_INHERIT: {
@@ -385,6 +539,15 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
             return false;
         }
         const MoopNode *lhs = &ast->nodes[node->left];
+        if (lhs->kind == MOOP_NODE_SEND &&
+            moop_quoted_name(ast, lhs->right)) {
+            MoopValue recv, code;
+            if (!eval_node(ast, lhs->left, &recv, err, errlen) ||
+                !eval_node(ast, node->right, &code, err, errlen))
+                return false;
+            *out = code;
+            return teach_code(ast, lhs, recv, code, err, errlen);
+        }
         if (lhs->kind == MOOP_NODE_SEND)
             return eval_teach(ast, lhs, node->right, out, err, errlen);
         MoopValue value;
@@ -414,6 +577,16 @@ bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
 {
     const MoopNode *root = &head->nodes[head->root];
     const MoopNode *lhs = &head->nodes[root->left];
+
+    if (lhs->kind == MOOP_NODE_SEND && moop_quoted_name(head, lhs->right)) {
+        /* the code designator evaluates its block now, like a name */
+        MoopValue recv, code = { .kind = MOOP_VAL_BOOL, .truth = false };
+        bool ok = eval_node(head, lhs->left, &recv, err, errlen);
+        for (size_t i = 0; ok && i < nbodies; i++)
+            ok = eval_node(bodies[i], bodies[i]->root, &code, err, errlen);
+        free_bodies(bodies, nbodies);
+        return ok && teach_code(head, lhs, recv, code, err, errlen);
+    }
 
     if (lhs->kind == MOOP_NODE_SEND) {
         MoopValue recv;

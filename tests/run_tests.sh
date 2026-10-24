@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.6.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.7.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -72,6 +72,31 @@ exp=$(printf 'box is a world\nbox -> value\nn is box -> value\nn <-> box\nbox ->
 e1=$(echo "$exp" | sed -n 1p); e2=$(echo "$exp" | sed -n 2p); e3=$(echo "$exp" | sed -n 3p)
 check "depositing an observed value exports it" "0" "$e2"
 check "the held value restores the body" "$e1" "$e3"
+
+# reflection: quotes mention code, so user code is a value
+# R 'lines' [n]: run lines in a fresh REPL, print the last n output lines
+R() {
+    printf "$1\nquit\n" | "$BIN" 2>&1 |
+        sed -e ':a' -e 's/^moop> //' -e 'ta' -e 's/^\.\.\.\.> //' -e 'ta' -e '/^$/d' |
+        tail -n "${2:-1}"
+}
+check "a quote is code, not its result" '"ask maybe"' "$(R 'plan is "ask maybe"\nplan')"
+check "code is written in canonical words" '"dog ask mood mirrors an animal"' "$(R 'x is "dog -> mood <-> a animal"\nx')"
+check "a quoted message reads the taught code" '"ask maybe"' "$(R 'dog is a world\ndog ask mood is ask maybe\ndog ask "mood"')"
+check "reading follows the lineage like a send" '"ask maybe"' "$(R 'dog is a world\ndog ask mood is ask maybe\nrex is a dog\nrex ask "mood"')"
+check "teaching from code installs it" "9" "$(R 'dog is a world\ndog ask "mood" is "9"\ndog ask mood')"
+check "the quote moves across is" "$(R 'd is a world\nd ask m is ask maybe\nd ask "m"')" "$(R 'd is a world\nd ask "m" is "ask maybe"\nd ask "m"')"
+check "behaviors copy as code" "42" "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ncat is a world\ncat ask "both" is dog ask "both"\ncat ask both')"
+check "block code reads back as a block" "a block:" "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ndog ask "both"' 3 | head -n 1)"
+check "code values do not alias teachings" '"1"' "$(R 'dog is a world\ndog ask m is 1\nold is dog ask "m"\ndog ask m is 2\nold')"
+check "nested quotes alternate the marks" "\"rex ask mood is 'ask maybe'\"" "$(R "meta is \"rex ask mood is 'ask maybe'\"\nmeta")"
+check "code that answers code reads back nested" "\"'ask maybe'\"" "$(R 'dog is a world\ndog ask tpl is "ask maybe"\ndog ask "tpl"')"
+check "running code is teaching it, then asking" "a proto" "$(R 'world ask "go" is "a world"\nask go')"
+check "innate messages have no code" "error: maybe is innate: it has no code" "$(R 'world ask "maybe"')"
+check "only code is taught to a quoted message" "error: only code can be taught to a quoted message" "$(R 'dog is a world\ndog ask "mood" is 5')"
+check "quoted definitions cannot be installed (yet)" "error: definitions cannot nest (yet)" "$(R 'dog is a world\ndog ask "m" is "x is 1"')"
+check "a quoted message is a single name" "error: a quoted message is a single name" "$(R 'world ask "ask maybe"')"
+check "an unclosed quote is reported" "error: a quote is never closed" "$(R 'x is "ask maybe')"
 
 # honesty: what is not implemented says so
 check "oversized values are refused, not truncated" "error: an 8-cell loop carries at most 255" "$(printf 'c is a world\n256 <-> c\nquit\n' | "$BIN" 2>&1 >/dev/null)"

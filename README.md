@@ -93,6 +93,23 @@ chain` (the body is stored as a chain — code as data — and runs at each
 send addressed to the receiver — headless chains like `ask maybe` speak to it), delegate up the lineage,
 override in children.
 
+User code is homoiconic: quotation marks mention code instead of using
+it, so code is a value you can name, read back, and teach.
+
+```
+moop> plan is "ask maybe"
+moop> plan
+"ask maybe"
+moop> cat is a world
+moop> cat ask mood is 9
+moop> cat ask "mood"
+"9"
+moop> dog is a world
+moop> dog ask "mood" is cat ask "mood"
+moop> dog ask mood
+9
+```
+
 `world` is the user-facing root proto, generated at startup by the system
 actor through the system root. `maybe` draws a replayable truth from a
 proto's reversible body; `value` decodes a body's loop A as a number. `<->` compiles to real gates and every form is an
