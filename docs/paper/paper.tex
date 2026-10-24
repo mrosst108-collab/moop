@@ -1071,8 +1071,8 @@ Proposition~\ref{prop:inverse}. NOT, CNOT and CCNOT build every even
 permutation of $n$-bit values ($n\ge4$), and every permutation with one
 extra bit~\cite{shende2003}. Reversing a
 chain is an operation on code as data. \moop{}'s reflection (below)
-makes code a value, but not yet one that can be taken apart, so this
-route still needs structural editing of code.
+makes code a value that can be taken apart, but not yet assembled, so
+this route still needs a way to join code.
 
 \paragraph{Layered homoiconicity: reversible where system-facing.}
 \moop{}'s user code is homoiconic in its own medium: a taught message
@@ -1114,11 +1114,30 @@ The quote moves across \code{is}: \code{x ask m is c} and
 form. Running a code value needed none either---teach it, then ask---so
 by the deletion test there is no \code{eval}. Reads and writes copy, so
 a code value never aliases a teaching. Code prints back in canonical
-spelling, which can be typed in again. What reflection does not yet
-provide is structural editing: code can be named, read, copied, and
-installed, but not taken apart or assembled from pieces. That waits for
-user-layer data operators and message arguments, which \moop{} does not
-have for any kind of data yet.
+spelling, which can be typed in again.
+
+Code also comes apart. Every code value answers two innate messages, as
+every proto answers \code{maybe} and \code{value}: \code{first} is its
+first part and \code{rest} is the code that follows it. A block's parts
+are its lines; a definition's are what it defines and what it is; a
+chain's are its head term and then its steps:
+\begin{Verbatim}[fontsize=\small,xleftmargin=2em]
+moop> plan is "dog ask mood mirrors 5"
+moop> plan ask rest
+"ask mood mirrors 5"
+moop> plan ask rest ask first
+"ask mood"
+moop> plan ask rest ask rest ask rest
+"5"
+\end{Verbatim}
+Headless chains are what make this work: because a chain may begin with
+an operator, whatever follows a chain's first part is always well-formed
+code, so every answer prints, re-enters, and can be taught. An operator
+is a part but not code on its own, so \code{first} refuses it. Taking
+code apart and teaching the pieces is editing by selection. What
+reflection does not yet provide is assembly: joining two code values
+needs a binary form or message arguments, which \moop{} does not have
+for any kind of data yet.
 
 %======================================================================
 \section{Method and reproducibility}
@@ -1159,8 +1178,8 @@ and the generator's rewind.
 \item \textbf{Structural, not instruction-level, homoiconicity.} There
   is no instruction encoding on the tapes, so our results concern state,
   not code in the usual sense. At the user layer, code is a value
-  (reflection by quotation) but cannot yet be taken apart or built from
-  pieces.
+  (reflection by quotation) that can be taken apart but not yet
+  assembled from pieces.
 \item \textbf{The orbit-level property is not universal.} Observation~%
   \ref{obs:restoring} is exhaustive only up to $a+b\le22$, for one wiring,
   and it has exceptions; we have no characterisation of them.
@@ -1248,8 +1267,8 @@ The most direct next steps are:
   running language prune;
 \item enforce the segregation with a type or effect system that has
   Theorem~\ref{thm:transcript} as a soundness result;
-\item add structural editing of code values, enabling inversion by
-  reversal;
+\item add assembly of code from parts (taking it apart exists),
+  enabling inversion by reversal;
 \item look for universality with unbounded loops or a ring of gates;
 \item reclaim pruned cells (shrinking the loops) rather than zeroing
   them in place.
@@ -1367,6 +1386,7 @@ commit & change & rationale recorded \\
 \code{5c17b4c} & \code{generate} removed (the article) & deletion test: introduction instantiates \\
 \code{0dd9521} & births as create + observe + deposit & the bridge shape; deletion test on birth as a crossing \\
 \code{4ca5af7} & reflection: quotes mention code & ubiquitous homoiconicity; deletion test removes \code{eval} \\
+\code{0acdfc6} & code answers \code{first} and \code{rest} & homoiconicity: code that cannot be examined is not data \\
 \bottomrule
 \end{tabular}
 \caption{Selected commits and the rationale each records.}
