@@ -1078,9 +1078,10 @@ the sequence---exactly the shape of $\textsf{F}\circ\textsf{R}^{-1}$ in
 Proposition~\ref{prop:inverse}. NOT, CNOT and CCNOT build every even
 permutation of $n$-bit values ($n\ge4$), and every permutation with one
 extra bit~\cite{shende2003}. Reversing a
-chain is an operation on code as data. \moop{}'s reflection (below)
-makes code a value that can be taken apart, but not yet assembled, so
-this route still needs a way to join code.
+chain is an operation on code as data, and \moop{}'s reflection (below)
+can take code apart and join it; what is still missing is a way to do
+so repeatedly---conditionals or recursion over code---so reversal is
+expressible piece by piece but not yet as one general procedure.
 
 \paragraph{Layered homoiconicity: reversible where system-facing.}
 \moop{}'s user code is homoiconic in its own medium: a taught message
@@ -1127,8 +1128,8 @@ spelling, which can be typed in again.
 Code also comes apart. Every code value answers two innate messages, as
 every proto answers \code{maybe} and \code{value}: \code{first} is its
 first part and \code{rest} is the code that follows it. A block's parts
-are its lines; a definition's are what it defines and what it is; a
-chain's are its head term and then its steps:
+are its lines; a definition's are its head and its body; a chain's are
+its head term and then its steps:
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
 moop> plan is "dog -> mood <-> 5"
 moop> plan -> rest
@@ -1140,12 +1141,36 @@ moop> plan -> rest -> rest -> rest
 \end{Verbatim}
 Headless chains are what make this work: because a chain may begin with
 an operator, whatever follows a chain's first part is always well-formed
-code, so every answer prints, re-enters, and can be taught. An operator
-is a part but not code on its own, so \code{first} refuses it. Taking
-code apart and teaching the pieces is editing by selection. What
-reflection does not yet provide is assembly: joining two code values
-needs a binary form or message arguments, which \moop{} does not have
-for any kind of data yet.
+code, so every answer prints, re-enters, and can be taught.
+
+Code also goes back together. On two code values, \code{<-} joins them:
+\code{x <- y} is $x$ followed by $y$, the right flowing into the left as
+a parent's behaviour flows into a child. It had to be \code{<-}: joining
+needs a form whose two operands are both evaluated, and of \moop{}'s
+forms only \code{<-} and \code{<->} evaluate both sides, while
+\code{<->} belongs to gate-backed involutions. Joining is the exact
+inverse of taking apart---for every code value $c$ that has a rest,
+\code{(c -> first) <- (c -> rest)} gives $c$ back:
+\begin{Verbatim}[fontsize=\small,xleftmargin=2em]
+moop> plan is "dog -> mood <-> 5"
+moop> f is plan -> first
+moop> r is plan -> rest
+moop> f <- r
+"dog -> mood <-> 5"
+moop> "dog" <- "->" <- "mood"
+"dog -> mood"
+moop> plan -> rest -> rest -> first
+"<->"
+\end{Verbatim}
+That law forced two refinements. Parts still waiting for a piece---an
+operator, an article, a definition's head \code{"rex -> mood is"}, the
+joint \code{"is"}---are \emph{fragments}: code that can be quoted,
+printed, and joined, but is never taught or run. And a block stays a
+block even when one line is left, so that joining lines is never
+confused with extending a chain. Two single lines join as their texts
+side by side, read back as code, so pieces that do not read as code do
+not join. Taking code apart and putting it back together, then teaching
+the result, is structural editing.
 
 %======================================================================
 \section{Method and reproducibility}
@@ -1186,8 +1211,9 @@ and the generator's rewind.
 \item \textbf{Structural, not instruction-level, homoiconicity.} There
   is no instruction encoding on the tapes, so our results concern state,
   not code in the usual sense. At the user layer, code is a value
-  (reflection by quotation) that can be taken apart but not yet
-  assembled from pieces.
+  (reflection by quotation) that can be taken apart and joined, but not
+  yet wrapped in a quote, and without conditionals it can only be edited
+  piece by piece.
 \item \textbf{The orbit-level property is not universal.} Observation~%
   \ref{obs:restoring} is exhaustive only up to $a+b\le22$, for one wiring,
   and it has exceptions; we have no characterisation of them.
@@ -1275,8 +1301,9 @@ The most direct next steps are:
   running language prune;
 \item enforce the segregation with a type or effect system that has
   Theorem~\ref{thm:transcript} as a soundness result;
-\item add assembly of code from parts (taking it apart exists),
-  enabling inversion by reversal;
+\item add conditionals or recursion over code, so that reversing a
+  chain of involutions becomes a procedure, and a way to wrap code in a
+  quote;
 \item look for universality with unbounded loops or a ring of gates;
 \item reclaim pruned cells (shrinking the loops) rather than zeroing
   them in place.
@@ -1399,6 +1426,7 @@ commit & change & rationale recorded \\
 \code{4ca5af7} & reflection: quotes mention code & ubiquitous homoiconicity; deletion test removes \code{eval} \\
 \code{0acdfc6} & code answers \code{first} and \code{rest} & homoiconicity: code that cannot be examined is not data \\
 \code{a119376} & arrows canonical; \code{<-} declares inheritance & Io-like grammar, Quorum-like vocabulary; who-made-you apart from whom-you-defer-to \\
+\code{024a607} & \code{<-} joins code; fragments & homoiconicity: parts must go back together; the inverse law \\
 \bottomrule
 \end{tabular}
 \caption{Selected commits and the rationale each records.}
