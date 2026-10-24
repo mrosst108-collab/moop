@@ -43,7 +43,12 @@ but running code did not need a form of its own (teach it, then ask), so
 `eval` died before it was born. Taking code apart then cost no syntax at
 all: code answers `first` and `rest` the way protos answer `maybe`, and
 headless chains — themselves the residue of deleting `self` — are what
-make every `rest` well-formed code.
+make every `rest` well-formed code. Putting it back together needed a
+form with two evaluated operands; only `<-` was free for code, and its
+reading (the right flows into the left) already fit, so `<-` joins
+code. The law that joining undoes taking apart is what derived
+fragments: without them an operator or a definition's joint would be a
+part that cannot be joined back.
 
 ## 2. Derived from ancestors, without delegating to them
 

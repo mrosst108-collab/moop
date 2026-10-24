@@ -195,7 +195,7 @@ Costs, accepted: quotation marks now belong to code, so future string
 literals need another form; and building code from pieces waits for
 user-layer data operators and message arguments.
 
-## Taking code apart: first and rest (decided)
+## Taking code apart and building it: first, rest, and `<-` (decided)
 
 Code is a sequence of parts. Every code value answers two innate
 messages, the way every proto answers `maybe` and `value`: `first` is
@@ -210,38 +210,70 @@ plan -> rest -> rest           ; "<-> 5"
 plan -> rest -> rest -> rest   ; "5"
 ```
 
-| code | its parts |
-|---|---|
-| a block | its lines |
-| a definition | what it defines, then what it is (`is` is the joint, as line breaks are in a block) |
-| a chain | its head term, then its steps |
-| a headless chain | its first step, then the remaining steps |
-| one step | its operator, then its operand |
-| a birth | its article, then the term it births from |
-| a quote | its inside |
+| code | `first` | `rest` |
+|---|---|---|
+| a block | its first line | the rest of the block (still a block) |
+| a definition | its head, `"rex -> mood is"` | its body |
+| a head | its designator | the joint, `"is"` |
+| a chain | its head term | its steps (a headless chain) |
+| a headless chain | its first step | the remaining steps |
+| one step | its operator, `"->"` | its operand |
+| a birth | its article, `"a"` | the term it births from |
+| a quote | its inside | — |
 
-- **Every answer is code**: it prints, can be typed back in, and can be
-  taught — `dog -> "m" is plan -> rest` installs a piece of plan.
-  Taking apart plus teaching from code is editing by selection.
-- **An operator or an article is a part but not code on its own**, so
-  `first` refuses it and says so; the part stays visible in the printed
-  step (`"<-> 5"`). A single word or number has no parts.
+- **Every part is code**, and it prints, can be typed back in, and can be
+  joined. A part still waiting for a piece — an operator, an article, a
+  head, the joint — is a **fragment**: `"->"`, `"dog ->"`, `"a"`,
+  `"rex -> mood is"`, `"is"`. Fragments can be quoted, named and joined,
+  but are never taught or run (the interpreter refuses: a fragment is not
+  whole code). A single word, number, operator, article or joint has no
+  parts.
+- **Blocks stay blocks.** The rest of a block is a block even when one
+  line is left, and a block written with one line reads back as one —
+  printed `a block:` — so lines and steps are never confused.
 - Code answers only `first` and `rest`. The names are innate to code
   values only; protos can still be taught messages called `first` or
   `rest`.
 
+**`<-` joins code**: `x <- y` is the code x followed by y — the right
+flows into the left, as a parent's behavior flows into a child. Joining
+is the exact inverse of taking apart: for any code `c` that has a rest,
+`(c -> first) <- (c -> rest)` gives `c` back.
+
+```
+"dog" <- "->" <- "mood"          ; "dog -> mood"   (left to right)
+"rex" <- "is" <- "42"            ; "rex is 42"
+"-> mood" <- "<-> 5"             ; "-> mood <-> 5"
+dog -> "m" is "->" <- "seven"    ; assembled code can be taught
+```
+
+- Two lines join as their texts side by side, read back as code (and
+  printed canonically); pieces that do not read as code do not join
+  (`"dog" <- "cat"` is refused). The result may be a fragment
+  (`"dog" <- "->"`), so code builds left to right like writing.
+- When either side is a block, the other's lines follow or precede its
+  lines. A fragment is never a line.
+- `<-` joins code to code, or makes a proto inherit from a proto; mixing
+  the two is refused.
+
 Derivation. *Forced by* homoiconicity: code that can be held but not
-examined is a value, not data. *Compounds with* headless chains — a
+examined is a value, not data, and code that can be taken apart but
+not rebuilt is not editable. *Compounds with* headless chains — a
 chain may begin with an operator, so whatever follows a chain's first
 part is always well-formed code; that is what makes `rest` total — and
 with quotation (parts print and re-enter) and teaching from code (parts
-can be installed). *Deletion test*: no existing rule yields a part of
-code. Two messages, no new syntax and no reserved words: code answers
-innate messages through the same `ask` every proto does.
+and assemblies can be installed). Joining needs a form with two
+evaluated operands; of moop's forms only `<-` and `<->` evaluate both
+sides, and `<->` belongs to gate-backed involutions, so joining is
+`<-` — whose reading, the right flowing into the left, already fit.
+Fragments are what the inverse law forces: without them an operator,
+an article or a definition's joint would be a part that cannot be
+joined back. *Deletion test*: no existing rule yields a part of code
+or puts parts together. No new syntax and no reserved words.
 
-Not yet: assembling code from pieces. Joining two code values needs a
-binary form or message arguments, and moop has neither for any kind of
-data yet.
+Not yet: wrapping code in a quote (the inverse of a quote's `first`),
+and doing anything conditional or repeated with code — moop has no
+conditionals or recursion over data yet.
 
 ## Blocks (pythonic whitespace)
 
@@ -317,8 +349,9 @@ message bodies (definitions cannot nest yet).
 - Reflection by mention: quotes are code values; a quoted message reads
   or (with `is`) writes a receiver's code; running code is teaching it
   and asking (see above).
-- Code is taken apart by `first` and `rest`, innate to code values; every
-  part is code (see above).
+- Code is taken apart by `first` and `rest`, innate to code values, and
+  put back together by `<-`; every part is code, fragments included, and
+  `(c -> first) <- (c -> rest)` gives `c` back (see above).
 
 ## Open questions
 
@@ -327,9 +360,9 @@ message bodies (definitions cannot nest yet).
   into definable bijections is the next design step.
 - Whether inheritance interacts with `<->` (bijective inheritance would be
   strange — flag if it ever seems tempting).
-- Assembling code from pieces (taking it apart exists). Waits for a
-  binary form or message arguments; with it, general bijections could be
-  inverted by reversing a chain of involutions.
+- Wrapping code in a quote (the one shape joining cannot rebuild), and
+  conditionals or recursion over code — with them, general bijections
+  could be inverted by reversing a chain of involutions as a procedure.
 - String and boolean literal forms (quotation marks now mean code);
   whether the logic operator words (and, or, nand, nor, xor) are
   keywords or ordinary messages.

@@ -13,6 +13,8 @@
  *   term      := ("a" | "an") term | WORD | NUMBER | quote
  *   quote     := '"' statement '"'                ; marks alternate " '
  *                                                 ; when quotes nest
+ *                                                 ; (a quote may hold a
+ *                                                 ; fragment, see below)
  *
  * `a -> b -> c` is ((a -> b) -> c): a pipeline, reading left to right.
  * The arrows are canonical; the words ask, inherits and mirrors are
@@ -85,9 +87,27 @@ void moop_ast_free(MoopAst *ast);
 /* True if node idx is a quote of a single name: "mood". */
 bool moop_quoted_name(const MoopAst *ast, int idx);
 
+/* Parse text as quoted code (what sits between quotation marks): one
+ * statement, which may be a FRAGMENT — code still waiting for its last
+ * piece: it ends on an operator (`dog ->`), an article (`a`), or `is`
+ * (`rex -> mood is`), or it is the joint `is` alone. Fragments exist so
+ * that every part of code is code and joining parts gives code back;
+ * they print and join, but are never taught or run. */
+bool moop_parse_code(const char *src, size_t len, MoopAst *ast,
+                     char *err, size_t errlen);
+
+/* True if the statement at idx is whole code: no fragment anywhere
+ * outside its quotes. */
+bool moop_ast_whole(const MoopAst *ast, int idx);
+
 /* Write the statement rooted at idx back out in canonical spelling
  * (arrows; `a`/`an` by the next word) — the inverse of parsing. depth is the quoting depth of the
  * surroundings (0 at top level); nested quotes alternate " and '. */
 void moop_ast_write(FILE *out, const MoopAst *ast, int idx, int depth);
+
+/* The same, into buf (snprintf-style: returns the full length, writes
+ * at most cap - 1 characters and a terminating NUL). */
+size_t moop_ast_format(char *buf, size_t cap, const MoopAst *ast, int idx,
+                       int depth);
 
 #endif

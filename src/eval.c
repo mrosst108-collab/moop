@@ -78,6 +78,7 @@ typedef struct {
     char *name;
     MoopAst *bodies[BODY_MAX];  /* owned deep copies */
     size_t nbodies;
+    bool block;                 /* written as a block (reads back as one) */
 } Teaching;
 
 #define TEACHINGS_MAX 128
@@ -107,7 +108,7 @@ static Teaching *find_teaching(const MoopProto *owner,
  * re-teaching (which frees the old chain) cannot pull code out from
  * under a name. Like births, code values live for the session. */
 
-static MoopCode *code_copy(MoopAst *const *lines, size_t n)
+static MoopCode *code_copy(MoopAst *const *lines, size_t n, bool block)
 {
     MoopCode *code = malloc(sizeof *code);
     MoopAst **copy = malloc(n * sizeof *copy);
@@ -125,13 +126,13 @@ static MoopCode *code_copy(MoopAst *const *lines, size_t n)
             return NULL;
         }
     }
-    *code = (MoopCode){ .lines = copy, .n = n };
+    *code = (MoopCode){ .lines = copy, .n = n, .block = block };
     return code;
 }
 
 void moop_code_write(FILE *out, const MoopCode *code)
 {
-    if (code->n == 1) {
+    if (!code->block) {
         fputc('"', out);
         moop_ast_write(out, code->lines[0], code->lines[0]->root, 1);
         fputs("\"\n", out);
@@ -221,32 +222,29 @@ static bool eval_teaching(const Teaching *t, MoopValue receiver,
     return ok;
 }
 
-/* --- taking code apart: first and rest ----------------------------------
- * Code is a sequence of parts; `first` answers the first part and `rest`
- * the code that follows it. Every answer is code that could have been
- * typed, so it prints, re-enters, and can be taught:
- *   a block           its lines
- *   a definition      what it defines, then what it is (`is` is the
- *                     joint between them, as line breaks are in blocks)
+/* --- taking code apart and putting it together --------------------------
+ * Code is a sequence of parts. `first` answers the first part, `rest`
+ * the code after it, and `<-` joins code back together: `x <- y` is x
+ * followed by y. Every part is code, so for any code c that has a
+ * rest, `(c -> first) <- (c -> rest)` gives c back:
+ *   a block           its first line, then the rest of the block
+ *   a definition      its head (`rex -> mood is`), then its body
+ *   a head            its designator, then the joint `is`
  *   a chain           its head term, then its steps — the rest is a
  *                     headless chain, which is why every rest is code
  *   a headless chain  its first step, then the remaining steps
  *   one step          its operator, then its operand
  *   a birth           its article, then the term it births from
- *   a quote           its inside
- * An operator or an article is a part but not code on its own, so
- * `first` refuses it; a single word or number has no parts. */
+ *   a quote           its inside, and nothing after
+ * Parts still waiting for a piece — an operator, an article, a head,
+ * the joint — are FRAGMENTS: code that prints and joins but is never
+ * taught or run. A single word, number, operator, article or joint has
+ * no parts. */
 
 static bool is_op(MoopNodeKind kind)
 {
     return kind == MOOP_NODE_SEND || kind == MOOP_NODE_INHERIT ||
            kind == MOOP_NODE_BIJECT;
-}
-
-static const char *op_name(MoopNodeKind kind)
-{
-    return kind == MOOP_NODE_SEND ? "->" :
-           kind == MOOP_NODE_INHERIT ? "<-" : "<->";
 }
 
 /* One line of code: a copy of src whose statement is rooted at root.
@@ -274,14 +272,40 @@ static MoopCode *code_of_line(MoopAst *line)
     return code;
 }
 
+/* A part that waits for its last piece: the node at idx, with its
+ * left (`is` joint, article) or right (operand, body) piece cut off. */
+static MoopCode *fragment(const MoopAst *src, int idx, bool cut_left)
+{
+    MoopAst *line = line_at(src, idx);
+    if (line != NULL) {
+        if (cut_left)
+            line->nodes[idx].left = -1;
+        else
+            line->nodes[idx].right = -1;
+    }
+    return code_of_line(line);
+}
+
+static bool no_parts(const char *what, char *err, size_t errlen)
+{
+    snprintf(err, errlen, "a single %s has no parts", what);
+    return false;
+}
+
 static bool code_part(const MoopCode *code, bool first, MoopValue *out,
                       char *err, size_t errlen)
 {
     MoopCode *part = NULL;
-    if (code->n > 1) {
-        part = first ? code_of_line(line_at(code->lines[0],
-                                            code->lines[0]->root))
-                     : code_copy(code->lines + 1, code->n - 1);
+    if (code->block) {
+        if (first) {
+            part = code_of_line(line_at(code->lines[0],
+                                        code->lines[0]->root));
+        } else if (code->n == 1) {
+            snprintf(err, errlen, "nothing follows the block's last line");
+            return false;
+        } else {
+            part = code_copy(code->lines + 1, code->n - 1, true);
+        }
         goto done;
     }
 
@@ -289,15 +313,20 @@ static bool code_part(const MoopCode *code, bool first, MoopValue *out,
     const MoopNode *root = &src->nodes[src->root];
     switch (root->kind) {
     case MOOP_NODE_IS:
-        part = code_of_line(line_at(src, first ? root->left : root->right));
+        if (root->left < 0)
+            return no_parts("joint (is)", err, errlen);
+        if (root->right < 0) /* a head: its designator, then the joint */
+            part = first ? code_of_line(line_at(src, root->left))
+                         : fragment(src, src->root, true);
+        else
+            part = first ? fragment(src, src->root, false)
+                         : code_of_line(line_at(src, root->right));
         goto done;
     case MOOP_NODE_BIRTH:
-        if (first) {
-            snprintf(err, errlen, "the first part is the article, which "
-                     "is not code on its own");
-            return false;
-        }
-        part = code_of_line(line_at(src, root->left));
+        if (root->left < 0)
+            return no_parts("article", err, errlen);
+        part = first ? fragment(src, src->root, true)
+                     : code_of_line(line_at(src, root->left));
         goto done;
     case MOOP_NODE_QUOTE:
         if (!first) {
@@ -309,9 +338,8 @@ static bool code_part(const MoopCode *code, bool first, MoopValue *out,
         goto done;
     case MOOP_NODE_WORD:
     case MOOP_NODE_NUMBER:
-        snprintf(err, errlen, "a single %s has no parts",
-                 root->kind == MOOP_NODE_WORD ? "word" : "number");
-        return false;
+        return no_parts(root->kind == MOOP_NODE_WORD ? "word" : "number",
+                        err, errlen);
     default:
         break;
     }
@@ -336,12 +364,10 @@ static bool code_part(const MoopCode *code, bool first, MoopValue *out,
             part = code_of_line(line);
         }
     } else if (above == -1) {
-        if (first) {
-            snprintf(err, errlen, "the first part is the operator %s, "
-                     "which is not code on its own", op_name(lowest->kind));
-            return false;
-        }
-        part = code_of_line(line_at(src, lowest->right));
+        if (lowest->right < 0)
+            return no_parts("operator", err, errlen);
+        part = first ? fragment(src, step, false)
+                     : code_of_line(line_at(src, lowest->right));
     } else if (first) {
         part = code_of_line(line_at(src, step));
     } else {
@@ -358,6 +384,64 @@ done:
         return false;
     }
     *out = (MoopValue){ .kind = MOOP_VAL_CODE, .code = part };
+    return true;
+}
+
+/* `x <- y` on code: y follows x. When either side is a block, its lines
+ * follow the other side's lines; otherwise the two are read as one line,
+ * their texts side by side — so joining is exactly the inverse of
+ * taking apart, and the answer is canonical code. */
+static bool code_join(const MoopCode *x, const MoopCode *y, MoopValue *out,
+                      char *err, size_t errlen)
+{
+    MoopCode *joined = NULL;
+    if (x->block || y->block) {
+        const MoopCode *sides[2] = { x, y };
+        for (size_t s = 0; s < 2; s++)
+            for (size_t i = 0; i < sides[s]->n; i++) {
+                const MoopAst *l = sides[s]->lines[i];
+                if (!moop_ast_whole(l, l->root)) {
+                    snprintf(err, errlen, "a line of a block must be whole "
+                             "code, not a fragment");
+                    return false;
+                }
+            }
+        MoopAst *lines[2 * BODY_MAX];
+        if (x->n + y->n > sizeof lines / sizeof lines[0]) {
+            snprintf(err, errlen, "the joined block is too long");
+            return false;
+        }
+        memcpy(lines, x->lines, x->n * sizeof *lines);
+        memcpy(lines + x->n, y->lines, y->n * sizeof *lines);
+        joined = code_copy(lines, x->n + y->n, true);
+    } else {
+        const MoopAst *a = x->lines[0], *b = y->lines[0];
+        size_t la = moop_ast_format(NULL, 0, a, a->root, 1);
+        size_t lb = moop_ast_format(NULL, 0, b, b->root, 1);
+        char *text = malloc(la + lb + 2);
+        if (text == NULL) {
+            snprintf(err, errlen, "out of memory");
+            return false;
+        }
+        moop_ast_format(text, la + 1, a, a->root, 1);
+        text[la] = ' ';
+        moop_ast_format(text + la + 1, lb + 1, b, b->root, 1);
+        MoopAst ast;
+        char why[96];
+        bool ok = moop_parse_code(text, la + 1 + lb, &ast, why, sizeof why);
+        MoopAst *line = ok ? moop_ast_clone(&ast) : NULL;
+        free(text);
+        if (!ok) {
+            snprintf(err, errlen, "these do not join: %s", why);
+            return false;
+        }
+        joined = code_of_line(line);
+    }
+    if (joined == NULL) {
+        snprintf(err, errlen, "out of memory");
+        return false;
+    }
+    *out = (MoopValue){ .kind = MOOP_VAL_CODE, .code = joined };
     return true;
 }
 
@@ -385,7 +469,7 @@ static bool read_code(MoopProto *recv, const MoopNode *msg, MoopValue *out,
         const Teaching *t = find_teaching(p, msg->start, msg->len);
         if (t == NULL)
             continue;
-        MoopCode *code = code_copy(t->bodies, t->nbodies);
+        MoopCode *code = code_copy(t->bodies, t->nbodies, t->block);
         if (code == NULL) {
             snprintf(err, errlen, "out of memory");
             return false;
@@ -476,7 +560,7 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
 
 /* Store a teaching, taking ownership of the bodies (freed on failure). */
 static bool teach_store(MoopProto *owner, const MoopNode *msg,
-                        MoopAst **bodies, size_t nbodies,
+                        MoopAst **bodies, size_t nbodies, bool block,
                         char *err, size_t errlen)
 {
     if (is_innate(msg)) {
@@ -504,6 +588,7 @@ static bool teach_store(MoopProto *owner, const MoopNode *msg,
     }
     memcpy(t->bodies, bodies, nbodies * sizeof *bodies);
     t->nbodies = nbodies;
+    t->block = block;
     return true;
 }
 
@@ -523,6 +608,11 @@ static bool teach_code(const MoopAst *ast, const MoopNode *designator,
     }
     for (size_t i = 0; i < code.code->n; i++) {
         const MoopAst *line = code.code->lines[i];
+        if (!moop_ast_whole(line, line->root)) {
+            snprintf(err, errlen, "a fragment is not whole code: it still "
+                     "waits for its last piece");
+            return false;
+        }
         if (line->nodes[line->root].kind == MOOP_NODE_IS) {
             snprintf(err, errlen, "definitions cannot nest (yet)");
             return false;
@@ -544,7 +634,7 @@ static bool teach_code(const MoopAst *ast, const MoopNode *designator,
     }
     const MoopNode *quote = &ast->nodes[designator->right];
     return teach_store(recv.proto, &ast->nodes[quote->left], bodies, n,
-                       err, errlen);
+                       code.code->block, err, errlen);
 }
 
 static bool eval_teach(const MoopAst *ast, const MoopNode *designator,
@@ -566,7 +656,7 @@ static bool eval_teach(const MoopAst *ast, const MoopNode *designator,
     body->root = bodyidx; /* the stored chain, not the whole definition */
 
     if (!teach_store(recv.proto, &ast->nodes[designator->right],
-                     &body, 1, err, errlen))
+                     &body, 1, false, err, errlen))
         return false;
     *out = (MoopValue){ .kind = MOOP_VAL_BOOL, .truth = true };
     return true;
@@ -632,6 +722,13 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         if (!eval_node(ast, node->left, &child, err, errlen) ||
             !eval_node(ast, node->right, &parent, err, errlen))
             return false;
+        if (child.kind == MOOP_VAL_CODE && parent.kind == MOOP_VAL_CODE)
+            return code_join(child.code, parent.code, out, err, errlen);
+        if (child.kind == MOOP_VAL_CODE || parent.kind == MOOP_VAL_CODE) {
+            snprintf(err, errlen, "<- joins code to code, or makes a proto "
+                     "inherit from a proto");
+            return false;
+        }
         if (child.kind != MOOP_VAL_PROTO || parent.kind != MOOP_VAL_PROTO) {
             snprintf(err, errlen, "inheritance relates protos");
             return false;
@@ -757,7 +854,7 @@ bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
             return false;
         }
         return teach_store(recv.proto, &head->nodes[lhs->right],
-                           bodies, nbodies, err, errlen);
+                           bodies, nbodies, true, err, errlen);
     }
 
     /* name block: evaluate the sequence now, the last value gets the name */

@@ -680,8 +680,12 @@ static void test_parser(void)
           "the code designator keeps the quoted name");
     check(!moop_parse("rex ask \"ask maybe\" is x", &ast, err, sizeof err),
           "only a quoted single name designates a message's code");
-    check(!moop_parse("x is \"y is\"", &ast, err, sizeof err),
-          "quoted code must be whole");
+    check(moop_parse("x is \"y is\"", &ast, err, sizeof err) &&
+              !moop_ast_whole(&ast, ast.nodes[ast.nodes[ast.root].right].left),
+          "a quote may hold a fragment, which is not whole code");
+    check(!moop_parse("x is \"-> ->\"", &ast, err, sizeof err) &&
+              !moop_parse("dog ->", &ast, err, sizeof err),
+          "fragments end waiting for one piece, and only inside quotes");
     check(!moop_parse("x is \"\"", &ast, err, sizeof err),
           "an empty quote is refused");
     check(moop_parse("x is \"rex ask mood is 'ask maybe'\"", &ast, err,
@@ -694,6 +698,11 @@ static void test_parser(void)
         "-> value <-> 5",
         "an animal <- world",
         "'-> maybe'",
+        "dog ->",
+        "<->",
+        "a",
+        "rex -> mood is",
+        "is",
     };
     bool same = true;
     for (size_t i = 0; i < sizeof round / sizeof round[0]; i++) {

@@ -28,8 +28,10 @@
  *   x -> "m"        x's code for m, found up the lineage like a send
  *   x -> "m" is c   teach m from the code value c (evaluated now)
  *   code -> first   the first part of code; `rest` is the code after
- *                   it — every part is code (blocks, definitions,
- *                   chains, steps, births, quotes all come apart)
+ *                   it — every part is code (a fragment if it still
+ *                   waits for a piece: `"->"`, `"rex -> mood is"`)
+ *   code <- code    joins: the right follows the left, so
+ *                   (c -> first) <- (c -> rest) gives c back
  *
  * At startup the world is generated as the model prescribes: a
  * system-facing actor generates the system root, which generates the
@@ -47,6 +49,7 @@ typedef enum {
 typedef struct {
     MoopAst **lines;  /* owned; each line's root is its statement */
     size_t n;
+    bool block;       /* a block of lines (even one); else one line */
 } MoopCode;
 
 typedef struct {

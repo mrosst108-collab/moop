@@ -44,6 +44,7 @@ typedef struct {
     char *err;
     size_t errlen;
     bool failed;
+    bool fragments; /* quoted code: may end waiting for its last piece */
 } Parser;
 
 static void fail(Parser *p, const char *msg)
@@ -82,7 +83,8 @@ static int parse_statement(Parser *p, bool quoted);
  * lexemes keep pointing into the source line. */
 static int parse_quote(Parser *p, MoopToken t)
 {
-    Parser inner = { .ast = p->ast, .err = p->err, .errlen = p->errlen };
+    Parser inner = { .ast = p->ast, .err = p->err, .errlen = p->errlen,
+                     .fragments = true };
     MoopLexer lx;
     moop_lexer_init_n(&lx, t.start, t.len);
     int root = -1;
@@ -113,6 +115,10 @@ static int parse_term(Parser *p)
     if (t.kind == MOOP_TOK_ARTICLE) {
         advance(p);
         MoopTokKind inner = peek(p).kind;
+        if (inner == MOOP_TOK_END && p->fragments) /* waiting for a term */
+            return add_node(p, (MoopNode){
+                .kind = MOOP_NODE_BIRTH, .left = -1, .right = -1,
+            });
         if (inner != MOOP_TOK_WORD && inner != MOOP_TOK_NUMBER) {
             fail(p, "'a' introduces a new thing: a name must follow");
             return -1;
@@ -159,7 +165,9 @@ static int parse_chain(Parser *p)
             return left;
         }
         advance(p);
-        int right = parse_term(p);
+        /* a fragment may end on its operator, waiting for a term */
+        int right = peek(p).kind == MOOP_TOK_END && p->fragments
+                        ? -1 : parse_term(p);
         left = add_node(p, (MoopNode){
             .kind = kind, .start = NULL, .len = 0,
             .left = left, .right = right,
@@ -202,6 +210,14 @@ bool moop_quoted_name(const MoopAst *ast, int idx)
 
 static int parse_statement(Parser *p, bool quoted)
 {
+    /* the joint on its own: the piece between a designator and a body */
+    if (p->fragments && peek(p).kind == MOOP_TOK_IS &&
+        p->toks[p->pos + 1].kind == MOOP_TOK_END) {
+        advance(p);
+        return add_node(p, (MoopNode){
+            .kind = MOOP_NODE_IS, .left = -1, .right = -1,
+        });
+    }
     int first = parse_chain(p);
     if (p->failed || peek(p).kind != MOOP_TOK_IS)
         return first;
@@ -216,11 +232,12 @@ static int parse_statement(Parser *p, bool quoted)
         return -1;
     }
     advance(p); /* is */
+    /* `is` at the end: a block opener at top level; in quoted code, a
+     * definition still waiting for its body */
     int body = -1;
     if (peek(p).kind != MOOP_TOK_END)
         body = parse_chain(p);
-    else if (quoted)
-        fail(p, "quoted code must be whole: the definition body is missing");
+    (void)quoted;
     int root = add_node(p, (MoopNode){
         .kind = MOOP_NODE_IS,
         .start = name_def ? lhs->start : NULL,
@@ -249,6 +266,51 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
     return !p.failed;
 }
 
+bool moop_parse_code(const char *src, size_t len, MoopAst *ast,
+                     char *err, size_t errlen)
+{
+    Parser p = { .ast = ast, .err = err, .errlen = errlen,
+                 .fragments = true };
+    ast->count = 0;
+    ast->root = -1;
+
+    MoopLexer lx;
+    moop_lexer_init_n(&lx, src, len);
+    if (!tokenize(&p, &lx))
+        return false;
+    if (peek(&p).kind == MOOP_TOK_END) {
+        fail(&p, "there is no code here");
+        return false;
+    }
+    p.ast->root = parse_statement(&p, true);
+    if (!p.failed && peek(&p).kind != MOOP_TOK_END)
+        fail(&p, "expected an operator between expressions");
+    return !p.failed;
+}
+
+bool moop_ast_whole(const MoopAst *ast, int idx)
+{
+    const MoopNode *n = &ast->nodes[idx];
+    switch (n->kind) {
+    case MOOP_NODE_QUOTE: /* mentioned code is data, whole or not */
+    case MOOP_NODE_WORD:
+    case MOOP_NODE_NUMBER:
+    case MOOP_NODE_RECEIVER:
+        return true;
+    case MOOP_NODE_BIRTH:
+        return n->left >= 0 && moop_ast_whole(ast, n->left);
+    case MOOP_NODE_IS:
+        return n->left >= 0 && n->right >= 0 &&
+               moop_ast_whole(ast, n->left) && moop_ast_whole(ast, n->right);
+    case MOOP_NODE_SEND:
+    case MOOP_NODE_INHERIT:
+    case MOOP_NODE_BIJECT:
+        return n->right >= 0 && moop_ast_whole(ast, n->left) &&
+               moop_ast_whole(ast, n->right);
+    }
+    return false;
+}
+
 /* --- writing code back out ------------------------------------------ */
 
 static const char *op_word(MoopNodeKind kind)
@@ -261,47 +323,96 @@ static const char *op_word(MoopNodeKind kind)
     }
 }
 
-void moop_ast_write(FILE *out, const MoopAst *ast, int idx, int depth)
+/* The writer appends to a file or to a buffer (snprintf-style). */
+typedef struct {
+    FILE *out;
+    char *buf;
+    size_t cap, len;
+} Sink;
+
+static void put(Sink *s, const char *text, size_t n)
+{
+    if (s->out != NULL) {
+        fwrite(text, 1, n, s->out);
+    } else if (s->len < s->cap) {
+        size_t room = s->cap - s->len;
+        memcpy(s->buf + s->len, text, n < room ? n : room);
+    }
+    s->len += n;
+}
+
+static void puts_sink(Sink *s, const char *text)
+{
+    put(s, text, strlen(text));
+}
+
+static void write_node(Sink *s, const MoopAst *ast, int idx, int depth)
 {
     const MoopNode *n = &ast->nodes[idx];
     switch (n->kind) {
     case MOOP_NODE_WORD:
     case MOOP_NODE_NUMBER:
-        fprintf(out, "%.*s", (int)n->len, n->start);
+        put(s, n->start, n->len);
         return;
     case MOOP_NODE_RECEIVER:
         return; /* headless: the chain starts with its operator */
     case MOOP_NODE_BIRTH: {
+        if (n->left < 0) {
+            puts_sink(s, "a"); /* waiting for a term */
+            return;
+        }
         const MoopNode *t = &ast->nodes[n->left];
         bool vowel = t->kind == MOOP_NODE_WORD &&
                      strchr("aeiouAEIOU", t->start[0]) != NULL;
-        fputs(vowel ? "an " : "a ", out);
-        moop_ast_write(out, ast, n->left, depth);
+        puts_sink(s, vowel ? "an " : "a ");
+        write_node(s, ast, n->left, depth);
         return;
     }
     case MOOP_NODE_SEND:
     case MOOP_NODE_INHERIT:
     case MOOP_NODE_BIJECT:
-        moop_ast_write(out, ast, n->left, depth);
+        write_node(s, ast, n->left, depth);
         if (ast->nodes[n->left].kind != MOOP_NODE_RECEIVER)
-            fputc(' ', out);
-        fprintf(out, "%s ", op_word(n->kind));
-        moop_ast_write(out, ast, n->right, depth);
+            puts_sink(s, " ");
+        puts_sink(s, op_word(n->kind));
+        if (n->right >= 0) { /* else waiting for a term */
+            puts_sink(s, " ");
+            write_node(s, ast, n->right, depth);
+        }
         return;
     case MOOP_NODE_IS:
-        moop_ast_write(out, ast, n->left, depth);
-        fputs(" is", out);
+        if (n->left >= 0) {
+            write_node(s, ast, n->left, depth);
+            puts_sink(s, " ");
+        }
+        puts_sink(s, "is");
         if (n->right >= 0) {
-            fputc(' ', out);
-            moop_ast_write(out, ast, n->right, depth);
+            puts_sink(s, " ");
+            write_node(s, ast, n->right, depth);
         }
         return;
     case MOOP_NODE_QUOTE: {
-        char mark = depth % 2 == 0 ? '"' : '\'';
-        fputc(mark, out);
-        moop_ast_write(out, ast, n->left, depth + 1);
-        fputc(mark, out);
+        const char *mark = depth % 2 == 0 ? "\"" : "'";
+        puts_sink(s, mark);
+        write_node(s, ast, n->left, depth + 1);
+        puts_sink(s, mark);
         return;
     }
     }
+}
+
+void moop_ast_write(FILE *out, const MoopAst *ast, int idx, int depth)
+{
+    Sink s = { .out = out };
+    write_node(&s, ast, idx, depth);
+}
+
+size_t moop_ast_format(char *buf, size_t cap, const MoopAst *ast, int idx,
+                       int depth)
+{
+    Sink s = { .buf = buf, .cap = cap };
+    write_node(&s, ast, idx, depth);
+    if (cap > 0)
+        buf[s.len < cap ? s.len : cap - 1] = '\0';
+    return s.len;
 }

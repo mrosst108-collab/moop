@@ -101,7 +101,8 @@ to it), delegate up the lineage, override in children.
 
 User code is homoiconic: quotation marks mention code instead of using
 it, so code is a value you can name, read back, take apart (`first`,
-`rest`), and teach.
+`rest`), put back together (`<-`: `"dog" <- "->" <- "mood"` is
+`"dog -> mood"`), and teach.
 
 ```
 moop> plan is "-> maybe"
