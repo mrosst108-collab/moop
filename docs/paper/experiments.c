@@ -4,7 +4,7 @@
  *
  *   cc -std=c2x -O2 -Wall -Wextra -Wpedantic -Isrc \
  *      docs/paper/experiments.c src/tapeloop.c src/gates.c src/logic.c \
- *      src/encode.c -o build/experiments && ./build/experiments [DIR]
+ *      src/encode.c -lm -o build/experiments && ./build/experiments [DIR]
  *
  * With DIR, the figure data is written there: orbits-moop.dat and
  * orbits-harvard.dat (8/13 orbit lengths, Fig. 2) and pruning.dat (Fig. 3).
@@ -25,7 +25,10 @@
  *     tapes are recoverable from the final tapes plus the transcript of
  *     observations; closed-loop deposits are not injective on the tapes
  *     alone
+ * E9  what the data loop alone says about the program: I(B_0; A_L) over
+ *     uniform 8/13 states, both wirings
  */
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,49 +104,56 @@ static bool harvard_step(MoopCore *c)
 }
 
 /* One epoch from heads (0, 0); the heads return there, so this is a
- * bijection on tape states. *fired reports whether the gate ever fired. */
+ * bijection on tape states. *firings counts the ticks that fired. */
 static uint32_t epoch_map(uint32_t s, size_t la, size_t lb, bool harvard,
-                          bool *fired)
+                          unsigned *firings)
 {
     Body x;
     body_init(&x, la, lb);
     unpack(&x.core, s);
     size_t epoch = moop_core_epoch(&x.core);
-    *fired = false;
+    *firings = 0;
     for (size_t t = 0; t < epoch; t++) {
-        if (harvard)
-            *fired |= harvard_step(&x.core);
-        else
+        if (harvard) {
+            *firings += harvard_step(&x.core);
+        } else {
+            *firings += x.core.a.cells[x.core.a.head] &&
+                        x.core.b.cells[x.core.b.head];
             moop_core_step(&x.core);
+        }
     }
-    for (size_t i = 0; !harvard && i < la; i++)
-        *fired |= x.ma[i];
     return pack(&x.core);
 }
 
 /* --- E1 ---------------------------------------------------------------
- * x_t, y_t are the cells under A's and B's heads at tick t. Claim:
+ * x_t, y_t are the cells under A's and B's heads at tick t, extended to
+ * negative t by the initial tapes (x_t = A_0[t mod la], y_t =
+ * B_0[-t mod lb]). Claim, for every t >= 0:
  *   x_{t+1} = x_{t+1-la} ^ (x_t & y_t)
  *   y_{t+1} = y_{t+1-lb} ^ (x_t & y_t)                                  */
 static void closed_form(void)
 {
-    enum { LA = 8, LB = 13, T = 20000, TRIALS = 50 };
-    static bool x[T + 1], y[T + 1];
+    enum { LA = 8, LB = 13, T = 20000, TRIALS = 50, O = LB };
+    static bool x[O + T + 1], y[O + T + 1]; /* index O + t holds tick t */
     long checked = 0, violations = 0;
     for (int trial = 0; trial < TRIALS; trial++) {
         Body body;
         body_init(&body, LA, LB);
         body_fill(&body, 50);
+        for (int t = 1; t < LA; t++)
+            x[O - t] = body.a[LA - t];
+        for (int t = 1; t < LB; t++)
+            y[O - t] = body.b[t];
         for (int t = 0; t <= T; t++) {
-            x[t] = body.core.a.cells[body.core.a.head];
-            y[t] = body.core.b.cells[body.core.b.head];
+            x[O + t] = body.core.a.cells[body.core.a.head];
+            y[O + t] = body.core.b.cells[body.core.b.head];
             if (t < T)
                 moop_core_step(&body.core);
         }
-        for (int t = LB - 1; t < T; t++) {
-            bool g = x[t] && y[t];
-            violations += x[t + 1] != (x[t + 1 - LA] ^ g);
-            violations += y[t + 1] != (y[t + 1 - LB] ^ g);
+        for (int t = 0; t < T; t++) {
+            bool g = x[O + t] && y[O + t];
+            violations += x[O + t + 1] != (x[O + t + 1 - LA] ^ g);
+            violations += y[O + t + 1] != (y[O + t + 1 - LB] ^ g);
             checked++;
         }
     }
@@ -157,13 +167,13 @@ static void tour(uint32_t start, size_t la, size_t lb)
     static bool seen_a[1 << MAX_LEN], seen_b[1 << MAX_LEN];
     size_t na = 0, nb = 0;
     uint32_t x = start;
-    bool fired;
+    unsigned firings;
     do {
         uint32_t a = x & ((UINT32_C(1) << la) - 1), b = x >> la;
         na += !seen_a[a];
         nb += !seen_b[b];
         seen_a[a] = seen_b[b] = true;
-        x = epoch_map(x, la, lb, false, &fired);
+        x = epoch_map(x, la, lb, false, &firings);
     } while (x != start);
     printf("E3 the longest %zu/%zu orbit visits %zu of %u B-values and "
            "%zu of %u A-values\n",
@@ -176,6 +186,8 @@ typedef struct {
     /* non-trivial orbits that restore a loop at every epoch boundary */
     uint32_t restoring, longest_restoring;
     uint64_t on_restoring;
+    unsigned restoring_fire_min, restoring_fire_max; /* firings per epoch */
+    bool restoring_fire_odd;
 } Census;
 
 /* Every tape state, grouped into orbits of the epoch map. If lengths is
@@ -189,17 +201,22 @@ static Census census(size_t la, size_t lb, bool harvard, uint32_t *lengths)
         perror("calloc");
         exit(1);
     }
-    Census c = { 0 };
-    bool fired;
+    Census c = { .restoring_fire_min = UINT32_MAX };
+    unsigned firings;
     for (uint32_t s = 0; s < n; s++) {
         if (seen[s])
             continue;
         uint32_t x = s, len = 0;
         bool changes_a = false, changes_b = false;
+        unsigned fire_min = UINT32_MAX, fire_max = 0;
+        bool fire_odd = false;
         do {
             seen[x] = 1;
-            uint32_t y = epoch_map(x, la, lb, harvard, &fired);
-            c.silent += !fired;
+            uint32_t y = epoch_map(x, la, lb, harvard, &firings);
+            c.silent += firings == 0;
+            fire_min = firings < fire_min ? firings : fire_min;
+            fire_max = firings > fire_max ? firings : fire_max;
+            fire_odd |= firings & 1;
             changes_a |= (y & mask_a) != (x & mask_a);
             changes_b |= (y >> la) != (x >> la);
             x = y;
@@ -216,6 +233,11 @@ static Census census(size_t la, size_t lb, bool harvard, uint32_t *lengths)
             c.on_restoring += len;
             if (len > c.longest_restoring)
                 c.longest_restoring = len;
+            if (fire_min < c.restoring_fire_min)
+                c.restoring_fire_min = fire_min;
+            if (fire_max > c.restoring_fire_max)
+                c.restoring_fire_max = fire_max;
+            c.restoring_fire_odd |= fire_odd;
         }
         if (len > c.longest) {
             c.longest = len;
@@ -247,6 +269,8 @@ static void sweep(void)
     size_t pairs = 0, coprime = 0, exceptions = 0;
     uint64_t states = 0, nontrivial = 0, restoring = 0, on_restoring = 0;
     uint32_t longest_restoring = 0;
+    unsigned fire_min = UINT32_MAX, fire_max = 0;
+    bool fire_odd = false;
     printf("E2 sweep over every loop pair with a + b <= 22 (moop wiring); "
            "pairs with restoring orbits:\n");
     for (size_t sum = 4; sum <= 22; sum++) {
@@ -267,6 +291,11 @@ static void sweep(void)
             on_restoring += c.on_restoring;
             if (c.longest_restoring > longest_restoring)
                 longest_restoring = c.longest_restoring;
+            if (c.restoring > 0 && c.restoring_fire_min < fire_min)
+                fire_min = c.restoring_fire_min;
+            if (c.restoring > 0 && c.restoring_fire_max > fire_max)
+                fire_max = c.restoring_fire_max;
+            fire_odd |= c.restoring > 0 && c.restoring_fire_odd;
             if (c.restoring > 0) {
                 exceptions++;
                 printf("   %2zu/%zu%s: %u restore A, %u restore B, of %u "
@@ -288,6 +317,10 @@ static void sweep(void)
            (unsigned long long)nontrivial, exceptions,
            (unsigned long long)restoring, (unsigned long long)on_restoring,
            longest_restoring);
+    printf("   on restoring orbits the gate fires %u to %u times per epoch "
+           "(%s)\n",
+           fire_min, fire_max,
+           fire_odd ? "some odd counts" : "always an even number");
 }
 
 /* Fraction of states on orbits no longer than each length, for Fig. 2. */
@@ -537,6 +570,43 @@ static void crossing_rule(void)
            TRIALS, LEN, observations, failures, image, n);
 }
 
+/* --- E9 ----------------------------------------------------------------
+ * Over uniform 8/13 tape states, how much does loop A after one epoch
+ * say about the initial loop B (the would-be program)? Under the Harvard
+ * wiring each program permutes A, so the answer must be 0 bits. */
+static double entropy(const uint32_t *counts, size_t n, double total)
+{
+    double h = 0;
+    for (size_t i = 0; i < n; i++)
+        if (counts[i] > 0) {
+            double p = counts[i] / total;
+            h -= p * log2(p);
+        }
+    return h;
+}
+
+static void program_information(bool harvard)
+{
+    enum { LA = 8, LB = 13 };
+    static uint32_t joint[1 << LA], marginal[1 << LA];
+    memset(marginal, 0, sizeof marginal);
+    double conditional = 0;
+    unsigned firings;
+    for (uint32_t b = 0; b < (1u << LB); b++) {
+        memset(joint, 0, sizeof joint);
+        for (uint32_t a = 0; a < (1u << LA); a++) {
+            uint32_t y = epoch_map(a | b << LA, LA, LB, harvard, &firings);
+            joint[y & ((1u << LA) - 1)]++;
+            marginal[y & ((1u << LA) - 1)]++;
+        }
+        conditional += entropy(joint, 1 << LA, 1 << LA) / (1 << LB);
+    }
+    double h = entropy(marginal, 1 << LA, (double)(1u << (LA + LB)));
+    printf("   %-8s H(A_L) = %.4f, H(A_L | B_0) = %.4f, I(B_0; A_L) = %.4f "
+           "bits\n",
+           harvard ? "harvard" : "moop", h, conditional, h - conditional);
+}
+
 int main(int argc, char **argv)
 {
     static const size_t sizes[][2] = {
@@ -591,5 +661,9 @@ int main(int argc, char **argv)
     marks_by_replay();
     maybe_balance();
     crossing_rule();
+    printf("E9 what loop A alone says about the program, one epoch from a "
+           "uniform 8/13 state\n");
+    program_information(false);
+    program_information(true);
     return 0;
 }

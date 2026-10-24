@@ -89,8 +89,9 @@ have fired in a *future* epoch (its alignments repeat, but A's contents
 will have changed), so pruning trades never-yet-used information for a
 smaller live state. Marks only grow within an epoch. Stepping backward
 re-fires the same alignments with the same controls, so inside an epoch
-it adds no marks — marks are a cache of the epoch's trajectory,
-recomputable by replay (tested). Only stepping back *past* the epoch
+it adds no marks. Run forward only, the marks are recomputable by
+replaying the epoch (tested); after steps back they still hold the marks
+of the furthest tick reached, which the state itself does not record. Only stepping back *past* the epoch
 start over-approximates, marking cells from the previous epoch's
 firings.
 

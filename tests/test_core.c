@@ -269,8 +269,9 @@ static void test_rewind_lemma(void)
 static void test_marks_within_epoch(void)
 {
     /* stepping back inside an epoch re-fires the same alignments with
-     * the same controls, so it adds no marks: marks are a cache of the
-     * epoch's trajectory, recomputable by replay */
+     * the same controls, so it adds no marks. Run forward only, the marks
+     * are recomputable by replaying the epoch; after steps back they keep
+     * the marks of the furthest tick reached. */
     bool a[5] = {1, 1, 0, 1, 0}, b[7] = {0, 1, 1, 0, 1, 0, 1};
     bool ma[5], mb[7], fa[5], fb[7];
     MoopCore core;

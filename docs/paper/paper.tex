@@ -73,14 +73,17 @@ orbits, every non-trivial one changes both tapes, and the longest visits
 8,191 of the 8,192 possible programs. Across all 100 loop pairs with at
 most 22 cells, only 184 short orbits, covering 438 of 78 million states,
 restore one tape at every epoch boundary. We then state the synergy
-precisely: with both properties, a mutable program's whole history is
-recoverable from any single state and distinct programs never converge,
-so every many-to-one notion of ``answer'' must be an observation. This
-derives the machine's two-layer segregation instead of assuming it. A
-transcript theorem shows that the system layer loses information only by
-pruning or by exporting it through observation, and causal pruning, its
-one internal erasure, provably never alters the past of the cells it
-keeps. Every number in the paper is reproduced by a single harness.
+precisely: reversibility makes a state's whole history recoverable, and
+homoiconicity makes the program part of that history, so a program that
+keeps rewriting itself can still be recovered from any single state.
+Because a reversible core never merges states, every many-to-one notion
+of ``answer'' must come from a forgetful observation outside it---the
+boundary that \moop{}'s two-layer segregation draws. A transcript
+theorem, for a calculus of the layer crossings, shows that system
+information is lost only by pruning or by exporting it through
+observation; and causal pruning, the one internal erasure, provably never
+alters the past of the cells it keeps. Every measured number in the paper
+is reproduced by a single harness.
 \end{abstract}
 
 %======================================================================
@@ -127,22 +130,22 @@ the 8/13-cell machine the interpreter uses can be visited.
   history, no convergence of distinct programs, answers as observations,
   and recurrence (\S\ref{sec:synergy}).
 \item Causal pruning, the system layer's one internal erasure, with a
-  rewind lemma and a proof that its metadata is recomputable
+  rewind lemma and an account of what its metadata records
   (\S\ref{sec:pruning}).
-\item A transcript theorem for the boundary between the two layers,
-  showing that every other loss of system information is an export
-  through observation (\S\ref{sec:layers}).
-\item Consequences for the language surface, including a construction
-  of general functions as involutions that the language already
-  supports (\S\ref{sec:surface}).
+\item A transcript theorem for a calculus of the crossings between the
+  two layers, showing that every other loss of system information is an
+  export through observation (\S\ref{sec:layers}).
+\item Consequences for the language surface, including a route to
+  general functions as involutions whose forward direction needs only
+  user-layer computation (\S\ref{sec:surface}).
 \end{enumerate}
 
 \paragraph{Non-claims.} We prove no universality result: the loops are
 finite and the wiring is fixed. We describe no hardware and make no
 efficiency claim. And \moop{} programs do not execute \emph{on} the
 core: the interpreter runs on a conventional host and uses the core for
-observation, deposits, and births. Section~\ref{sec:surface} argues that
-this last point follows from the theorems rather than being only a gap.
+observation, deposits, and births. Section~\ref{sec:surface} discusses why
+this placement is consistent with the theorems.
 
 %======================================================================
 \section{Background}
@@ -285,9 +288,10 @@ controls $h_A$ and $h_B$, so \textsf{F} does not change $g$. Applying
 identity. \textsf{R} is a rotation of head positions.
 \end{proof}
 
-The bound $a,b\ge2$ is necessary: with $a=1$ the target is the control,
-and $A[0]\gets A[0]\xor(A[0]\wedge B[h_B])$ maps both $0$ and $1$ to $0$
-when $B[h_B]=1$. The C function \code{moop\_core\_step\_back} is
+The bound $a,b\ge2$ is necessary. With $a=1$ the target on $A$ is the
+control itself. If $B[h_B]=1$, the state with $A=1$ fires and steps to
+$A=0$ with $B[h_B-1]$ flipped; the state that already has $A=0$ and
+$B[h_B-1]$ flipped does not fire, and steps to the same place. The C function \code{moop\_core\_step\_back} is
 $\textsf{F}\circ\textsf{R}^{-1}$---the forward sequence reversed, each
 part self-inverse---and a unit test round-trips a full epoch. This shape
 returns in \S\ref{sec:surface}.
@@ -295,10 +299,10 @@ returns in \S\ref{sec:surface}.
 \paragraph{The control: the original wiring.}
 \moop{}'s first core (commit \code{2231ab2}) had a single CCNOT,
 targeting $A$ only. Loop $B$ was then never written: a read-only program
-driving a data loop---a Harvard machine in miniature. The project's
-homoiconicity requirement (``no loop may become a read-only program
-tape'') rejected it, and commit \code{745ecae} added the symmetric target
-on $B$. We use the original wiring as a control throughout: the same
+driving a data loop---a Harvard machine in miniature. Commit
+\code{745ecae} adopted homoiconicity as a requirement (``no loop may
+become a read-only program tape'') and, in the same change, added the
+symmetric target on $B$. We use the original wiring as a control throughout: the same
 gate, loops, and rotation, with and without architectural homoiconicity.
 We call it the \emph{Harvard wiring}.
 
@@ -348,8 +352,8 @@ The machine is therefore exactly two shift registers, of lengths $a$ and
 $b$, whose feedback shares one nonlinear term. Reversibility is visible
 in the recurrence itself, $x_{t+1-a}=x_{t+1}\xor x_ty_t$: the oldest
 symbol is recovered from the newer ones. The harness checks the
-recurrence on 999,400 ticks of random 8/13 tapes with no violations
-(E1).
+recurrence, initial conditions included, on 1,000,000 ticks of random
+8/13 tapes from $t=0$, with no violations (E1).
 
 \paragraph{The Harvard wiring in closed form.}
 With the target on $A$ only, $x$ obeys the same recurrence but
@@ -492,9 +496,11 @@ in four (Table~\ref{tab:restoring} in Appendix~\ref{app:sweep}).
 \end{observation}
 
 By Proposition~\ref{prop:written}, the restored loop is still written
-during every epoch of a restoring orbit; in the cases we inspected it is
-flipped nine to eleven times per epoch and comes back to the same value
-at the boundary. So no loop is ever a read-only program tape, but the
+during every epoch of a restoring orbit. On every restoring orbit the gate
+fires between 4 and 16 times per epoch, always an even number
+(E2). It must be even: each firing flips one cell of the restored loop,
+and a loop comes back only if each of its cells is flipped an even number
+of times. So no loop is ever a read-only program tape, but the
 orbit-level property is not universal, and we do not claim it is. We have
 no characterisation of which sizes admit restoring orbits.
 
@@ -557,7 +563,7 @@ back; we call that \emph{causal closure}.
  & program conserved (Harvard) & program in mutable state (homoiconic) \\
 \midrule
 irreversible & data history lost; the program never changes
-  & program history lost: ``self-modification with amnesia'' \\
+  & program history can be lost: ``self-modification with amnesia'' \\
 reversible & data history recoverable; the program never changes
   & program \emph{and} data history recoverable from any state \\
 \bottomrule
@@ -574,7 +580,8 @@ Let $S_0$ be uniformly distributed.
 \item If $f$ is a bijection, $H(S_0\mid S_t)=0$ for every $t$; in
   particular the program trajectory $P_0,\dots,P_T$ is a function of any
   single $S_t$.
-\item If $f$ is not injective, $H(S_0\mid S_1)>0$.
+\item If $f$ merges two states with different programs
+  ($f(s)=f(s')$, $\pi(s)\ne\pi(s')$), then $H(P_0\mid S_1)>0$.
 \item Under the Harvard wiring $P_t=P_0$ for all $t$.
 \item Under \moop{}'s wiring, $P_t=B_t$ is non-constant on every
   non-trivial orbit (Proposition~\ref{prop:written}), and its
@@ -583,23 +590,26 @@ Let $S_0$ be uniformly distributed.
 \end{enumerate}
 \end{proposition}
 \begin{proof}
-(a) $S_0=f^{-t}(S_t)$, and $P_\tau=\pi(f^{\tau-t}(S_t))$. (b)
-$H(S_0\mid S_1)=H(S_0)-H(S_1)$ because $S_1$ is a function of $S_0$, and
-$H(S_1)<\log|S|$ when $|f(S)|<|S|$. (c) Proposition~\ref{prop:harvard}.
+(a) $S_0=f^{-t}(S_t)$, and $P_\tau=\pi(f^{\tau-t}(S_t))$. (b) Given
+$S_1=f(s)$, which has positive probability, $P_0$ is $\pi(s)$ or
+$\pi(s')$, each with positive probability. (c) Proposition~\ref{prop:harvard}.
 (d) As stated.
 \end{proof}
 
-None of the four parts is deep; their conjunction is the point. Only
-under both properties is there a program history that is non-trivial
-(homoiconicity) and recoverable (reversibility).
+None of the four parts is deep; their conjunction is the point. Part (b)
+says only that a stored-program machine \emph{can} lose program history,
+not that it must. Only under both properties is there a program history
+that is guaranteed to be both non-trivial (homoiconicity) and recoverable
+(reversibility).
 Table~\ref{tab:twobytwo} summarises.
 
-\begin{proposition}[Results carry their programs]
+\begin{proposition}[No convergence]
 \label{prop:noconvergence}
-If $f$ is a bijection, distinct initial states never reach the same
-state. By contrast, in a reversible Harvard machine $f(p,d)=(p,h_p(d))$
-with each $h_p$ a bijection on data, if the data $D_0$ is uniform and
-independent of the program $P$, then $I(P;D_t)=0$ for all $t$.
+If $f$ is a bijection, distinct initial states are never in the same
+state at the same time. In a reversible Harvard machine
+$f(p,d)=(p,h_p(d))$ with each $h_p$ a bijection on data, if the data
+$D_0$ is uniform and independent of the program $P$, then $I(P;D_t)=0$
+for all $t$: the data alone says nothing about which program ran.
 \end{proposition}
 \begin{proof}
 The first claim is injectivity of $f^t$. For the second,
@@ -607,11 +617,16 @@ $\Pr[D_t=d\mid P=p]=\Pr[D_0=h_p^{-t}(d)]=1/|D|$ for every $p$, so $D_t$ is
 uniform and independent of $P$.
 \end{proof}
 
-In the homoiconic machine a final state remembers which program produced
-it; in the reversible Harvard machine the data says \emph{nothing} about
-which program ran. This is the classical-information form of the
-statement that reversible programs compute injective
-functions~\cite{axelsen2011}.
+The first part needs only reversibility; it is the
+classical-information form of the fact that reversible programs compute
+injective functions~\cite{axelsen2011}. The contrast between the wirings
+is in the second part. A full state of either machine determines its
+program---trivially so under the Harvard wiring, where the program never
+changes. But under the Harvard wiring the data never carries any trace
+of the program, while under \moop{}'s wiring it does: one epoch from a
+uniform 8/13 state, loop $A$ alone carries $I(B_0;A_L)=0.82$ bits about
+the initial $B$ ($H(A_L)=8$, $H(A_L\mid B_0)=7.18$), against exactly 0
+for the Harvard wiring (E9).
 
 \begin{corollary}[Answers are observations]
 \label{cor:answers}
@@ -626,16 +641,20 @@ contributed by the observation, never by the dynamics.
 $f^T$ is injective.
 \end{proof}
 
-Corollary~\ref{cor:answers} is the paper's central derivation. A
-reversible, homoiconic core cannot itself compute an answer in the
-extensional sense, because it never merges states. Answers must live in a
-layer that is allowed to forget. That is the shape \moop{} calls the
-bridge: ``reversible effect inside, irreversible observation outside''
-(\S\ref{sec:layers}). The two-layer segregation is therefore a
-consequence of the synergy, not an independent design choice. In a
-Harvard machine the same identification happens implicitly, by agreeing
-to read only the data; homoiconicity removes that convention and forces
-the forgetting into the open.
+Corollary~\ref{cor:answers} needs only reversibility, and it constrains
+the design rather than dictating it. A reversible core cannot itself
+compute an answer in the extensional sense, because it never merges
+states: every many-to-one answer must come from a forgetful map outside
+it. \moop{}'s segregation realises this constraint. Its bridge shape,
+``reversible effect inside, irreversible observation outside''
+(\S\ref{sec:layers}), places the forgetful map exactly at the boundary.
+Homoiconicity's part is to make the constraint impossible to sidestep. A
+Harvard machine can make the identification implicitly, by agreeing to
+read only the data; when the program is part of the state there is no
+such convention to hide behind, and the forgetting has to be an explicit
+observation. The corollary does not say where user programs must run:
+Bennett-style compute--copy--uncompute~\cite{bennett1973} runs a whole
+computation on a reversible core with only the final copy irreversible.
 
 \begin{proposition}[Recurrence; program identity is the orbit]
 \label{prop:recurrence}
@@ -665,9 +684,11 @@ The practical face of Proposition~\ref{prop:twobytwo}(a) is time-travel
 debugging of code that rewrites itself. The fault may lie in an
 instruction that no longer exists, and stepping back recovers it
 exactly. Omniscient debuggers~\cite{lewis2003} and record--replay
-systems~\cite{ocallahan2017} achieve this by \emph{logging}; in a causally
-closed machine the log is unnecessary, because the past is recomputable
-from the present.
+systems~\cite{ocallahan2017} achieve this by \emph{logging}; for the core
+alone the log is unnecessary, because the past is recomputable from the
+present. Once the user layer feeds observations back into the core, the
+transcript of observations becomes the log
+(Theorem~\ref{thm:transcript}).
 
 %======================================================================
 \section{Forgetting exactly once: causal pruning}
@@ -675,9 +696,10 @@ from the present.
 
 \moop{}'s core has one sanctioned way to lose information. Each cell
 carries a mark; a firing marks its two controls and two targets. The
-rule is one of actual rather than counterfactual
-causation~\cite{halpern2005}: a 0 control that prevented a flip is not
-marked. \code{moop\_core\_prune} zeroes every unmarked cell, clears the
+rule records participation in a state change, not counterfactual
+dependence: a 0 control that prevented a flip is not marked, although on
+a counterfactual account of causation such as Halpern and
+Pearl's~\cite{halpern2005} it would count as a cause. \code{moop\_core\_prune} zeroes every unmarked cell, clears the
 marks, and starts a new epoch; \code{moop\_core\_run} prunes at every
 epoch boundary.
 
@@ -714,11 +736,13 @@ one operation. In its extreme form, 8,447 of the $2^{21}$ states of the
 8/13 machine never fire during an epoch; at the boundary they are pruned
 to zero entirely.
 
-\begin{proposition}[The marks are a cache]
+\begin{proposition}[What the marks record]
 \label{prop:marks}
-Within an epoch, stepping back adds no marks, and the marks after $k$
-ticks are a function of $S_k$ and $k$. With coprime lengths and
-epoch-aligned prunes, $k$ is itself a function of the head positions.
+Within an epoch, stepping back adds no marks. After $k$ forward ticks from
+the start of an epoch, with no steps back, the marks are a function of
+$S_k$ and $k$; with epoch-aligned prunes, $k$ is itself a function of the
+head positions. After steps back, the marks are those of the furthest
+tick reached, which the state does not record.
 \end{proposition}
 \begin{proof}
 Stepping back from $S_{t+1}$ applies $\textsf{R}^{-1}$ and then
@@ -727,18 +751,21 @@ tick $t$, because \textsf{F} never writes its controls, so the back-step
 fires if and only if the forward tick did, and marks the same four cells.
 For the second claim, rewind $k$ ticks to $S_0$ and replay with clear
 marks. For the third, the heads are $(k\bmod a,-k\bmod b)$, which
-determines $k$ modulo $L$ by the Chinese remainder theorem.
+determine $k$ modulo $L$ by the Chinese remainder theorem (for any $a$
+and $b$, coprime or not). The last claim follows from the first.
 \end{proof}
 
-The harness confirms both halves in 20,000 trials (E6). Under the
-project's deletion test---a construct is redundant if a uniform rule
-covers all its uses---pruning therefore adds no state concept of its
-own: its metadata is a cache of what causal closure already makes
-recomputable. Two qualifications apply. Deposits from the user layer
-(\S\ref{sec:layers}) also mark the cells they change, so in general the
-marks are a function of the state and the deposit transcript. And
-stepping back \emph{past} the start of an epoch does over-approximate,
-because it marks cells from the previous epoch's firings.
+The harness confirms the first two claims in 20,000 trials (E6). The
+marks are therefore almost, but not quite, a cache. Run forward only,
+they are recomputable from the state, and under the project's deletion
+test---a construct is redundant if a uniform rule covers all its
+uses---pruning would add no state concept of its own. After steps back,
+though, they also remember how far the epoch got, which nothing else
+records. Two further qualifications apply. Value deposits
+(\code{mirrors}, \S\ref{sec:layers}) mark the cells they change, so the
+marks also depend on the deposit transcript; birth deposits do not mark,
+and exchanges carry marks with their bits. And stepping back \emph{past}
+the start of an epoch marks cells from the previous epoch's firings.
 
 \paragraph{Where pruning matters.}
 Pruning is a sparsity phenomenon. Table~\ref{tab:density} and
@@ -802,11 +829,11 @@ may prune without breaking the promises made by births is an open
 question.
 
 %======================================================================
-\section{Two memories, two logics---derived}
+\section{Two memories, two logics}
 \label{sec:layers}
 
 \moop{} segregates its machine into two layers (Table~\ref{tab:layers}).
-Corollary~\ref{cor:answers} says why there must be two. This section
+Corollary~\ref{cor:answers} says why answers need a forgetful layer. This section
 makes precise what may cross between them.
 
 \begin{table}[t]
@@ -874,8 +901,9 @@ alone. (iii) The inverse in (ii) then uses no part of $O$.
 \end{proof}
 
 Part (iii)'s hypothesis cannot be dropped. Observing a body's value and
-depositing it back,
+depositing it back (a fresh session),
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
+moop> box is a world
 moop> box ask value
 181
 moop> n is box ask value
@@ -900,10 +928,12 @@ Here the user layer is the demon's memory.
 
 \begin{corollary}[Erasure is pruning or export]
 \label{cor:export}
-In \moop{}, the system layer destroys information without a transcript
-record only by pruning. Every other loss is an export through
-observation: it is recorded in the transcript and becomes physical
-erasure only when the user layer forgets.
+In the calculus extended with pruning---and in \moop{}, to the extent
+that its C code follows the calculus (\S\ref{sec:limits})---the system
+layer destroys information without a record only by pruning. Every other
+loss is an export through observation: given the user layer's initial
+state, it is recorded in the transcript, and it becomes physical erasure
+only when the user layer forgets.
 \end{corollary}
 
 The harness checks Theorem~\ref{thm:transcript}(ii) on 100,000 random
@@ -941,8 +971,8 @@ in.}
 In linear-logic terms~\cite{girard1987} the core is linear: no step
 duplicates or discards. A birth is a controlled \emph{contraction}
 (fresh cells receive copies of observations) and pruning a controlled
-\emph{weakening}, the ``discharge of premises never used'' in the
-project's own phrase.
+\emph{weakening}, the ``discharge of premises that were never used in any
+inference'' in the project's own phrase.
 
 \paragraph{Actors and protos.}
 \moop{}'s objects sit on this boundary. An actor's body is a core and
@@ -981,11 +1011,14 @@ swaps two bodies' $A$-loops. Applying either twice is the identity
 \paragraph{General functions, without a new form.}
 The design notes list number-to-number bijections under \code{mirrors}
 (``\code{celsius mirrors fahrenheit}'') as open. The analysis above
-mostly dissolves that problem. Bennett's embedding turns any function
-$f$, reversible or not, into the involution $(x,y)\mapsto(x,y\xor
-f(x))$, and \moop{}'s deposit already accepts any number on its left.
-With $f$ the identity it works today:
+reduces half of that problem. The standard reversible
+embedding~\cite{toffoli1980,bennett1973} turns any function $f$,
+reversible or not, into the involution $(x,y)\mapsto(x,y\xor f(x))$, and
+\moop{}'s deposit already accepts any number on its left. With $f$ the
+identity it works today, in a fresh session:
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
+moop> c is a world
+moop> f is a world
 moop> c ask value
 181
 moop> f ask value
@@ -1000,15 +1033,18 @@ moop> f ask value
 52
 \end{Verbatim}
 This is a CNOT copy between bodies ($52\xor181=129$), and doing it twice
-is the identity. By the project's deletion test, then, a separate
-number-to-number form is redundant: the existing deposit rule covers
-it. What is actually missing is a way to compute $f$ in the user
+is the identity. For the forward direction, then, no new \code{mirrors}
+form is needed; what is missing is a way to compute $f$ in the user
 layer---arithmetic or logic operators, and messages that take
-arguments. In-place bijections are the other route: a bijection written
-as a sequence of involutions is inverted by reversing the
-sequence---exactly the shape of $\textsf{F}\circ\textsf{R}^{-1}$ in
-Proposition~\ref{prop:inverse}. Every permutation of $n$-bit values can
-be built this way from the gate layer~\cite{shende2003}. Reversing a
+arguments. The embedding never computes $f^{-1}$, though, which a
+two-way reading of \code{celsius mirrors fahrenheit} implies, and
+\code{1 mirrors 2} is still refused. So the deletion test does not
+dissolve the whole construct. In-place bijections are the other route: a
+bijection written as a sequence of involutions is inverted by reversing
+the sequence---exactly the shape of $\textsf{F}\circ\textsf{R}^{-1}$ in
+Proposition~\ref{prop:inverse}. NOT, CNOT and CCNOT build every even
+permutation of $n$-bit values ($n\ge4$), and every permutation with one
+extra bit~\cite{shende2003}. Reversing a
 chain is an operation on code as data, so this route needs
 representational homoiconicity at the surface (reflection), which
 \moop{} does not yet have.
@@ -1020,11 +1056,12 @@ re-teaching a message \emph{replaces} the chain---homoiconicity without
 reversibility, which the design notes themselves call self-modification
 with amnesia. The synergy stops at the layer boundary. We do not think
 this is a defect to fix. By Corollary~\ref{cor:answers}, the user layer
-is where answers live, and answers require forgetting. The same
-corollary explains why user programs run in the irreversible layer
-rather than on the tapes: the project's rule that nothing user-facing
-goes on the tapes is not just a gap in the implementation, but the
-placement the theorems call for.
+is where answers live, and answers require forgetting. Keeping user
+programs in the irreversible layer, off the tapes, is consistent with the
+same corollary but not required by it, since compute--copy--uncompute
+could run them on a reversible core. The project's rule that nothing
+user-facing goes on the tapes is a design choice the theorems permit,
+not one they force.
 
 %======================================================================
 \section{Method and reproducibility}
@@ -1032,11 +1069,14 @@ placement the theorems call for.
 
 All experiments are in one C file, \code{docs/paper/experiments.c},
 linked against the real core; the Harvard control reimplements the
-original \code{fire} function. E2 and E3 and the sweep are exhaustive
-and therefore exact. E1 (50 runs of 20,000 ticks), E4 (4,000 runs per
+original \code{fire} function. E2, E3, E9 and the sweep are
+exhaustive and therefore exact. E1 (50 runs of 20,000 ticks, checked
+from $t=0$ with the initial conditions of Theorem~\ref{thm:closed}), E4 (4,000 runs per
 density), E5 (100,000 trials), E6 (20,000), E7 ($10^6$ draws), and E8
 (100,000 programs) use a fixed-seed xorshift generator, so every number
-reproduces. The whole harness runs in about a minute and a half on one
+reproduces. (The REPL transcripts come from the interpreter and the line
+count from the source.) The whole harness runs in about a minute and a
+half on one
 core and writes the data behind Figures~\ref{fig:orbits}
 and~\ref{fig:density}. The repository's unit tests (\code{make test})
 cover the invariants the paper relies on: the round-trip, both loops
@@ -1051,7 +1091,7 @@ and the generator's rewind.
 \begin{enumerate}[nosep]
 \item \textbf{The language does not execute on the core.} The core is a
   substrate for objects' bodies, not the processor that runs the
-  program. Section~\ref{sec:surface} argues this placement follows from
+  program. Section~\ref{sec:surface} argues this placement is consistent with
   Corollary~\ref{cor:answers}, but it means \moop{} is not a
   non-von-Neumann \emph{computer}; it is a language whose objects have
   reversible bodies.
@@ -1159,9 +1199,10 @@ The most direct next steps are:
 
 Homoiconicity removes the conserved program; reversibility makes the
 removal lossless. A machine with both properties remembers every
-program it has been, never lets two programs converge, and so cannot
-itself say that two computations meant the same thing---only an
-observation can. That is why \moop{} has two memories. Its one internal
+program it has been; because it never lets two states converge, it
+cannot itself say that two computations meant the same thing---only an
+observation can. \moop{}'s two memories put that observation at the
+boundary. Its one internal
 act of forgetting, causal pruning, removes only what never decided
 anything, and every other loss is an export that the user layer, like
 Maxwell's demon, pays for when it forgets.
@@ -1239,16 +1280,18 @@ moop> box ask value
 \section{The design history as a derivation chain}
 \label{app:history}
 
-\moop{}'s history reads as a sequence of derivations: each construct was
-forced by an axiom acting on what already existed, and some constructs
-were later derived away.
+\moop{}'s commit messages narrate its history as a sequence of
+derivations, each change justified by an axiom, with some constructs
+later derived away. The table lists the rationale each commit records.
+The homoiconicity requirement itself was adopted in the same commit as
+the symmetric wiring.
 
 \begin{table}[h]
 \centering
 \small
 \begin{tabular}{@{}l p{0.38\linewidth} p{0.4\linewidth}@{}}
 \toprule
-commit & change & forced by \\
+commit & change & rationale recorded \\
 \midrule
 \code{2231ab2} & one CCNOT on two counter-rotating loops & reversibility: gate plus permutation \\
 \code{53954f3} & two memories, two logics & segregation of reversible and irreversible operators \\
@@ -1259,10 +1302,10 @@ commit & change & forced by \\
 \code{e2309ff} & \code{<->} as involutions & bijective as a tested fact \\
 \code{843353e} & \code{self} removed (headless chains) & deletion test: every context has a receiver \\
 \code{5c17b4c} & \code{generate} removed (the article) & deletion test: introduction instantiates \\
-this paper & births as create + observe + deposit & the bridge shape; deletion test on birth as a crossing \\
+\code{0dd9521} & births as create + observe + deposit & the bridge shape; deletion test on birth as a crossing \\
 \bottomrule
 \end{tabular}
-\caption{Selected commits and the axiom that forced each.}
+\caption{Selected commits and the rationale each records.}
 \label{tab:history}
 \end{table}
 
