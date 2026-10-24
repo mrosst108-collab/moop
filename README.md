@@ -94,7 +94,8 @@ send addressed to the receiver — headless chains like `ask maybe` speak to it)
 override in children.
 
 User code is homoiconic: quotation marks mention code instead of using
-it, so code is a value you can name, read back, and teach.
+it, so code is a value you can name, read back, take apart (`first`,
+`rest`), and teach.
 
 ```
 moop> plan is "ask maybe"

@@ -25,6 +25,9 @@
  *                   value is the code itself (user code is homoiconic)
  *   x -> "m"        x's code for m, found up the lineage like a send
  *   x -> "m" is c   teach m from the code value c (evaluated now)
+ *   code -> first   the first part of code; `rest` is the code after
+ *                   it — every part is code (blocks, definitions,
+ *                   chains, steps, births, quotes all come apart)
  *
  * At startup the world is generated as the model prescribes: a
  * system-facing actor generates the system root, which generates the

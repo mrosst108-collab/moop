@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.7.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.8.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -97,6 +97,23 @@ check "only code is taught to a quoted message" "error: only code can be taught 
 check "quoted definitions cannot be installed (yet)" "error: definitions cannot nest (yet)" "$(R 'dog is a world\ndog ask "m" is "x is 1"')"
 check "a quoted message is a single name" "error: a quoted message is a single name" "$(R 'world ask "ask maybe"')"
 check "an unclosed quote is reported" "error: a quote is never closed" "$(R 'x is "ask maybe')"
+
+# taking code apart: every code value answers first and rest
+P='plan is "dog ask mood mirrors 5"'
+check "a chain's first part is its head" '"dog"' "$(R "$P\nplan ask first")"
+check "a chain's rest is a headless chain" '"ask mood mirrors 5"' "$(R "$P\nplan ask rest")"
+check "a headless chain's first part is a step" '"ask mood"' "$(R "$P\nplan ask rest ask first")"
+check "a step's rest is its operand" '"5"' "$(R "$P\nplan ask rest ask rest ask rest")"
+check "an operator is not code on its own" "error: the first part is the operator mirrors, which is not code on its own" "$(R "$P\nplan ask rest ask rest ask first")"
+check "a single number has no parts" "error: a single number has no parts" "$(R "$P\nplan ask rest ask rest ask rest ask first")"
+check "a definition's first part is what it defines" '"rex ask mood"' "$(R 'd is "rex ask mood is ask maybe"\nd ask first')"
+check "a definition's rest is what it is" '"ask maybe"' "$(R 'd is "rex ask mood is ask maybe"\nd ask rest')"
+check "a block's first part is its first line" '"ask maybe"' "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ndog ask "both" ask first')"
+check "a block's rest is its other lines" '"42"' "$(R 'dog is a world\ndog ask both is\n    ask maybe\n    42\n\ndog ask "both" ask rest')"
+check "a birth's rest is what it births from" '"dog"' "$(R '"a dog" ask rest')"
+check "a quote's first part is its inside" '"ask maybe"' "$(R "q is \"'ask maybe'\"\nq ask first")"
+check "parts can be taught" "5" "$(R "dog is a world\n$P\ndog ask \"m\" is plan ask rest ask rest ask rest\ndog ask m")"
+check "code answers only first and rest" "error: code answers only first and rest" "$(R "$P\nplan ask value")"
 
 # honesty: what is not implemented says so
 check "oversized values are refused, not truncated" "error: an 8-cell loop carries at most 255" "$(printf 'c is a world\n256 <-> c\nquit\n' | "$BIN" 2>&1 >/dev/null)"

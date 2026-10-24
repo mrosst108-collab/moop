@@ -40,7 +40,10 @@ was seen; `is`, `ask`, `inherits`, `mirrors`, and the article itself
 have all survived it. So have quotation marks: reflection needed a way
 to mention code instead of using it, and no existing rule covered that —
 but running code did not need a form of its own (teach it, then ask), so
-`eval` died before it was born.
+`eval` died before it was born. Taking code apart then cost no syntax at
+all: code answers `first` and `rest` the way protos answer `maybe`, and
+headless chains — themselves the residue of deleting `self` — are what
+make every `rest` well-formed code.
 
 ## 2. Derived from ancestors, without delegating to them
 

@@ -221,6 +221,146 @@ static bool eval_teaching(const Teaching *t, MoopValue receiver,
     return ok;
 }
 
+/* --- taking code apart: first and rest ----------------------------------
+ * Code is a sequence of parts; `first` answers the first part and `rest`
+ * the code that follows it. Every answer is code that could have been
+ * typed, so it prints, re-enters, and can be taught:
+ *   a block           its lines
+ *   a definition      what it defines, then what it is (`is` is the
+ *                     joint between them, as line breaks are in blocks)
+ *   a chain           its head term, then its steps — the rest is a
+ *                     headless chain, which is why every rest is code
+ *   a headless chain  its first step, then the remaining steps
+ *   one step          its operator, then its operand
+ *   a birth           its article, then the term it births from
+ *   a quote           its inside
+ * An operator or an article is a part but not code on its own, so
+ * `first` refuses it; a single word or number has no parts. */
+
+static bool is_op(MoopNodeKind kind)
+{
+    return kind == MOOP_NODE_SEND || kind == MOOP_NODE_INHERIT ||
+           kind == MOOP_NODE_BIJECT;
+}
+
+static const char *op_name(MoopNodeKind kind)
+{
+    return kind == MOOP_NODE_SEND ? "ask" :
+           kind == MOOP_NODE_INHERIT ? "inherits" : "mirrors";
+}
+
+/* One line of code: a copy of src whose statement is rooted at root.
+ * The copy may be edited before it is wrapped (see code_part). */
+static MoopAst *line_at(const MoopAst *src, int root)
+{
+    MoopAst *line = moop_ast_clone(src);
+    if (line != NULL)
+        line->root = root;
+    return line;
+}
+
+static MoopCode *code_of_line(MoopAst *line)
+{
+    MoopCode *code = malloc(sizeof *code);
+    MoopAst **lines = malloc(sizeof *lines);
+    if (line == NULL || code == NULL || lines == NULL) {
+        moop_ast_free(line);
+        free(code);
+        free(lines);
+        return NULL;
+    }
+    lines[0] = line;
+    *code = (MoopCode){ .lines = lines, .n = 1 };
+    return code;
+}
+
+static bool code_part(const MoopCode *code, bool first, MoopValue *out,
+                      char *err, size_t errlen)
+{
+    MoopCode *part = NULL;
+    if (code->n > 1) {
+        part = first ? code_of_line(line_at(code->lines[0],
+                                            code->lines[0]->root))
+                     : code_copy(code->lines + 1, code->n - 1);
+        goto done;
+    }
+
+    const MoopAst *src = code->lines[0];
+    const MoopNode *root = &src->nodes[src->root];
+    switch (root->kind) {
+    case MOOP_NODE_IS:
+        part = code_of_line(line_at(src, first ? root->left : root->right));
+        goto done;
+    case MOOP_NODE_BIRTH:
+        if (first) {
+            snprintf(err, errlen, "the first part is the article, which "
+                     "is not code on its own");
+            return false;
+        }
+        part = code_of_line(line_at(src, root->left));
+        goto done;
+    case MOOP_NODE_QUOTE:
+        if (!first) {
+            snprintf(err, errlen, "nothing follows: a quote's one part is "
+                     "its inside");
+            return false;
+        }
+        part = code_of_line(line_at(src, root->left));
+        goto done;
+    case MOOP_NODE_WORD:
+    case MOOP_NODE_NUMBER:
+        snprintf(err, errlen, "a single %s has no parts",
+                 root->kind == MOOP_NODE_WORD ? "word" : "number");
+        return false;
+    default:
+        break;
+    }
+
+    /* a chain: walk the left-associative spine down to its head */
+    int step = src->root, above = -1;
+    while (is_op(src->nodes[src->nodes[step].left].kind)) {
+        above = step;
+        step = src->nodes[step].left;
+    }
+    const MoopNode *lowest = &src->nodes[step];
+    bool headless = src->nodes[lowest->left].kind == MOOP_NODE_RECEIVER;
+
+    if (!headless) {
+        if (first) {
+            part = code_of_line(line_at(src, lowest->left));
+        } else {
+            /* the head becomes the receiver: what remains is headless */
+            MoopAst *line = line_at(src, src->root);
+            if (line != NULL)
+                line->nodes[lowest->left].kind = MOOP_NODE_RECEIVER;
+            part = code_of_line(line);
+        }
+    } else if (above == -1) {
+        if (first) {
+            snprintf(err, errlen, "the first part is the operator %s, "
+                     "which is not code on its own", op_name(lowest->kind));
+            return false;
+        }
+        part = code_of_line(line_at(src, lowest->right));
+    } else if (first) {
+        part = code_of_line(line_at(src, step));
+    } else {
+        /* drop the first step: the next one takes over the receiver */
+        MoopAst *line = line_at(src, src->root);
+        if (line != NULL)
+            line->nodes[above].left = lowest->left;
+        part = code_of_line(line);
+    }
+
+done:
+    if (part == NULL) {
+        snprintf(err, errlen, "out of memory");
+        return false;
+    }
+    *out = (MoopValue){ .kind = MOOP_VAL_CODE, .code = part };
+    return true;
+}
+
 static bool hosts(const MoopProto *p, const MoopNode *msg)
 {
     for (size_t i = 0; i < p->hosted; i++)
@@ -283,6 +423,15 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     if (msg->kind != MOOP_NODE_WORD) {
         snprintf(err, errlen, "a message must be a name");
         return false;
+    }
+    if (recv.kind == MOOP_VAL_CODE) {
+        bool first = msg->len == 5 && memcmp(msg->start, "first", 5) == 0;
+        bool rest = msg->len == 4 && memcmp(msg->start, "rest", 4) == 0;
+        if (mention || (!first && !rest)) {
+            snprintf(err, errlen, "code answers only first and rest");
+            return false;
+        }
+        return code_part(recv.code, first, out, err, errlen);
     }
     if (recv.kind != MOOP_VAL_PROTO) {
         snprintf(err, errlen, "only protos host messages (yet)");
@@ -467,19 +616,12 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         return true;
     }
     case MOOP_NODE_QUOTE: {
-        MoopAst *line = moop_ast_clone(ast);
-        MoopCode *code = malloc(sizeof *code);
-        MoopAst **lines = malloc(sizeof *lines);
-        if (line == NULL || code == NULL || lines == NULL) {
-            moop_ast_free(line);
-            free(code);
-            free(lines);
+        /* the quoted statement, not the whole line */
+        MoopCode *code = code_of_line(line_at(ast, node->left));
+        if (code == NULL) {
             snprintf(err, errlen, "out of memory");
             return false;
         }
-        line->root = node->left; /* the quoted statement, not the line */
-        lines[0] = line;
-        *code = (MoopCode){ .lines = lines, .n = 1 };
         *out = (MoopValue){ .kind = MOOP_VAL_CODE, .code = code };
         return true;
     }
