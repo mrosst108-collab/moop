@@ -787,7 +787,7 @@ test---a construct is redundant if a uniform rule covers all its
 uses---pruning would add no state concept of its own. After steps back,
 though, they also remember how far the epoch got, which nothing else
 records. Two further qualifications apply. Value deposits
-(\code{mirrors}, \S\ref{sec:layers}) mark the cells they change, so the
+(\code{<->}, \S\ref{sec:layers}) mark the cells they change, so the
 marks also depend on the deposit transcript; birth deposits do not mark,
 and exchanges carry marks with their bits. And stepping back \emph{past}
 the start of an epoch marks cells from the previous epoch's firings.
@@ -901,7 +901,7 @@ instructions of five kinds:
 \end{itemize}
 MAYBE is $\mathsf{sys}(\text{step})$ followed by $\mathsf{obs}$ of the
 head cell; the innate \code{value} message is $\mathsf{obs}$ of loop $A$;
-\code{n mirrors box} is $\mathsf{dep}$.
+\code{n <-> box} is $\mathsf{dep}$.
 
 \begin{theorem}[Transcript]
 \label{thm:transcript}
@@ -929,20 +929,20 @@ Part (iii)'s hypothesis cannot be dropped. Observing a body's value and
 depositing it back (a fresh session),
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
 moop> box is a world
-moop> box ask value
+moop> box -> value
 181
-moop> n is box ask value
-moop> n mirrors box
+moop> n is box -> value
+moop> n <-> box
 a proto
-moop> box ask value
+moop> box -> value
 0
-moop> n mirrors box
+moop> n <-> box
 a proto
-moop> box ask value
+moop> box -> value
 181
 \end{Verbatim}
 blanks the body's loop $A$, because $A\xor A=0$, and depositing
-\code{n} again restores it. (A \code{mirrors} answers with the body it
+\code{n} again restores it. (A \code{<->} answers with the body it
 changed, which the REPL prints as \code{a proto}.) On the 8/13 tapes this
 closed loop maps all $2^{21}$ states onto 8,192 (E8). Nothing has been
 lost yet: \code{n} still holds the value. The loss happens only when the
@@ -982,7 +982,7 @@ cell with CNOT. The C code asserts that the child's cells are blank.
 crossing & \moop{} construct & known as \\
 \midrule
 copy out & \code{maybe}, \code{value} (observation) & measurement (QRAM~\cite{knill1996}) \\
-controlled in & \code{n mirrors box} (XOR deposit) & classically controlled gate \\
+controlled in & \code{n <-> box} (XOR deposit) & classically controlled gate \\
 create & blank cells for a birth & \emph{create}~\cite{james2012}; ancilla \\
 erase & epoch prune & \emph{erase}~\cite{james2012}; Landauer \\
 \bottomrule
@@ -1009,33 +1009,41 @@ two relations that \moop{} keeps apart. \emph{Generation} (who made
 you) is the only downward path from system to user layer, and it costs
 the generator nothing irreversible: step it back $a+b$ ticks and it
 returns to the moment before the birth. \emph{Delegation} (whom you
-defer to) walks parent links that are fixed at birth, among user-facing
-protos only, and never crosses the boundary.
+defer to) walks parent links among user-facing protos only. A birth
+starts with its generator as parent, \code{child <- parent} declares
+another, and a declaration that would close a loop is refused, so every
+lineage ends; delegation never crosses the boundary.
 
 %======================================================================
 \section{The synergy at the language surface}
 \label{sec:surface}
 
-\moop{} has one grammar rule and four relational operators whose arrow
-shapes follow information behaviour: \code{ask}~(\code{->}) sends a
-message and \code{inherits}~(\code{<-}) tests lineage, both one-way and
-forgetful; \code{mirrors}~(\code{<->}) is two-way and gate-backed;
-\code{is} names. The indefinite article births: \code{rex is a dog}
+\moop{} pairs an Io-like grammar with a Quorum-like vocabulary. There
+is one grammar rule and four relational operators whose arrow shapes
+follow information behaviour: \code{->} sends a message and \code{<-}
+declares inheritance, both one-way and forgetful; \code{<->} is two-way
+and gate-backed; \code{is} names. The arrows are canonical, and code
+prints with them; the words \code{ask}, \code{inherits} and
+\code{mirrors} are exact aliases. Blocks use pythonic indentation
+instead of \code{end}. The indefinite article births: \code{rex is a dog}
 introduces a new proto generated from \code{dog}, while \code{rex is
-dog} only aliases it. The syntax follows Quorum's evidence that words
-read better than symbols for novices~\cite{stefik2013}, and the object
-model follows Self and Io~\cite{ungar1987,dekorte2005} in using
-prototypes rather than classes.
+dog} only aliases it. The vocabulary follows Quorum's evidence about
+which words novices read well~\cite{stefik2013}---\code{is}, the
+article, and word aliases for the arrows---while the arrows stay
+canonical because their shapes carry an information behaviour that a
+word cannot show. The object model follows Self and
+Io~\cite{ungar1987,dekorte2005} in using prototypes rather than classes,
+and, as in Io, a proto's parent can be declared.
 
 \paragraph{Code that is its own inverse.}
-Every \code{mirrors} form is an involution: \code{5 mirrors box}
-XOR-deposits 5 onto the body's loop $A$, and \code{box mirrors other}
+Every \code{<->} form is an involution: \code{5 <-> box}
+XOR-deposits 5 onto the body's loop $A$, and \code{box <-> other}
 swaps two bodies' $A$-loops. Applying either twice is the identity
 (tested), so for these forms the program text is its own undo.
 
 \paragraph{General functions, without a new form.}
-The design notes list number-to-number bijections under \code{mirrors}
-(``\code{celsius mirrors fahrenheit}'') as open. The analysis above
+The design notes list number-to-number bijections under \code{<->}
+(``\code{celsius <-> fahrenheit}'') as open. The analysis above
 reduces half of that problem. The standard reversible
 embedding~\cite{toffoli1980,bennett1973} turns any function $f$,
 reversible or not, into the involution $(x,y)\mapsto(x,y\xor f(x))$, and
@@ -1044,26 +1052,26 @@ identity it works today, in a fresh session:
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
 moop> c is a world
 moop> f is a world
-moop> c ask value
+moop> c -> value
 181
-moop> f ask value
+moop> f -> value
 52
-moop> c ask value mirrors f
+moop> c -> value <-> f
 a proto
-moop> f ask value
+moop> f -> value
 129
-moop> c ask value mirrors f
+moop> c -> value <-> f
 a proto
-moop> f ask value
+moop> f -> value
 52
 \end{Verbatim}
 This is a CNOT copy between bodies ($52\xor181=129$), and doing it twice
-is the identity. For the forward direction, then, no new \code{mirrors}
+is the identity. For the forward direction, then, no new \code{<->}
 form is needed; what is missing is a way to compute $f$ in the user
 layer---arithmetic or logic operators, and messages that take
 arguments. The embedding never computes $f^{-1}$, though, which a
-two-way reading of \code{celsius mirrors fahrenheit} implies, and
-\code{1 mirrors 2} is still refused. So the deletion test does not
+two-way reading of \code{celsius <-> fahrenheit} implies, and
+\code{1 <-> 2} is still refused. So the deletion test does not
 dissolve the whole construct. In-place bijections are the other route: a
 bijection written as a sequence of involutions is inverted by reversing
 the sequence---exactly the shape of $\textsf{F}\circ\textsf{R}^{-1}$ in
@@ -1101,16 +1109,16 @@ that message, found by the same lookup a send uses. With \code{is} it
 designates the place where that code lives:
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
 moop> dog is a world
-moop> dog ask mood is ask maybe
-moop> dog ask "mood"
-"ask maybe"
+moop> dog -> mood is -> maybe
+moop> dog -> "mood"
+"-> maybe"
 moop> cat is a world
-moop> cat ask "mood" is dog ask "mood"
-moop> cat ask "mood"
-"ask maybe"
+moop> cat -> "mood" is dog -> "mood"
+moop> cat -> "mood"
+"-> maybe"
 \end{Verbatim}
-The quote moves across \code{is}: \code{x ask m is c} and
-\code{x ask "m" is "c"} teach the same thing, so teaching needed no new
+The quote moves across \code{is}: \code{x -> m is c} and
+\code{x -> "m" is "c"} teach the same thing, so teaching needed no new
 form. Running a code value needed none either---teach it, then ask---so
 by the deletion test there is no \code{eval}. Reads and writes copy, so
 a code value never aliases a teaching. Code prints back in canonical
@@ -1122,12 +1130,12 @@ first part and \code{rest} is the code that follows it. A block's parts
 are its lines; a definition's are what it defines and what it is; a
 chain's are its head term and then its steps:
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
-moop> plan is "dog ask mood mirrors 5"
-moop> plan ask rest
-"ask mood mirrors 5"
-moop> plan ask rest ask first
-"ask mood"
-moop> plan ask rest ask rest ask rest
+moop> plan is "dog -> mood <-> 5"
+moop> plan -> rest
+"-> mood <-> 5"
+moop> plan -> rest -> first
+"-> mood"
+moop> plan -> rest -> rest -> rest
 "5"
 \end{Verbatim}
 Headless chains are what make this work: because a chain may begin with
@@ -1329,33 +1337,36 @@ Totals: 184 orbits on 438 of 78,293,680 states.}
 \section{A REPL session}
 \label{app:repl}
 
-Births, teaching, delegation, the lineage predicate, and \code{mirrors}
-applied twice:
+Births, teaching, delegation, a declared parent, and \code{<->} applied
+twice:
 \begin{Verbatim}[fontsize=\small,xleftmargin=2em]
 moop> animal is a world
-moop> animal ask mood is
-....>     ask maybe
+moop> animal -> mood is
+....>     -> maybe
 ....>
 moop> cat is an animal
-moop> cat ask mood is 9
+moop> cat -> mood is 9
 moop> dog is an animal
-moop> dog ask mood
+moop> dog -> mood
 false
-moop> cat ask mood
+moop> cat -> mood
 9
-moop> dog inherits animal
-true
+moop> fish is a world
+moop> fish <- cat
+a proto
+moop> fish -> mood
+9
 moop> box is a world
-moop> box ask value
-52
-moop> 5 mirrors box
+moop> box -> value
+96
+moop> 5 <-> box
 a proto
-moop> box ask value
-49
-moop> 5 mirrors box
+moop> box -> value
+101
+moop> 5 <-> box
 a proto
-moop> box ask value
-52
+moop> box -> value
+96
 \end{Verbatim}
 
 %======================================================================
@@ -1387,6 +1398,7 @@ commit & change & rationale recorded \\
 \code{0dd9521} & births as create + observe + deposit & the bridge shape; deletion test on birth as a crossing \\
 \code{4ca5af7} & reflection: quotes mention code & ubiquitous homoiconicity; deletion test removes \code{eval} \\
 \code{0acdfc6} & code answers \code{first} and \code{rest} & homoiconicity: code that cannot be examined is not data \\
+\code{a119376} & arrows canonical; \code{<-} declares inheritance & Io-like grammar, Quorum-like vocabulary; who-made-you apart from whom-you-defer-to \\
 \bottomrule
 \end{tabular}
 \caption{Selected commits and the rationale each records.}

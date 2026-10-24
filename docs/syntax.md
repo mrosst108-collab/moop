@@ -76,8 +76,8 @@ in their shape — the two-layer model surfacing in the syntax:
   - `receiver -> message is chain` — teaching. The right side is NOT
     evaluated; it is stored as a chain and evaluated at each send,
     addressed to the receiver (so delegated sends answer from the
-    receiver's own body). Re-teaching replaces the chain. `generate` and
-    `maybe` are innate and cannot be redefined — the interpreter says so.
+    receiver's own body). Re-teaching replaces the chain. `maybe` and
+    `value` are innate and cannot be redefined — the interpreter says so.
 
 ## Birth: the indefinite article (decided: no creation word)
 
