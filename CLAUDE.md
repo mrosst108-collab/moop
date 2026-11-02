@@ -57,7 +57,11 @@ make test     # build, then run tests/run_tests.sh against build/moop
 make clean    # remove build/
 ./build/moop            # start the REPL ("quit" exits)
 ./build/moop --version  # print version
+make rv       # assemble moop-rv (RV64) to build/moop-rv
+make test-rv  # ISA guards + byte-for-byte parity of build/moop-rv against build/moop, under QEMU
 ```
+
+`make` and `make test` never need the RISC-V toolchain or QEMU; `make rv`/`make test-rv` need `clang`, `ld.lld`, `llvm-objdump`, and `qemu-riscv64` (package `qemu-user`, not preinstalled in cloud sessions).
 
 There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and warnings should be treated as errors to fix.
 
@@ -72,8 +76,9 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
-- `docs/riscv.md` — the plan for moop-rv, a second implementation in RV64 assembly. Precedence: the docs are the specification; the C interpreter is the reference implementation and is subordinate to them (where the docs are silent, record an open question rather than treating either implementation's behavior as the answer). The original 0.6.0 baseline is commit `a83d087`.
-- `tests/` — see the test layers above.
+- `docs/riscv.md` — the plan for moop-rv, a second implementation in RV64 assembly. Precedence: the docs are the specification; the C interpreter is the reference implementation and is subordinate to them (where the docs are silent, record an open question rather than treating either implementation's behavior as the answer). The original 0.6.0 baseline is the annotated tag `v0.6.0-uncorrected` (commit `a83d087`); never rewrite it. Unresolved specification issues (U1, …) are listed in `docs/syntax.md`: neither implementation may settle one on its own.
+- `rv/` — moop-rv sources (RV64 assembly, `docs/riscv.md`): `rv/sys.S` is the Linux boundary (entry point, raw syscalls, stdin buffering), `rv/main.S` the REPL shell. P1 is done and its infrastructure frozen: `--version`, arguments, the reader, and `quit` match the C reference byte for byte; evaluation is not ported and every other statement is refused honestly. The declared target ISA (`RV_MARCH := rv64im_zbb_zbs` in the Makefile) is held by the assembler, an audit of the final binary's disassembly, and an emulated CPU restricted to it — never emit an instruction outside it, and add an extension only with a named use and a docs update.
+- `tests/` — see the test layers above; `tests/rv_tests.sh` (with the `tests/rv_cpuinfo.S` probe) is the moop-rv suite run by `make test-rv`.
 
 ## Surface syntax and the interpreter pipeline
 

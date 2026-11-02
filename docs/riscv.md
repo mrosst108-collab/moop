@@ -28,15 +28,17 @@ after a refused block, listed in `docs/syntax.md`.)
 
 | Baseline | Where | Role |
 |---|---|---|
-| Original C | commit `a83d087`, moop 0.6.0 | Historical comparison only. Its bugs are not semantics. |
-| Corrected C | moop 0.6.1 onward | The reference implementation. |
+| Original C | annotated tag `v0.6.0-uncorrected` → commit `a83d087`, moop 0.6.0 | Historical comparison only. Its bugs are not semantics. |
+| Corrected C | moop 0.6.1 onward (first: commit `6674520`) | The reference implementation. |
 | RV64 | `build/moop-rv` (from P1) | Conforms to the corrected reference, as judged by the specification. |
 
-The original rebuilds from history without touching the working tree:
+The original is addressed by its tag, so it never depends on a branch
+remaining available, and the commit is never rewritten. It rebuilds
+without touching the working tree (the commit id works too):
 
 ```sh
 mkdir -p build/original
-git archive a83d087 | tar -x -C build/original
+git archive v0.6.0-uncorrected | tar -x -C build/original
 make -C build/original            # -> build/original/build/moop
 ```
 
@@ -61,16 +63,45 @@ claimed only once it has its own check.
 
 ## Target
 
-- RV64GC with Zba/Zbb/Zbs (the RVA22U64 bit-manipulation set): `bext`,
-  `binv`, `bset` address cells; `cpop` counts pruned bits. Fallback
-  macros keep plain RV64I possible.
-- Linux user mode, no C library: `_start` and `ecall` for `read`,
-  `write`, `exit`, `brk`, all confined to `sys.S` so a bare-metal
-  backend later replaces one file.
-- Toolchain: `clang --target=riscv64-linux-gnu` and `ld.lld`; run under
-  `qemu-riscv64` (Debian/Ubuntu package `qemu-user`). New targets
-  `make rv` and `make test-rv`; `make` and `make test` stay unchanged
-  and never require QEMU.
+The declared target ISA is **`rv64im_zbb_zbs`** with the `lp64` ABI:
+RV64I plus M, Zbb, and Zbs — a subset of the RVA22U64 profile, so any
+RVA22U64 core runs it. It is written once, in the Makefile
+(`RV_MARCH`), and each extension is there for a named use:
+
+| Extension | Use |
+|---|---|
+| RV64I | everything else |
+| M | decimal conversion of 64-bit numbers (P4) |
+| Zbb | `cpop` counts pruned bits (P2) |
+| Zbs | `bext`, `binv`, `bset` address one cell (P2) |
+
+Left out on purpose: A (single-threaded), F and D (no floating point),
+C (every instruction is a full 32-bit encoding), and Zba (an earlier
+draft listed it; nothing needs it). Adding an extension is a change to
+the frozen infrastructure: it needs a named use and a docs update.
+
+Three guards keep every instruction inside the declaration:
+
+1. **Assembler.** `-march=rv64im_zbb_zbs` rejects any other mnemonic.
+2. **Binary audit** (authoritative). `make test-rv` disassembles the
+   final binary with only the declared extensions enabled and fails on
+   anything undecodable — this also catches raw encodings (`.insn`,
+   `.word`) and `.option arch` regions that bypass the assembler.
+3. **Emulated CPU.** The tests run on a QEMU CPU whose ISA string must
+   equal the declaration (checked through a probe that prints QEMU's
+   synthesized `/proc/cpuinfo`). Known gap: QEMU 8.2.2 still executes
+   A-extension atomics with `a=false`, so the emulator is a second line
+   of defense, not the guarantee.
+
+Each guard was checked by mutation: a 1024-character reader, a
+smuggled Zba instruction, Zba left on in the emulator, and an audit set
+drifting from the declaration all fail `make test-rv`.
+
+Platform: Linux user mode, no C library — `_start` and raw `ecall`s,
+all in `rv/sys.S`, so a bare-metal backend later replaces one file.
+Toolchain: `clang --target=riscv64-linux-gnu`, `ld.lld`, `llvm-objdump`,
+and `qemu-riscv64` (package `qemu-user`); verified with clang/LLD 18.1.3
+and QEMU 8.2.2. `make` and `make test` never use any of them.
 
 ## Core data layout
 
@@ -107,11 +138,38 @@ and names.
 | Phase | Work | Exit criteria |
 |---|---|---|
 | **P0 — Correctness of C** (done, 0.6.1) | Refuse over-long lines, NUL bytes, and out-of-range literals instead of splitting, truncating, or clamping; spec first, then C; regression tests | New tests fail on 0.6.0 and pass on 0.6.1; full suite green |
-| **P1 — RV64 infrastructure** | `make rv`/`make test-rv`, `sys.S`, `_start`, QEMU runner | `--version` and `quit` match the reference |
+| **P1 — RV64 infrastructure** (done, frozen) | `make rv`/`make test-rv`, `sys.S`, `_start`, QEMU runner, the reader | `--version` and `quit` match the reference byte for byte; ISA guards pass; clean, reproducible build from a fresh checkout |
 | **P2 — Reversible core** | Gates, packed registers, encoding, logic, RAM | Trace diff against C for every loop-length pair 2..64, random seeds, full epochs with auto-prune; branch inspection of the gate transition; self-inverse and round-trip tests |
 | **P3 — Objects and world** | Actors, protos, message dispatch, world startup | `world`'s tapes after startup identical to the reference; generator step-back restores the pre-birth state |
 | **P4 — Language** | Lexer, parser, evaluator, formatter, REPL | `tests/run_tests.sh` passes with `BIN=build/moop-rv` |
 | **P5 — Verification and hardening** | Differential fuzzing, exhaustion, malformed input, docs, independent build verification | No unexplained differences; every difference found is resolved against the specification |
+
+## P1: the frozen infrastructure
+
+Changes to anything below need a stated reason and a docs update; P2
+onward builds on it rather than reshaping it.
+
+- `rv/sys.S` — the operating-system boundary. Its interface:
+  `moop_main(argc, argv) -> status` (provided by `main.S`, called from
+  `_start`), `sys_write_all(fd, buf, len)`, and `sys_getc() -> byte or
+  -1` (stdin buffered in 4 KiB reads; end of input is sticky, as in C
+  stdio).
+- `rv/main.S` — argument handling, the banner and prompts, the reader
+  (the same rules as the reference, `docs/syntax.md`), blank lines,
+  `quit`, and end of input. The version string comes from
+  `src/moop.h`, so the two implementations cannot drift apart on it.
+- `tests/rv_tests.sh` — the ISA guards, the entry-point check, and
+  parity cases comparing stdout, stderr, the merged stream, and exit
+  status byte for byte against `build/moop`.
+- `tests/rv_cpuinfo.S` — the probe that reports the emulated ISA.
+
+Evaluation is not ported. moop-rv refuses every other statement with
+`error: evaluation is not ported to moop-rv yet` — a deliberate,
+tested divergence (a REPL that silently skipped statements would look
+functional while doing nothing), and the only one P1 allows.
+
+The build is reproducible: two fresh checkouts in different
+directories produce a byte-identical `build/moop-rv`.
 
 ## Differential verification
 
@@ -137,7 +195,9 @@ error ordering is pinned), and exit status. The corpus:
   honest error, no silent partial effect — may not.
 
 moop is deterministic (`maybe` is replayable), so any difference is a
-finding.
+finding. A difference inside an unresolved specification issue (U1 and
+successors, `docs/syntax.md`) is reported against that issue, not fixed
+in either implementation.
 
 ## Deferred: a reversible intermediate representation
 
@@ -151,7 +211,8 @@ rather than designing one in advance.
 
 ## Open questions
 
-- Recovery after a refused block (see `docs/syntax.md`).
+- U1, recovery after a refused block — an unresolved specification
+  issue (`docs/syntax.md`); neither implementation decides it.
 - The C-hosted message tier is empty in the interpreter (nothing hosts
   a C handler on a proto); moop-rv ports it to keep dispatch order
   identical, but it is a candidate for the deletion test.

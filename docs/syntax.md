@@ -213,12 +213,25 @@ back as a value).
 - Reflection: `is` stores chains as data, but the surface language
   cannot yet read one back (quote a chain, inspect a body, rewrite a
   teaching programmatically). The data is there; the mirror is missing.
-- Recovery after a refused block: when a block is abandoned on an error,
-  its remaining indented lines currently run at the top level, addressed
-  to the world (the reader does not skip to the closing blank line, and
-  the top level accepts indented lines). Whether the reader should
-  discard the rest of the block, or the top level should refuse
-  indented lines, is undecided — the current behavior is the C
-  reference's, not a decision.
+
+## Unresolved specification issues
+
+Places where an implementation has behavior but the specification has
+no rule. Unlike the open questions above (features not yet designed),
+these are live gaps: the behavior exists and is observable, but it is
+not semantics. Until the specification decides, neither implementation
+may settle one on its own — the C reference keeps its current behavior,
+moop-rv mirrors it without treating it as specified, and a difference
+found in this area is reported against the issue rather than fixed in
+either implementation.
+
+- **U1 — Recovery after a refused block.** When a block is abandoned on
+  an error, its remaining indented lines currently run at the top
+  level, addressed to the world: the reader does not skip to the closing
+  blank line, and the top level accepts indented lines. Example:
+  `dog ask x is` / `    a @ b` / `    y is 5` refuses the second line,
+  then binds `y` at the top level. Candidate rules: the reader discards
+  the rest of the block through its closing blank line, or the top level
+  refuses indented lines. Undecided.
 - String and boolean literal forms; whether the logic operator words
   (and, or, nand, nor, xor) are keywords or ordinary messages.
