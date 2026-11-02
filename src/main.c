@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include "eval.h"
@@ -8,10 +9,51 @@
  * The pipeline is lex -> parse -> eval; whatever a stage cannot do yet
  * is reported honestly (bijections, files) — nothing pretends to work. */
 
+/* --- the reader: input is exact or refused --------------------------
+ * A line is taken whole or not at all. Splitting an over-long line, or
+ * letting a NUL byte end it early, would run a different statement than
+ * the one typed — a mistake turned into a silent action. */
+
+#define LINE_CAP 1024 /* at most LINE_CAP - 1 characters per line */
+
+typedef enum { LINE_OK, LINE_EOF, LINE_TOO_LONG, LINE_NUL } LineRead;
+
+static LineRead read_line(char line[static LINE_CAP])
+{
+    size_t n = 0;
+    bool nul = false;
+    int c;
+    while ((c = getchar()) != EOF && c != '\n') {
+        nul = nul || c == '\0';
+        if (n < LINE_CAP - 1)
+            line[n] = (char)c;
+        n++;
+    }
+    if (c == EOF && n == 0)
+        return LINE_EOF;
+    if (n > LINE_CAP - 1)
+        return LINE_TOO_LONG;
+    if (nul)
+        return LINE_NUL;
+    line[n] = '\0';
+    return LINE_OK;
+}
+
+/* Report a refused line; true if the line was refused. */
+static bool refused(LineRead r)
+{
+    if (r == LINE_TOO_LONG)
+        fprintf(stderr, "error: line too long (lines hold at most %d "
+                "characters)\n", LINE_CAP - 1);
+    else if (r == LINE_NUL)
+        fprintf(stderr, "error: unexpected character (a NUL byte)\n");
+    return r == LINE_TOO_LONG || r == LINE_NUL;
+}
+
 static void print_value(const MoopValue *v)
 {
     switch (v->kind) {
-    case MOOP_VAL_NUMBER: printf("%ld\n", v->number);              break;
+    case MOOP_VAL_NUMBER: printf("%" PRId64 "\n", v->number);      break;
     case MOOP_VAL_BOOL:   printf(v->truth ? "true\n" : "false\n"); break;
     case MOOP_VAL_PROTO:  printf("a proto\n");                     break;
     }
@@ -21,7 +63,7 @@ static void print_value(const MoopValue *v)
  * follows one chain per line and a blank line (or EOF) closes it. */
 static void collect_block(const MoopAst *head_src)
 {
-    char line[1024];
+    char line[LINE_CAP];
     char err[128];
     MoopAst *bodies[16];
     size_t n = 0;
@@ -37,9 +79,11 @@ static void collect_block(const MoopAst *head_src)
     for (;;) {
         printf("....> ");
         fflush(stdout);
-        if (!fgets(line, sizeof line, stdin))
+        LineRead r = read_line(line);
+        if (r == LINE_EOF)
             break;
-        line[strcspn(line, "\n")] = '\0';
+        if (refused(r))
+            goto out;
         if (line[strspn(line, " \t")] == '\0')
             break; /* blank line closes the block */
         if (line[0] != ' ' && line[0] != '\t') {
@@ -111,15 +155,17 @@ static void interpret(const char *line)
 
 static void repl(void)
 {
-    char line[1024];
+    char line[LINE_CAP];
     printf("moop %s\n", MOOP_VERSION);
     printf("type \"quit\" to leave\n");
     for (;;) {
         printf("moop> ");
         fflush(stdout);
-        if (!fgets(line, sizeof line, stdin))
+        LineRead r = read_line(line);
+        if (r == LINE_EOF)
             break;
-        line[strcspn(line, "\n")] = '\0';
+        if (refused(r))
+            continue;
         if (strcmp(line, "quit") == 0)
             break;
         if (line[strspn(line, " \t")] != '\0')

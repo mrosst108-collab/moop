@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.6.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.6.1" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -71,5 +71,17 @@ check "oversized values are refused, not truncated" "error: an 8-cell loop carri
 check "number-number bijection is honestly absent" "error: a bijection relates a value and a body, or two bodies" "$(printf '1 <-> 2\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unknown names are reported" "error: unknown name 'ghost'" "$(printf 'ghost\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unhosted messages are reported" "error: nothing in the lineage hosts \"dance\"" "$(printf 'world -> dance\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+
+# input is exact or refused: never split, truncated, or clamped
+check "over-long lines are refused whole, never split" "$(printf "error: line too long (lines hold at most 1023 characters)\nerror: unknown name 'x'")" "$(printf '%1017sx is 42\nx\nquit\n' '' | "$BIN" 2>&1 >/dev/null)"
+check "a 1023-character line fits" "1" "$(printf '%1016sx is 42\nx\nquit\n' '' | "$BIN" 2>/dev/null | grep -c ' 42$')"
+check "a 1023-character line raises no error" "" "$(printf '%1016sx is 42\nquit\n' '' | "$BIN" 2>&1 >/dev/null)"
+check "over-long block lines abandon the block" "error: line too long (lines hold at most 1023 characters)" "$(printf 'dog is a world\ndog ask x is\n%1030s\n\nquit\n' 'y' | "$BIN" 2>&1 >/dev/null | head -1)"
+check "NUL bytes are refused, not truncated" "$(printf "error: unexpected character (a NUL byte)\nerror: unknown name 'x'")" "$({ printf 'x is 4'; printf '\000'; printf '2\nx\nquit\n'; } | "$BIN" 2>&1 >/dev/null)"
+check "a final line without a newline still runs" "1" "$(printf 'x is 7\nx' | "$BIN" 2>/dev/null | grep -c ' 7$')"
+check "the largest number is exact" "1" "$(printf '9223372036854775807\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 9223372036854775807$')"
+check "numbers past 64 bits are refused, not clamped" "error: number too large (the largest is 9223372036854775807)" "$(printf '9223372036854775808\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "leading zeros are not cut off" "1" "$(printf '00000000000000000000000000000000000000007\nquit\n' | "$BIN" 2>/dev/null | grep -c ' 7$')"
+check "oversized literals are refused when taught, not when sent" "$(printf 'error: number too large (the largest is 9223372036854775807)\nerror: nothing in the lineage hosts "big"')" "$(printf 'dog is a world\ndog ask big is 99999999999999999999\ndog ask big\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
 exit $fail

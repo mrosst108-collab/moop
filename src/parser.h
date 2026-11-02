@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* One grammar rule, by design (orthogonality: the operators differ in
  * meaning, never in shape):
@@ -64,6 +65,13 @@ typedef struct {
 /* Parse one line. Returns true and fills ast, or false and writes a
  * message (without the "error: " prefix) into err. */
 bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen);
+
+/* Convert a NUMBER lexeme (decimal digits) exactly. A literal denotes
+ * 0..INT64_MAX; anything larger is refused (false, message in err) —
+ * never clamped, never cut short. The parser refuses such literals, so
+ * a parsed tree only ever holds numbers that convert. */
+bool moop_parse_number(const char *digits, size_t len, int64_t *out,
+                       char *err, size_t errlen);
 
 /* Heap copy with owned lexemes (an ast's lexemes otherwise point into
  * the source line, which the reader reuses). NULL on exhaustion. */

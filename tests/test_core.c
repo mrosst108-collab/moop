@@ -442,6 +442,24 @@ static void test_parser(void)
           "operators need operands");
     check(!moop_parse("p q", &ast, err, sizeof err),
           "adjacent terms need an operator");
+
+    /* numbers are exact or refused: 0..INT64_MAX, never clamped */
+    int64_t n = 0;
+    check(moop_parse_number("9223372036854775807", 19, &n, err, sizeof err)
+              && n == INT64_MAX,
+          "the largest number converts exactly");
+    check(!moop_parse_number("9223372036854775808", 19, &n, err, sizeof err),
+          "one past the largest number is refused");
+    check(moop_parse_number("00000000000000000000000000000000000000007",
+                            41, &n, err, sizeof err) && n == 7,
+          "leading zeros are not cut off");
+    check(!moop_parse("99999999999999999999", &ast, err, sizeof err) &&
+              strcmp(err, "number too large (the largest is "
+                          "9223372036854775807)") == 0,
+          "oversized literals are refused at parse time");
+    check(!moop_parse("dog ask big is 99999999999999999999",
+                      &ast, err, sizeof err),
+          "a taught chain cannot store an oversized literal");
 }
 
 int main(void)

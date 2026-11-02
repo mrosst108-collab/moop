@@ -151,10 +151,21 @@ is handled entirely by the reader.
 - Words: letters, digits, underscores; must start with a letter or
   underscore. Keywords (`is`, `ask`, `inherits`, `mirrors`, `a`, `an`)
   are matched exactly, so `island`, `asked`, and `answer` stay words.
-- Numbers: decimal digit runs.
+- Numbers: decimal digit runs denoting 0..9223372036854775807
+  (2^63 − 1, a signed 64-bit integer). Leading zeros are allowed (`007`
+  is 7). A literal beyond the range is refused when the line is
+  parsed — never clamped, never cut short.
 - `<->` is matched before `<-` (longest match).
 - A bare `-`, `<`, or any other stray character is a lex error: the
   interpreter reports it rather than guessing.
+- Lines: the reader accepts at most 1023 characters per line. A longer
+  line is refused whole — never split into two statements — and so is a
+  line containing a NUL byte (which would otherwise end it early). A
+  final line without a newline is an ordinary line.
+
+Input is exact or refused: a line the interpreter cannot take as typed
+is an error, because any repair (splitting, truncating, clamping) would
+turn a mistake into a different, silent action.
 
 ## Evaluation status
 
@@ -202,5 +213,12 @@ back as a value).
 - Reflection: `is` stores chains as data, but the surface language
   cannot yet read one back (quote a chain, inspect a body, rewrite a
   teaching programmatically). The data is there; the mirror is missing.
+- Recovery after a refused block: when a block is abandoned on an error,
+  its remaining indented lines currently run at the top level, addressed
+  to the world (the reader does not skip to the closing blank line, and
+  the top level accepts indented lines). Whether the reader should
+  discard the rest of the block, or the top level should refuse
+  indented lines, is undecided — the current behavior is the C
+  reference's, not a decision.
 - String and boolean literal forms; whether the logic operator words
   (and, or, nand, nor, xor) are keywords or ordinary messages.

@@ -1,8 +1,26 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
 #include "parser.h"
+
+bool moop_parse_number(const char *digits, size_t len, int64_t *out,
+                       char *err, size_t errlen)
+{
+    int64_t n = 0;
+    for (size_t i = 0; i < len; i++) {
+        int d = digits[i] - '0';
+        if (n > (INT64_MAX - d) / 10) {
+            snprintf(err, errlen, "number too large (the largest is %"
+                     PRId64 ")", INT64_MAX);
+            return false;
+        }
+        n = n * 10 + d;
+    }
+    *out = n;
+    return true;
+}
 
 MoopAst *moop_ast_clone(const MoopAst *src)
 {
@@ -89,6 +107,16 @@ static int parse_term(Parser *p)
         return add_node(p, (MoopNode){
             .kind = MOOP_NODE_BIRTH, .left = core, .right = -1,
         });
+    }
+    if (t.kind == MOOP_TOK_NUMBER) {
+        /* refuse unrepresentable literals here, so a stored (taught)
+         * chain can never carry one to a later send */
+        char msg[64];
+        int64_t n;
+        if (!moop_parse_number(t.start, t.len, &n, msg, sizeof msg)) {
+            fail(p, msg);
+            return -1;
+        }
     }
     if (t.kind == MOOP_TOK_WORD || t.kind == MOOP_TOK_NUMBER) {
         advance(p);

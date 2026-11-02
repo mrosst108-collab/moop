@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "parser.h"
 #include "proto.h"
 
@@ -34,7 +35,7 @@ typedef enum {
 
 typedef struct {
     MoopValueKind kind;
-    long number;
+    int64_t number;     /* 0..INT64_MAX from literals (docs/syntax.md) */
     bool truth;
     MoopProto *proto;
 } MoopValue;

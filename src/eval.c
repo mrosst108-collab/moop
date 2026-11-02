@@ -202,7 +202,7 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     }
     if (msg->len == 5 && memcmp(msg->start, "value", 5) == 0) {
         *out = (MoopValue){ .kind = MOOP_VAL_NUMBER,
-                            .number = (long)moop_decode(&recv.proto->core) };
+                            .number = (int64_t)moop_decode(&recv.proto->core) };
         return true;
     }
 
@@ -321,12 +321,10 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         return true;
     }
     case MOOP_NODE_NUMBER: {
-        char buf[32];
-        size_t n = node->len < sizeof buf - 1 ? node->len : sizeof buf - 1;
-        memcpy(buf, node->start, n);
-        buf[n] = '\0';
-        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER,
-                            .number = strtol(buf, NULL, 10) };
+        int64_t n;
+        if (!moop_parse_number(node->start, node->len, &n, err, errlen))
+            return false;
+        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER, .number = n };
         return true;
     }
     case MOOP_NODE_SEND:
@@ -362,7 +360,7 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         }
         if (num != NULL) {
             unsigned long max = moop_encode_max(&body->proto->core);
-            if (num->number < 0 || (unsigned long)num->number > max) {
+            if (num->number < 0 || (uint64_t)num->number > max) {
                 snprintf(err, errlen,
                          "an %zu-cell loop carries at most %lu",
                          body->proto->core.a.len, max);
