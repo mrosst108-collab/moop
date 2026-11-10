@@ -1,9 +1,10 @@
 # Merge record: Moop × Unicore × Weft × Warp
 
-10 November 2026. Revised the same day, three times: after review, with
+10 November 2026. Revised the same day, four times: after review, with
 the provisional rulings entered in §10; after the author supplied an
-account of early Moop's four levels, entered in §13; and after two
-further documents were located, reconciled in §14.
+account of early Moop's four levels, entered in §13; after two further
+documents were located, reconciled in §14; and after the second merge
+corrected itself, entered at the end of §14.
 
 This record investigates one architecture for merging four designs. It
 takes Warp's three mechanisms — term, clause, port — as the foundation,
@@ -238,7 +239,7 @@ until its obligation in §11 is specified and passes.
 | P5 | Freshness is one inward crossing: a clean bit, a seal's salt, a type's salt, a birth seed, a MAYBE draw | Direct for clean bits, salts, `Ask` and `Sample` (Warp). Derived for the birth seed and for this repository's MAYBE | The merged reading reproduces MAYBE, which here also advances the body by one tick and is not a bare inward crossing. Early Moop's MAYBE is a third thing again: an unresolved boolean (§14) | V3 |
 | P6 | Stage is store-sealing: compile time, `RUNTIME_START` and the two stores are one distinction, with one evaluator | Direct: Weft's comptime; Warp's two stores and its register ("one compile-time and runtime representation and evaluator", design-level). Mediated: Moop's `RUNTIME_START`, Unicore's bootstrap arc | One evaluator serves both stages, and a prior run can produce the next system image | V8 |
 | P7 | A handler layer or an explicit operations argument replaces Weft's meta records; lowering a resolved handler is one obligation (Weft Q3, Warp VP8) | Direct: Warp §6, "types do not direct dispatch; a handler or an explicit operations argument does". Mediated: Unicore's hoisted chain walk | The replacement keeps the coherence that meta records give by declaration | V9 |
-| P8 | `mirrors` generalizes from involutions to any certified clause, with the involution moving to `invert` | Direct: Weft §6, exclusivity on the output side selects the backward clause | A certifier exists. Until then this repository's rule stands: every implemented form is an involution, and that is tested. Early Moop's `<->` is a persistent relation, of which a certified clause would be one case (§14) | V1, V13 |
+| P8 | `mirrors` generalizes from involutions to any certified clause, with the involution moving to `invert` | Direct: Weft §6, exclusivity on the output side selects the backward clause | A certifier exists. Until then this repository's rule stands: every implemented form is an involution, and that is tested. Early Moop's `<->` is a different thing, a relation over integers. Neither is a case of the other as the sources stand (§14) | V1, V13 |
 | P9 | The three placements of the pairing are levels, not rivals: grammar, format, realization, each a codec of the one above; a spelling is a projection | Direct: Weft's grammar → format → realization, its two projections, its profiles; this repository's word and arrow aliases | Print and parse, and encode and decode, round-trip as certified codecs; a projection reproduces every crossing | V10 |
 | P10 | Lineage may be computed from construction history | Direct: Weft §11, the child retains its parent and its local specification | The birth relations preserve enough ancestry, and the computed relation reproduces the existing lineage predicate | V5 |
 | P11 | Rebinding and re-teaching are exchanges | Direct: Warp pairing 12; Weft D2 case 5 | See M7: an exchange's inverse operand, complement retention and a live-version policy are three things | V6 |
@@ -261,7 +262,7 @@ The records are:
 
 | Form | This repository | Weft | Warp | Early Moop | Current Moop, as Weft describes it |
 |---|---|---|---|---|---|
-| `<->` | `mirrors`: a bijection, every form an involution | One clause of an `iso` | Clause | A persistent relation, a constraint: free to declare, paid when realized, solved to a fixpoint | A bijective transformation |
+| `<->` | `mirrors`: a bijection, every form an involution | One clause of an `iso` | Clause | A persistent relation, a constraint over integers: free to declare, paid when realized | A bijective transformation |
 | `->` | `ask`: message passing | A message to an existing task | Outward crossing | Binds, sends a message, routes output; ε increments on every bind | Marks dissipation |
 | `<-` | `inherits`: a lineage predicate | Field-only inheritance | Inward crossing, and binding | Prototype delegation; ε increments | An ε = 0 operator |
 | `is` | Binds a name; teaches a message | — | — | Categorical membership: walks the prototype chain and changes nothing | — |
@@ -394,7 +395,7 @@ here; it needs that ruling formally reopened.
 | M9 | Warp's rulings | R1 to R10 | Not ruled | Stand as Warp records them. This record alters none |
 | M10 | Early Moop's four levels as a source | Previously known only through Weft and Warp | The author's account: four cumulative levels with distinct guarantees. Their relation to the three mechanisms "is a correspondence, not a one-to-one derivation", and the later architecture "must not erase their different responsibilities" | Entered in §13. A handoff document for the same period was located the same day and differs from the account in places (§14). P13, P14; V11, V12 |
 | M11 | Differences between early Moop and this repository | This repository: the logic layer is segregated from system memory; actors are non-hereditary; nothing user-facing goes on the tapes. All decided | Not ruled | Open. §13 lists two and §14 the rest. Nothing is changed |
-| M12 | Which kernel: Term, Clause, Port, or Term, Relation, Message | Warp's register rules the count as three: Term, Clause and Port | Not ruled | Open. §14 sets the two side by side and does not choose. V13, V14 |
+| M12 | Which kernel: Term, Clause, Port, or Term, Relation, Message | Warp's register rules the count as three: Term, Clause and Port | Not ruled | Open. §14 sets the two side by side and does not choose. V13 has since been answered no, so the choice rests on K9 and K1, which are design decisions. V14 |
 | M13 | A collision of identifiers | The second merge lists its own questions for ruling as M1 to M8, with other meanings | Not ruled | This record cites them as K1 to K8 |
 | M14 | Whether early Moop's standing rules bind this repository and this record | The handoff: say commitment, rule, by construction, and not theorem, proof or iff; add no operators; count every overwrite. This repository's documents use "iff", "provably" and "proof", and re-teaching overwrites without a count | Not ruled | Open. This record now avoids those words outside quotation. Nothing else is changed |
 
@@ -489,7 +490,7 @@ repeated.
 | V8 | The machine; P6 | One evaluator serves both stages; no candidate replaces a system binding during a run (Warp VT1, VT6); the bootstrap chain is stated and checked (VT7) | Nothing |
 | V9 | Corollary; P7 | A statically resolved handler lowers to a direct call without semantic drift; the replacement for meta records is coherent | Nothing |
 | V10 | Corollary; P9 | Print and parse, and encode and decode, round-trip; a native projection reproduces every crossing | Deposit twice is the identity; decode observes without effect |
-| V13 | Term × Clause; M12, P8 | Warp's clause is exactly the certified case of early Moop's relation: every hole determined in both directions, templates exclusive. For each remaining case, one unknown, several, and none, either what covers it in a clause-only kernel or that nothing does | Nothing. This repository has neither form |
+| V13 | Term × Clause; M12, P8 | Warp's clause is exactly the certified case of early Moop's relation: every hole determined in both directions, templates exclusive. For each remaining case, one unknown, several, and none, either what covers it in a clause-only kernel or that nothing does | The first half is answered no, by the second merge's reading of early `moop.c` (mediated; §14). This repository has neither form |
 | V14 | The machine; M12 | Under either kernel, no state change bypasses the barrier, bootstrap included, and a rejected attempt leaves what that kernel says it leaves: nothing unless a witness sits there (Warp G5), or κ and γ (early Moop) | Nothing. This repository has no barrier |
 
 A build order for this repository would follow the same sequence. None
@@ -747,7 +748,7 @@ the handoff document, which is direct, bears it out.
 
 | # | Warp (direct) | The Moop sources, as the second merge reports them | Handoff document | Carried in this record |
 |---|---|---|---|---|
-| 1 | `<->` is a certified bijection with "the same local meaning as in Moop" | A persistent constraint relation. One unknown: solve by inversion. None: a consistency check. Two or more: it stays active and propagates to a fixpoint | Yes | P8; §6 |
+| 1 | `<->` is a certified bijection with "the same local meaning as in Moop" | A persistent constraint relation. One unknown: solve by inversion. None: a consistency check. Two or more: it stays active and propagates to a fixpoint | In part. A persistent relation, yes. The four cases are not early Moop's: see the correction below | P8; §6 |
 | 2 | `<-` is an inward crossing and a binding | The prototype edge: declared once, traversed on read, free of ε | In part. Delegation, yes; but in early Moop `<-` increments ε | Rule (f), as Warp's; M4a |
 | 3 | No `is` | The fourth operator: a readout that walks the chain and changes nothing | Yes | Nowhere. `is` here has another job |
 | 4 | The commit barrier is a level-3 composite | One of five bootstrap primitives | Yes: no write bypasses it, bootstrap included | §5.1 |
@@ -758,7 +759,7 @@ the handoff document, which is direct, bears it out.
 | 9 | The mechanisms are "complementary aspects, not modules" | The layers are a generation chain, and the operator order is the prototype chain itself | In part. The generation chain, yes; the operator order is not stated | §4 |
 | 10 | An object is a handler layer plus a state term | Actors, without delegation, and protos, with it, are different things; a non-hereditary bootstrap actor generates `root_proto` | In part. The bootstrap actor, yes; but early Moop's L3 actors delegate | P3; M11 |
 
-Six are borne out and four in part. On point 10 this repository matches
+Five are borne out and five in part. On point 10 this repository matches
 the second merge's statement exactly, which is why M11's second
 difference appeared.
 
@@ -771,7 +772,7 @@ homoiconicity and reversibility, and its closure rule.
 |---|---|---|
 | Mechanisms | Term, Clause, Port | Term, Relation, Message |
 | Written with | No reading assigned (§6) | Moop's four operators: `<-` and `is` for Term, `<->` for Relation, `->` for Message |
-| Transformation | A clause: two linear templates, exclusive on both sides | A relation, solved by how many holes remain. Warp's clause is its first case |
+| Transformation | A clause: two linear templates, exclusive on both sides | A relation, solved by how many holes remain. By its own correction this generalizes both sides: it widens Moop's relation from integers to terms, and Warp's clause from one case to four |
 | Interaction | A crossing to the nearest enclosing handler, outward or inward | A send, resolved along the `<-` chain to `root_proto`. Input is a send whose answer fills a hole, so there is no inward arrow |
 | The barrier | A level-3 composite | "The rule of sending": first, not built later |
 | The record | A witness: optional, and removing it changes no result | γ: what the barrier leaves, not removable |
@@ -786,8 +787,9 @@ scope and closure rule, the three stages of loss, linear holes, the
 rejections carried from Weft and Warp, no name, and that nothing is
 implemented.
 
-The second merge lists eight questions for ruling, cited here as K1 to
-K8 (M13). Four touch this record directly.
+The second merge lists nine questions for ruling, the ninth added with
+its correction. They are cited here as K1 to K9 (M13). Five touch this
+record directly.
 
 | Ref | Its question | Bears on |
 |---|---|---|
@@ -795,13 +797,41 @@ K8 (M13). Four touch this record directly.
 | K2 | Is RME-7 constitutive of the language, or a model written in it? | M9. Weft §14 says RME-7 is a model represented in Weft, as the second merge notes. Weft's register, which it did not read, adds that Moop's κ, a popcount meter, shares a symbol with RME-7's admissibility gate, and leaves that for ratification |
 | K5 | What does ε count? Warp's three stages with Moop's one-per-overwrite as the event count; "the two units have not been reconciled" | §3: this record's ε is Warp's, in bits |
 | K8 | The name | M1. It proposes none |
+| K9 | Is Warp's clause the certified case of Moop's relation? "Not as the sources stand." It becomes so only if the relation is widened from integer arithmetic to terms and its lossy solves are declared as `PartialIso` domains, which it assumes and does not treat as ruled | M12, V13, P8 |
+
+### The second merge's correction
+
+Read from the second merge at its ninth revision, dated 10 November.
+The correction itself is direct. What it reports of early `moop.c` is
+mediated.
+
+V13 asked whether Warp's clause is exactly the certified case of early
+Moop's relation. The second merge checked its own claim against the
+relation solver in early `moop.c` and answers no, in three ways.
+
+| | Early Moop's relation | Warp's clause |
+|---|---|---|
+| Domain | Integer arithmetic over three participants: `+`, `-`, `*`, `/`, `=` | A pair of templates over arbitrary terms |
+| Inversion | Solving `*` and `/` uses truncating division, and a zero operand solves to 0. Those solves lose information | A bijection on its declared domain |
+| Lifetime and violation | A relation deactivates once it solves or checks, and a failed check prints `false` | Not applicable |
+
+Treating a violated relation as Φ = ∅ is Unicore's later adaptation and
+not early Moop's behavior. So the four-case relation is the second
+merge's proposal, not a finding about the sources: in its words, it
+"generalizes both sides". Point 1 of the ten is borne out only as far as
+this: Warp's clause would cover one case of the four.
+
+This bears on the present repository too. Its `<->` is restricted to
+involutions so that bijectivity is a tested fact, and oversized values
+are refused. Early Moop's solver took the other course and let a solve
+lose information.
 
 ### What follows for this record
 
 1. **Its foundation describes Warp, not the four sources together.**
-   Sections 2 to 5 take Warp's reading of Moop. On six of the ten points
-   Moop's own handoff document supports the second merge against that
-   reading, and on four more in part.
+   Sections 2 to 5 take Warp's reading of Moop. On five of the ten
+   points Moop's own handoff document supports the second merge against
+   that reading, and on five more in part.
 2. **Its tested findings stand.** The pruning witness (M6) and the
    difference between birth and lineage (M4b) are facts about this
    repository. Whether early Moop's causal pruning also removes live
@@ -812,12 +842,15 @@ K8 (M13). Four touch this record directly.
    retained), both dossiers, Weft's register and whole specification,
    the author's provisional rulings, and the verification obligations.
    The second merge holds Moop's and Unicore's records.
-4. **The choice of kernel is M12, and it turns on two things.** The
-   first is V13: whether Warp's clause is exactly the certified case of
-   Moop's relation. If it is, the relation contains the clause, and the
-   choice is between a kernel that has the other three cases and one
-   that does not. The second is K1, on which the second merge's joining
-   of the two rests.
+4. **The choice of kernel is M12, and it now rests on two design
+   decisions.** V13 was the one question of fact, and its answer is no:
+   neither kernel's transformation contains the other's as the sources
+   stand. The relation contains the clause only after it is widened by
+   decision (K9). The joining of hole, unknown and MAYBE is likewise a
+   decision (K1); the only source support its author reports is that a
+   MAYBE participant counts as an unknown inside the solver, and nothing
+   in Moop makes a non-boolean term unresolved.
+   Neither can be settled by reading a source.
 5. **Early Moop puts first what Warp builds late.** §13 found this for
    disposal. The located documents add the barrier and the measure of
    divergence, both at L1 in early Moop, and the record the barrier
