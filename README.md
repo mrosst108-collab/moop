@@ -102,7 +102,8 @@ says so rather than pretending.
 
 ## Design direction
 
-[docs/merge.md](docs/merge.md) merges moop with three sibling designs
-(Unicore, Weft and Warp) into one: three mechanisms — term, clause and
-port — each carrying one axiom. It is a design record with open rulings;
-nothing in it is implemented beyond what is described above.
+[docs/merge.md](docs/merge.md) records a candidate architecture for
+merging moop with three related designs (Unicore, Weft and Warp), built
+on three mechanisms: term, clause and port. It is an investigation with
+open rulings, not a decision. It changes nothing described above, and
+nothing in it is implemented.

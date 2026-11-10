@@ -1,132 +1,140 @@
-# moop, merged
+# Merge record: Moop × Unicore × Weft × Warp
 
-Moop × Unicore × Weft × Warp as one design. 10 November 2026.
+10 November 2026. Revised the same day after review; the provisional
+rulings are entered in §10.
 
-Merged, moop is three mechanisms, one per axiom. A **term** is what
-exists (homoiconicity). A **clause** `l <-> r` is how it changes
-(reversibility). A **port** is where it meets anything else
-(segregation). Every component of machine state is a term, every machine
-step is a certified bijection on terms, and information enters or leaves
-only at a declared crossing. Root pruning is the one act outside the
-step, and the only loss.
+This record investigates one architecture for merging four designs. It
+takes Warp's three mechanisms — term, clause, port — as the foundation,
+uses Weft's selection rule to govern what is admitted, and draws scope
+and guarantee structure from the Moop and Unicore material. It is a
+candidate to investigate, not a ratified synthesis. The merged
+architecture has no name (M1). Several of its derivations are
+conditional on tests that do not exist yet (§11). Nothing in it reopens
+a prior ruling: where it differs from a decided item, the decided item
+stands.
 
-The four sources are not four feature sets. Each answers a question the
-other three leave open, so the merge is a selection, not a union:
+## Reading this record
 
-| Source | The question it answers | Its answer |
+Every claim carries a provenance and a status. They are kept apart so
+that a reconstructed claim never acquires the standing of a documented
+one.
+
+| Provenance | Meaning |
+|---|---|
+| **Direct** | Stated in a source that was read: Weft, Warp, or this repository |
+| **Mediated** | A claim about Unicore, or about Moop's design records, known only through Weft's or Warp's description of it. It establishes what Weft or Warp says, not what the original says |
+| **Derived** | This record's own inference. Stated in no source |
+
+| Status | Meaning |
+|---|---|
+| **Source-established** | Directly stated in an available source. A mediated claim does not qualify; it is recorded as reported |
+| **Derived proposal** | Follows from this record's definitions, pending verification |
+| **Ruled and implemented** | Explicitly decided and reflected in the implementation and its tests. Only items of this repository have this status |
+
+A passing `make test` establishes what its tests assert. No test
+exercises the three-mechanism architecture.
+
+**The sources.** The assignment of one question to each source is this
+record's reading (derived). The table does not claim equal documentary
+support.
+
+| Source | Question assigned | Evidentiary standing |
 |---|---|---|
-| Weft | How is a mechanism selected? | Admit only what strengthens two mechanisms or eliminates two, and interferes with none |
-| Warp | What are the mechanisms? | Term, clause, port |
-| Unicore | Who answers for each guarantee? | Reversibility is the system's; dissipation is the user's to declare; the root is guarantor and terminus |
-| Moop | What is it made of, and how does it read? | One CCNOT on two counter-rotating tapes; words, an article and a headless chain |
+| Weft | How is a mechanism selected? | Direct: Specification rev 72, Moop correspondence rev 9, Derivations rev 6, register |
+| Warp | What are the mechanisms? | Direct: Proposal of 9 November 2026, dossiers, register |
+| Unicore | Who answers for each guarantee? | Mediated only. No Unicore record was located. Everything attributed to it comes from Warp's proposal and Dossier T, and from Weft's correspondence tab, which calls Moop "formerly Unicore" |
+| Moop | What is it made of, and how does it read? | Mixed. Direct for this repository: its documents, source and tests. Mediated for the design records of March to September 2026, which were not located: the five constituents, admission on every write, the trace 𝒯_Moop, ε, `RUNTIME_START`, the two MAYBE forms, `clone` and `root_proto` are known only through Weft and Warp |
 
-This is a design record. The repository implements the Moop realization
-that `docs/model.md` and `docs/syntax.md` describe; nothing else here is
-implemented or tested. Where the merge contradicts a decided item, §10
-lists the conflict, and the implemented behavior stands until it is
-ruled.
+## 1. Method
 
-**Sources read.** Weft — Design Specification (rev 72), with its Moop
-correspondence (rev 9), Derivations (rev 6) and register. Warp — Design
-Proposal (9 November 2026), with its dossiers and register. Moop: this
-repository. No Unicore record and no Moop design record from March to
-September 2026 was available; their commitments are taken from how Weft
-and Warp describe them. Weft's correspondence tab treats Unicore as
-Moop's former name and Warp lists the two separately; here "Unicore"
-means the two axes and `root_proto`, and "Moop" means the tape model and
-this repository.
+| Rule | Statement | Standing |
+|---|---|---|
+| Admission | `Admit(f) ⟺ [Strengthens(f, ≥2) ∨ Eliminates(f, ≥2)] ∧ Noninterfering(f)`. The two counts are never added. Wider coverage is a reason to look for a candidate, never a reason to admit one | Direct, Weft §1 |
+| Deletion | A construct is redundant iff a uniform contextual rule covers all its uses without creating silence (a mistake becoming an action) or ambiguity (one form, two meanings) | Direct, `docs/derivation.md` |
+| Order | Unify from the lowest level upward, keep every distinction that carries its own guarantee, and promote an admitted composite to a building block of the next level | Direct, Weft §1 |
+| Evidence | Provenance, rule, semantic status and test status are separate claims. Nothing is presented as proven unless it was discharged | Direct, Weft's correspondence tab and constraint 6; this repository's rule that an unimplemented behavior reports itself |
 
-## 1. Method: one rule, two directions
+Reading admission and deletion as one discipline in two directions is
+derived. So is the rule this record adds for itself: a merge selects
+mechanisms, and it does not select away a distinction that a source
+keeps on purpose. A simplification that would erase provenance, lineage,
+pruning semantics or version policy by vocabulary alone is not a
+derivation.
 
-Weft supplies the rule for what may enter. Moop supplies the test for
-what must leave. Both count independent semantic rules, not names.
+## 2. Three invariants, three mechanisms
 
-- **Admission** (Weft).
-  `Admit(f) ⟺ [Strengthens(f, ≥2) ∨ Eliminates(f, ≥2)] ∧ Noninterfering(f)`.
-  The two counts are never added. Wider coverage is a reason to look for
-  a candidate, never a reason to admit one.
-- **Deletion** (Moop). A construct is redundant iff a uniform contextual
-  rule covers all its uses without creating silence (a mistake becoming
-  an action) or ambiguity (one form, two meanings).
-- **Order** (Weft). Unify from the lowest level upward, keep every
-  distinction that carries its own guarantee, and promote an admitted
-  composite to a building block of the next level. This is why §4 comes
-  before §5.
-- **Honesty** (all four). Provenance, rule, semantic status and test
-  status are four separate claims. Nothing is presented as proven unless
-  it was discharged, and an unimplemented behavior reports itself.
+Each cell below is a statement by the source in its column. Reading the
+rows as the same three invariants is derived.
 
-A derivation in `docs/derivation.md` and an admission dossier in Weft
-are the same form: what forces the candidate, what it strengthens or
-eliminates, every rule it adds, no special cases, non-interference
-shown, and the tests that would discharge it. Two rules behind one name
-remain two rules.
-
-## 2. Three axioms, three mechanisms
-
-The four sources hold the same three invariants and the same single
-exception. Each named them at its own level.
-
-| Axiom | Mechanism | Moop | Unicore | Weft | Warp |
+| Invariant | Warp's mechanism | This repository (direct) | Weft (direct) | Warp (direct) | Mediated |
 |---|---|---|---|---|---|
-| **Homoiconicity**, ubiquitous: every component of state has one representation | Term | Tape content: every cell is control and target | `homoiconicity_guarantor` | The canonical typed graph; `Code(T)` (D2) | Term |
-| **Reversibility**, system-facing: every step is a bijection | Clause | CCNOT and rotation; the gate layer; `mirrors` | `reversibility_guarantor`; `<->` pairs | `Iso` and `PartialIso` | Clause |
-| **Segregation**: information enters or leaves only at a declared boundary, and dissipation is user-facing | Port | Two memories, two logics; the one bridge shape; Message | The second axis; the G♯ receiver | Effects and handlers; the sector boundary; `Dissipate` | Port |
-| The one exception | Root pruning | Causal pruning | — | — | Root pruning |
+| Homoiconicity | Term | No read-only program tape; every cell is control and target | The canonical typed graph; `Code(T)` as candidate D2 | Every component of machine state is a term | Unicore: `homoiconicity_guarantor` |
+| Reversibility | Clause | CCNOT and rotation; the gate layer; `mirrors` | `Iso` and `PartialIso`, inside a sector | Every machine step is a certified bijection on terms | Unicore: `reversibility_guarantor` |
+| Segregation | Port | Two memories, two logics; one sanctioned bridge shape | The sector boundary: entry through lifts, exit through `Dissipate` | Information enters or leaves only by crossing a port | Unicore: dissipation is user-facing. Moop records: coupling only through typed ports |
+| The one exception | Root pruning | Causal pruning | — | Root pruning, outside the machine step | — |
 
-One mechanism carries one axiom, and removing a mechanism removes
-exactly its axiom. That is the orthogonality argument at the base, and
-it fixes the count.
+**Derived proposal.** One mechanism carries one invariant, so removing a
+mechanism removes exactly its invariant, and the count is three. Weft's
+seven kernel mechanisms would then be composites. Warp's register
+classifies most of them that way already, in its table of the relay's
+eight foundations; the rest is this record's reading. Moop's five constituents, a
+mediated list, would be two realizations, two crossings and one
+composite. The count is not one: a term that is not a clause still
+exists, and a clause across a boundary still needs the boundary.
 
-- **Not seven.** Weft's seven kernel mechanisms are composites of these
-  three (§7).
-- **Not five.** Moop's five constituents are two realizations (Tape of
-  term, CCNOT of clause), two crossings (Ancilla Discard outward,
-  Message as request) and one composite (Commit Barrier).
-- **Not one.** The clause is where homoiconicity and reversibility
-  coincide, but a term that is not a clause still exists, and a clause
-  across a boundary still needs the boundary. Calling the three
-  "aspects of the clause" would hide three rules behind one name.
+Whether the repository's causal pruning and Warp's root pruning are the
+same exception is not settled. §10, M6 records a tested difference.
 
-## 3. The kernel
+## 3. The kernel, as Warp rules it
 
-Three mechanisms and seven rules, with one more pending. Warp's rule
-letters are kept; (e) is vacated, not renumbered.
+Direct, Warp §3: three mechanisms and eight operational rules, with a
+ninth pending admission.
 
 | Mechanism | Rules |
 |---|---|
-| **Term** | (a) A term is an atom, or a tagged node with labelled children. It is immutable. (b) A term's identity is the hash of its normalized form. Nominal-type, role-seal and resource identity are kept apart from it, and none confers authority |
-| **Clause** | (c) A template is a term with holes. Each hole is used exactly once on each side. Read left to right a template builds; read right to left it matches. A template may apply another clause set. (d) A clause set selects by match and is exclusive on both sides, in either direction |
-| **Port** | (f) `v -> p` crosses outward and `x <- p` crosses inward. The nearest enclosing handler receives the request and the continuation, both as terms. (g) A handler is a clause set over request terms. It stays installed, and it holds the continuation as a linear term |
+| **Term** | (a) A term is an atom, or a tagged node with labelled children. (b) A term's identity is the hash of its normalized form. Nominal-type, role-seal and resource identity are kept apart from it, and none confers authority |
+| **Clause** | (c) A template is a term with holes, each used exactly once on each side; it builds read forward and matches read backward; it may apply another clause set. (d) A clause set selects by match and is exclusive on both sides, in either direction. (e) The certified primitives of Weft §6: swap, XOR update, modular add and subtract updates, Toffoli update |
+| **Port** | (f) `v -> p` crosses outward and `x <- p` crosses inward; the nearest enclosing handler receives the request and the continuation, both as terms. (g) A handler is a clause set over request terms; it stays installed and holds the continuation as a linear term |
 | Order | (h) Evaluation is strict and left to right, so the order of crossings is fixed |
-| Pending | (i) A term takes a role — code, type, request, continuation — only through that role's seal (Warp Dossier T) |
+| Pending | (i) A term takes a role — code, type, request, continuation — only through that role's seal (Dossier T) |
 
-**Vocabulary.** A *sector* is a handler and the computation it encloses;
-sectors nest and the *root handler* encloses them all. The *system
-sector* holds certified clauses with an empty row, so it cannot cross
-and cannot lose. *User sectors* are handler layers whose *rows* (sets of
-request templates) declare each crossing. `hide` is the outward crossing
-that the root answers by retaining the term, and ε counts what is
-hidden, in bits, once per `hide` event. The *complement* is what
-the root retains so a run can be reversed: hidden terms, and world
-inputs and outputs. A *witness* is an ordinary handler layer that copies
-what crosses its own boundary; it is never the complement.
+**Vocabulary** (direct, Warp §4). A *sector* is a handler and the
+computation it encloses; the *root handler* encloses them all. The
+*system sector* holds certified clauses with an empty row, so it cannot
+cross and cannot lose. *User sectors* are handler layers whose *rows*
+declare each crossing. `hide` is the outward crossing the root answers
+by retaining the term; ε counts each `hide` event once, in bits. The
+*complement* is what the root retains so that a run can be reversed. A
+*witness* is an ordinary handler layer that copies what crosses its own
+boundary, and it is never the complement. The machine is one term,
+`M = ⟨system store, dynamic store, focus, continuation, complement⟩`,
+and the language is one clause set, `step : M <-> M`. The system store
+is fixed from `RUNTIME_START` until termination.
 
-**Machine.** `M = ⟨system store, dynamic store, focus, continuation,
-complement⟩` is one term, and the language is one clause set,
-`step : M <-> M`. The system store is fixed from `RUNTIME_START` until
-termination: inspectable, never installed over. The dynamic store holds
-the rebindable user bindings. The world lies outside `M`.
+**Three things that are not the same** (direct, Warp §4, which calls
+them hidden, pruned, and physically reclaimed or zeroed; the names here
+and the sentence after the table are the review's):
 
-**Rule (e) is derived away.** Warp and Weft list certified primitives —
-swap, XOR, modular and Toffoli updates — as the base case of
-certification. Over a two-atom type each is an ordinary clause set,
-certified by (c) and (d) alone:
+| Stage | Unit | What it is |
+|---|---|---|
+| Logical hiding | Bits | Information becomes inaccessible to the program and stays reconstructible. Counted by ε |
+| Root pruning | Bits | Hidden information is removed from the reconstructible state. The only operation that is not a bijection, and the only one outside `step` |
+| Physical reclamation | Bytes | The realization reclaims or zeroes storage. Two distinct measurement events. Weft's M_heap measures here |
+
+Reclamation does not imply that a value was previously hidden by a
+program-level `hide`, and it is not by itself a violation of ε
+accounting.
+
+### Proposed merger decision M3: rule (e)
+
+This is a decision of the merger. It is not attributed to Warp, whose
+ruled count is eight.
+
+*Proposal.* Over a two-atom type the certified primitives are ordinary
+clause sets under rules (c) and (d), so rule (e) is not an independent
+rule of the format:
 
 ```
-swap:
-    (a, b) <-> (b, a)
-
 cnot:
     (0, b) <-> (0, b)
     (1, 0) <-> (1, 1)
@@ -139,256 +147,157 @@ ccnot:
     (1, 1, 1) <-> (1, 1, 0)
 ```
 
-Word-level updates are structural recursions over bit tuples, which
-Weft certifies as an `Iso` when the recursion is structural in both
-directions. "Certified primitive" then names a realization obligation —
-a native adder, or the tape's gate, must agree with the clause set it
-stands for — and not a rule of the format. The realization's base case
-is Moop's: CCNOT. Derived here; not shown. The sketch is illustrative
-and its syntax is unruled.
+*Count.* If M3 is adopted, the merged kernel has seven admitted
+operational rules and one pending role-seal rule. Until it is adopted,
+it has Warp's eight and the pending ninth.
 
-**Certifier.** Three rules are counted apart from the kernel, as in
-Warp: a type is a set of templates; rows give open records, open
-variants and port sets; a clause set is a certified `Iso` when its
-templates are exclusive and exhaustive on both sides, and a certified
-`PartialIso` when exclusive on both sides over a declared domain and
-image. Certification never changes what a program does, and types never
-direct dispatch.
+*What the sketch does not establish.* Writing the tables down shows
+that the gates are bijections a clause set can express. It does not
+show that a certifier proves them, that a realization executes them, or
+that the word-level updates follow. Obligation V1 (§11) names what must
+be shown. The realization obligation remains under either outcome: a
+native adder, or the tape's gate, has to agree with whatever the format
+says it stands for.
 
-**Loss** has three stages, each measured separately:
+## 4. Foundational structure
 
-| Stage | Unit | Jurisdiction | Meaning |
+**What is Warp's.** Warp §5 files its thirteen pairings under four
+headings: Term × Clause (1–5), Clause × Port (6–9), Port × Term (10–12)
+and all three (13, the role seal). The grouping is direct.
+
+**What is this record's.** Treating the three pairs and the triple as
+the foundation on which everything else is built, and the four names
+below, are derived. No source names these four compositions as such.
+Where a name is borrowed, the source used it for something narrower,
+and the note says so.
+
+| Composition | Proposed name | What the composition supplies | Textual support |
 |---|---|---|---|
-| Hidden | Bits | User-facing | Retained as complement, out of the program's reach. ε counts each `hide` event once |
-| Pruned | Bits | System-facing | Removed from the reconstructible state. The only map that is not a bijection, and outside `step`. Never exceeds ε |
-| Reclaimed or zeroed | Bytes | Realization | Two distinct measurement events: reclaiming storage does not show its contents were erased. Weft's M_heap is not absorbed; it measures this stage |
+| Term × Clause | Causal closure | State and transformation are represented in the same domain: a clause is a term, inversion is a clause over clause terms, and a template builds forward and matches backward | Direct: Warp §1 and pairings 1–5; Weft's Derivations, "central reference pairing: reversibility × homoiconicity". The name is this repository's (`docs/model.md`), where it means reversible plus homoiconic tapes |
+| Clause × Port | The bridge | Transformations become interactions at declared boundaries: a function is a clause whose complement leaves through a port, and inversion exchanges `->` and `<-` | Direct: Warp pairings 6–9; Weft §6, the lift followed by `drop`. The name is this repository's, where it means one shape: reversible effect inside, irreversible observation outside. Mediated: Unicore's two axes |
+| Port × Term | The message | Interactions and requests are represented as terms: a handler is a clause set over requests, and an unanswered request goes to the enclosing handler | Direct: Warp pairings 10–12; Weft §2, "handler clauses are match arms". The name is this record's. "Message" as a Moop constituent is mediated |
+| Term × Clause × Port | The machine | The architecture that composes the three: state is one term, `step` is one clause set over it, and the root handler is where it meets the world | Direct: Warp §4 and its level-4 composite. Derived: reading the machine as the triple. Warp's own all-three pairing is the role seal |
 
-## 4. Foundational synergies
+Each pairing supplies a relation the other two cannot supply alone.
+That claim is derived, and it is the reason for building these four
+before anything in §5.
 
-Three mechanisms give three pairs and one triple. These four are the
-foundation: each is a product of mechanisms alone, with no composite in
-its statement. Each already had a name in a source.
+## 5. Corollaries
 
-**F1. Term × Clause — causal closure** (Moop's name). A clause is a
-term, so every program transformation has an inverse, and inversion is
-itself a clause over clause terms: `clause(l, r) <-> clause(r, l)`, an
-involution. A template builds forward and matches backward, so quoting
-code and matching on code need no sublanguage. The state alone
-determines future and past, and running backward recovers the program
-that produced it. Neither half gives this alone: reversibility with an
-external program keeps the system irreversible, and homoiconicity
-without reversibility is self-modification with amnesia.
-*Held by:* Moop at the bit, Weft at the format (D2), Warp at the term,
-Unicore as two guarantors on one root.
+### 5.1 As Warp states them
 
-**F2. Clause × Port — the bridge** (Moop's name: reversible effect
-inside, irreversible observation outside). A function is a clause
-completed to a bijection by a complement that leaves through a port.
-Loss is therefore always a crossing, always declared, and always
-counted. Inversion exchanges `->` and `<-`, so disposal and injection
-are inverse crossings, and so are output and input.
-*Held by:* Moop's MAYBE, and NAND as CCNOT plus Ancilla Discard;
-Unicore's two axes; Weft's lift followed by `drop`; Warp's `l -> r`.
+Direct, Warp §6. Level 2 unifies kernel mechanisms, level 3 unifies
+level-2 composites, level 4 is machine-wide.
 
-**F3. Port × Term — the message** (Moop's constituent). A request is a
-term, so a handler is a clause set over requests, a row is a set of
-request templates, and a request that no layer answers goes to the
-enclosing handler, which is delegation. The continuation, the stores and
-the complement are terms behind ports, so reflection is a crossing and
-needs no interface of its own.
-*Held by:* Moop's taught messages and lineage lookup; Unicore's
-prototype chain; Weft's handler clauses as match arms; Warp's handler
-stack.
-
-**F4. Term × Clause × Port — the machine.** State is one term, `step`
-is one certified clause set over it, and the root handler is where it
-meets the world. The language's own definition is an object of the
-language, so no interpreter state, checkpoint format or debugger
-protocol exists outside it.
-*Held by:* Moop's stack-wide tape; Unicore's root as guarantor; Weft's
-grammar → format → realization; Warp's `step : M <-> M`.
-
-## 5. Corollaries, in construction order
-
-Every feature above the kernel is a composite. Level 2 unifies
-mechanisms directly, level 3 unifies level-2 composites, and level 4 is
-machine-wide. Each row names the foundational synergy it rests on, the
-constructs it absorbs from the sources, and the distinction it keeps
-because that distinction carries a guarantee.
-
-**Level 2**
-
-| Composite | Rests on | Absorbs | Distinction kept |
+| Level | Composite | Unified from | Distinction kept |
 |---|---|---|---|
-| Inversion and codec | F1 | Weft's parse/print round trip; Moop's encode/decode; serializer and deserializer | Total against partial |
-| Function | F2 | Moop's AND, OR, NAND, NOR, XOR; Weft's ordinary code | `<->` against `->`: logical reversal against reversal by retention |
-| Update | F2 | Assignment and initialization (Weft D1: swap plus declared disposal). Moop's deposit and exchange are the updates that dispose of nothing | Exchange against disposal |
-| Freshness | F2 | Moop's MAYBE and birth seed; Weft's `Ask`, `Sample`, type salt and lineage seed; Warp's clean bits and seal salt | Agent-resolved against measure-resolved |
-| Object | F3 | Slots, dispatch and delegation; Moop's actor and proto; Unicore's prototypes; Weft's meta records | Answering against forwarding |
-| Stores and names | F3 | Modules; Moop's names and `is`; Weft's `Rebind` slot | Fixed against governed; code by hash against a name |
-| Witness | F3 | Moop's trace 𝒯_Moop; audit records | Witness against complement |
-| Role seal (pending) | F1, F2, F3 | Nominal types, opacity (Weft Q15), sealed wrappers | Interpretation against authority |
-| Addressed memory (candidate) | F3 | Moop's RAM; Weft's raw-storage sector (Q17) | Port identity against access lease |
+| 2 | Function | Clause + `-> hide` | Logical reversal against reversal by retention |
+| 2 | Update | Clause applied in place + `-> hide` | Exchange against disposal |
+| 2 | Object and prototype | Handler layer + state term | Answering against forwarding |
+| 2 | Role seal (pending) | `PartialIso` from raw term to role + fresh salt, issued by the system sector | Interpretation against authority |
+| 2 | Codec | `PartialIso` between two term forms | Total against partial |
+| 2 | Stores | Terms behind a port | Fixed against governed; code by hash against a name |
+| 2 | Witness | Handler layer + explicit fan-out | Witness against complement |
+| 2 | Ask and Sample | Inward crossings | Agent-resolved against measure-resolved |
+| 2 | Addressed memory (candidate) | Memory handler + address terms | Port identity against access lease |
+| 3 | Certifier | The code seal + templates as types + rows | Certification against meaning |
+| 3 | Commit barrier | Handler + speculation + inspection of the request | Compatibility against permission |
+| 3 | Lineage and attenuation | Nested handlers for delegation and attenuation + construction for generation and inheritance | Generation, inheritance, reversibility and authority |
+| 3 | Complement and ε | The root handler's retained term | Hidden, pruned, reclaimed or zeroed |
+| 4 | Machine | `step : M <-> M` | Format against realization |
+| 4 | Governed self-modification | Dynamic store + certifier + barrier + complement | Inspect, transform, verify, patch and install |
+| 4 | Tasks | Sectors + a scheduler as root handler | Reproduced schedule against replayed execution |
 
-**Level 3**
+### 5.2 Derived proposals
 
-| Composite | Built from | Absorbs | Distinction kept |
-|---|---|---|---|
-| Complement and ε | `hide` + the term the root retains | Moop's ε; Weft's ε_drop; any general undo log | Hidden, pruned, reclaimed or zeroed |
-| Certifier | The code seal + templates as types + rows | Weft's inference, comptime evaluator and runtime checker (Q7); Unicore's static chain check | Certification against meaning |
-| Commit barrier | Handler + speculation + inspection of the request | Moop's Commit Barrier and admission on every write; Unicore's `enforcement_binding`; Weft's admission policy | Compatibility against permission |
-| Lineage | Construction clause + nested handlers | Moop's generation and inheritance; Unicore's `root_proto` → `Object` → user prototypes; Weft §11 | Generation, inheritance, reversibility, authority |
-| Stage | Stores + certifier | Weft's comptime; Moop's `RUNTIME_START`; Unicore's bootstrap arc | This run against a prior run |
-| Hoisting | Certifier + object | Unicore's hoisted chain walk; Weft Q3; Warp VP8 | Resolved statically against found at run time |
+Each is this record's inference from reading the sources against each
+other. Each holds only under the stated condition, and none is closed
+until its obligation in §11 is specified and passes.
 
-**Level 4**
+| # | Proposal | Support | Holds only if | Obligation |
+|---|---|---|---|---|
+| P1 | One mechanism per invariant fixes the count at three | §2 | The three invariants are the same across the sources, which rests in part on mediated claims | — |
+| P2 | Certified primitives are clause sets (M3) | Direct: Weft §6 certifies a non-recursive `iso` by construction | A certifier proves the tables and a realization executes them | V1 |
+| P3 | The object is the bridge as a standing thing: this repository's actor (reversible body, hosted irreversible messages) is Warp's handler layer plus state term | Direct on both sides | Hosted messages and handler clauses have the same dispatch and the same accounting | V3 |
+| P4 | The ladders coincide: actor → system root → user roots → protos; root handler → system sector → user sectors; Weft's system root and user root | Direct for those three. Mediated for `root_proto` → `Object` → user prototypes | The system/user split is the same split in each. Weft's is a sector typing, this repository's a `facing` field | V5 |
+| P5 | Freshness is one inward crossing: a clean bit, a seal's salt, a type's salt, a birth seed, a MAYBE draw | Direct for clean bits, salts, `Ask` and `Sample` (Warp). Derived for the birth seed and for this repository's MAYBE | The merged reading reproduces MAYBE, which also advances the body by one tick. It is not a bare inward crossing | V3 |
+| P6 | Stage is store-sealing: compile time, `RUNTIME_START` and the two stores are one distinction, with one evaluator | Direct: Weft's comptime; Warp's two stores and its register ("one compile-time and runtime representation and evaluator", design-level). Mediated: Moop's `RUNTIME_START`, Unicore's bootstrap arc | One evaluator serves both stages, and a prior run can produce the next system image | V8 |
+| P7 | A handler layer or an explicit operations argument replaces Weft's meta records; lowering a resolved handler is one obligation (Weft Q3, Warp VP8) | Direct: Warp §6, "types do not direct dispatch; a handler or an explicit operations argument does". Mediated: Unicore's hoisted chain walk | The replacement keeps the coherence that meta records give by declaration | V9 |
+| P8 | `mirrors` generalizes from involutions to any certified clause, with the involution moving to `invert` | Direct: Weft §6, exclusivity on the output side selects the backward clause | A certifier exists. Until then this repository's rule stands: every implemented form is an involution, and that is tested | V1 |
+| P9 | The three placements of the pairing are levels, not rivals: grammar, format, realization, each a codec of the one above; a spelling is a projection | Direct: Weft's grammar → format → realization, its two projections, its profiles; this repository's word and arrow aliases | Print and parse, and encode and decode, round-trip as certified codecs; a projection reproduces every crossing | V10 |
+| P10 | Lineage may be computed from construction history | Direct: Weft §11, the child retains its parent and its local specification | The birth relations preserve enough ancestry, and the computed relation reproduces the existing lineage predicate | V5 |
+| P11 | Rebinding and re-teaching are exchanges | Direct: Warp pairing 12; Weft D2 case 5 | See M7: an exchange's inverse operand, complement retention and a live-version policy are three things | V6 |
+| P12 | A taught chain can be read back because code is a term | Direct: Warp pairing 2 | The surface gains a way to hold a chain, and reading executes nothing | V2 |
 
-| Composite | Built from | Absorbs | Distinction kept |
-|---|---|---|---|
-| Machine | `step` over `M` | Interpreter, debugger, checkpointing, serialization of running state | Format against realization |
-| Governed self-modification | Dynamic store + certifier + barrier + complement | Moop's self-rewrite under the root; Weft's `Rebind` and checked patches | Inspect, transform, verify, patch and install stay separate |
-| Tasks | Sectors + a scheduler as a handler | Threads and locks; Weft's spawn and send | Reproduced schedule against replayed execution |
+Two earlier claims are withdrawn rather than made conditional. "Hidden
+is declared inertness" asserted that causal marks detect what `hide`
+declares; that depends on a witness and instrumentation model and is
+now obligation V4. "The lineage predicate is the construction clause
+read backward" is replaced by P10.
 
-Six unifications come from reading the sources against each other;
-none is stated in any one of them.
+## 6. The surface, as the existing records have it
 
-1. **The object is the bridge at rest.** Moop's actor — a reversible
-   body behind a table of irreversible messages — is Warp's handler
-   layer plus state term: the bridge of F2 as a standing object rather
-   than a single call. Moop's ladder (actor → system root → user roots
-   → protos), Unicore's (`root_proto` → `Object` → user prototypes),
-   Weft's (system root, user root) and Warp's (root handler → system
-   sector → user sectors) are one ladder. The non-hereditary actor is
-   its terminus: a layer that forwards nowhere.
-2. **Freshness is the inward crossing.** A clean bit, a seal's salt, a
-   nominal type's salt, a birth seed, a MAYBE draw and a world input
-   are one act, and `hide` is its inverse. Moop seeds a child from its
-   generator's dynamics; that is an inward crossing a certified handler
-   answers, which is why the generator can step back to before the
-   birth with nothing retained.
-3. **Stage is store-sealing.** Weft's compile time, Moop's
-   `RUNTIME_START`, Warp's two stores and Unicore's bootstrap arc are
-   one distinction: before and after the system store is fixed. Compile
-   time is a prior run whose output is the next system image. There is
-   one evaluator, and a bootstrap is a chain of runs.
-4. **Dispatch replaces meta records, and hoisting is one obligation.**
-   Weft resolves operators by type, which the kernel rejects. A handler
-   layer answers the operation instead, as a Moop proto answers a
-   message, or the operations arrive as an explicit argument. Lowering a
-   statically resolved handler to a direct call is then a single
-   obligation with three names: Unicore's hoist, Weft's Q3, Warp's VP8.
-5. **Hidden is declared inertness.** Moop detects causally inert cells
-   by marks and zeroes them. Unicore and Warp require loss to be
-   declared. `hide` declares what marks detect: a hidden term is inert
-   to the forward run by definition. Declaration is the semantics, and
-   detection is a tool for suggesting a `hide` or checking one. By
-   Moop's own deletion test, marks cannot replace `hide`: a rule that
-   prunes whatever is inert creates silence, because a cell that would
-   have fired in a later epoch is lost without anyone discarding it —
-   the caveat `docs/model.md` already records.
-6. **`mirrors` is the clause.** Moop requires every `<->` form to be an
-   involution so that "bijective" is a tested fact. Exclusivity on both
-   sides gives that fact for any clause, and the involution moves from
-   each form to `invert`. Deposit and exchange remain, as two clauses
-   that happen to be their own inverses.
+This record assigns no merged reading to any glyph or word. Weft's
+register settles that the divergence between Weft's and Moop's arrows is
+intentional and that no equivalence is inferred from a shared glyph.
+The records are:
 
-## 6. Three levels, one invariant
+| Form | This repository | Weft | Warp | Moop design records |
+|---|---|---|---|---|
+| `<->` | `mirrors`: a bijection, every form an involution | One clause of an `iso` | Clause | A bijection |
+| `->` | `ask`: message passing | A message to an existing task | Outward crossing | Marks dissipation |
+| `<-` | `inherits`: a lineage predicate | Field-only inheritance | Inward crossing, and binding | An ε = 0 operator |
+| Birth | The article `a` / `an`; `clone` declined | A lineage constructor | `clone`, borrowed from Moop and retained | `clone` |
+| Standing | Ruled and implemented | Settled in Weft's register | R3 and R4 assumed in Warp until ruled; `clone` retained by its register | Mediated, through Weft and Warp |
 
-Moop meets the pairing at the bit, Weft at the format and Warp at the
-term. Merged, these are not rival placements. They are Weft's sequence
-grammar → format → realization, with the invariant held at every level.
+Two of these records disagree with each other on birth: Warp's register
+retains `clone`, and this repository records the article as decided and
+`clone` as declined. Neither is reopened here (M5).
 
-| Level | What it is | From | The pairing there |
-|---|---|---|---|
-| Grammar | One chain grammar; words canonical and arrows as aliases; the article; the headless chain; one text per tree per projection | Moop, Weft | A text is a projection of a tree |
-| Format | The term machine: `M`, `step`, code terms by hash | Warp, Weft | A clause over terms |
-| Realization | CCNOT on a counter-rotating tape pair as the reference; native projections under Weft's profiles Hosted, Minimal and None | Moop, Weft | A gate over cells |
+The one reading every record shares is `<->` as a bijection. Weft's
+correspondence tab notes that even this is a shared local meaning and
+not a shared scope of guarantee.
 
-Adjacent levels are related by a codec, which is a `PartialIso`: print
-and parse above, encode and decode below. The level structure therefore
-costs no mechanism, and each round-trip law holds by construction where
-the codec is certified.
+## 7. Proposed deletions
 
-**The wager moves.** Moop and Weft made opposite wagers in semantics:
-whole-system guarantees at interpretive cost, against selected
-guarantees inside bounded sectors. Merged, the guarantees are stated
-once, at the format, and the cost is chosen per realization. A profile
-restricts which programs can be realized and never changes what an
-accepted program means. A realization may elide whatever no crossing can
-observe, and must reproduce every crossing exactly. How much speed that
-leaves is undemonstrated.
+A deletion is a claim that a uniform rule covers every use of a
+construct. The first group is Warp's own; the second is conditional; the
+third was proposed in the first draft and is withdrawn.
 
-**Naturalism has an exact seat.** It governs the grammar level only.
-Code identity excludes names and formatting, so the surface can change
-on evidence about readers without touching the kernel. Moop's word and
-arrow spellings and Weft's two projections (indentation, and explicit
-terminators for screen readers) are the same device: a spelling is a
-projection. Moop's derivations-away stand as grammar-level results:
-`self` into the headless chain, `generate` into the article.
-
-**Arrows.** All four agree on the principle Moop states: arrow shape is
-information behavior. The two-way arrow stays inside; a one-way arrow
-crosses. They disagree on what the one-way arrows are bound to. No
-equivalence is inferred from a shared glyph; the last column rests on
-semantics and is assumed until ruled (§10).
-
-| Form | Moop, this repository | Moop, design records | Weft | Warp | Merged reading |
-|---|---|---|---|---|---|
-| `<->` `mirrors` | Bijection, as involutions | Bijection | One clause of an `iso` | Clause | Clause: nothing is left over |
-| `->` `ask` | Message passing | Marks dissipation | Send to a task | Outward crossing | Outward crossing. A message, a task send and a `hide` are one act; the handler that answers decides what is lost |
-| `<-` `inherits` | Lineage predicate | An ε = 0 operator | Field inheritance | Inward crossing | Inward crossing: the left receives from the right, and nothing is lost |
-| `is` | Binds a name; teaches | — | — | — | Install in the dynamic store: an exchange through the barrier |
-| `a` / `an` | Birth | — | Lineage constructor | `clone`, borrowed | Construction clause with a fresh seed |
-
-`is` and `<-` keep separate jobs. `<-` fills a hole, which is linear and
-local to a clause. `is` binds a name, which is rebindable and lives in
-the dynamic store. The lineage predicate needs no form of its own: the
-child retains its parent, so "who is my parent" is the construction
-clause read backward.
-
-## 7. The deletion ledger
-
-What each source loses as an independent construct, and the uniform rule
-that covers it. A row that depends on a ruling in §10 names it.
-
-| Construct | Source | Covered by |
+| Construct | Would be covered by | Standing |
 |---|---|---|
-| Seven-mechanism kernel | Weft | Term (values, records, variants), clause (patterns), port (effects), rule (h) (strictness), certifier rules (rows), stage (comptime). A closure is a term; tail calls are a realization requirement |
-| Reversibility as a bounded sector | Weft | Every step is a clause. Weft's sector is the system sector, and its ordinary code is the user sectors |
-| `Dissipate`, ε_drop, the authorized receiver (Q13) | Weft | `hide` to the root, and ε. No handler can absorb a `hide`: linear use leaves it only retention or forwarding |
-| Meta records | Weft | A handler layer, or an explicit operations argument |
-| Reference counting on an acyclic heap | Weft | Linear holes: in-place reuse cannot be observed, and the kernel has no collection rule. Counting is a realization technique |
-| Comptime as a second evaluator | Weft | Stage |
-| `Rebind` slot; checked patch | Weft | Install as an exchange that keeps the previous version; a patch is a compare-exchange over definitions |
-| Certified-primitive list | Weft, Warp | Clause sets over two atoms, plus a realization obligation (M3) |
-| A design beside the others (R2); `clone` in the sketch (R4) | Warp | This merge (M2); the article (M5) |
-| Irreversible logic layer | Moop | Function: a clause plus `hide` |
-| Actor as a separate kind | Moop | An object whose layer forwards nowhere |
-| Two memories | Moop | Two sides of a port: terms held linearly, and addressed memory behind a handler (candidate) |
-| MAYBE as a logic operator | Moop | An inward crossing; logic stays two-valued |
-| `<->` as involution only | Moop | Any certified clause; `invert` is the involution |
-| Causal marks as a licence to prune | Moop | `hide` declares; marks detect (M6) |
-| Lineage predicate | Moop | The construction clause read backward (M4) |
-| `root_proto`, `Object`, the G♯ receiver | Unicore | The root handler, the user root, the root's `hide` |
+| Weft's seven-mechanism kernel | Term, clause, port, the order rule and the certifier's rules | Direct in part: Warp's register classifies the relay's eight foundations, which cover Weft's mechanisms 1 and 3 to 7, several of them marked design-level, not shown or not derived. Derived for mechanism 2, structural records and variants |
+| Reversibility as a bounded sector | Every machine step is a certified clause | Direct, Warp C01: an architectural assessment, with test status not implemented |
+| `Dissipate`, ε_drop, the authorized receiver | `hide` to the root, and ε | Direct, Warp C02 and C03 |
+| A general undo log; a destructive-update primitive | A certified clause supplies its own inverse; an overwrite is an update plus a declared disposal | Direct, Warp Dossier C; Weft D1, a first pass with nothing admitted |
+| Meta records | P7 | Derived proposal |
+| Comptime as a second evaluator | P6 | Derived proposal |
+| The certified-primitive list | P2 | Derived proposal (M3) |
+| This repository's irreversible logic layer | Function: a clause plus `hide` | Derived proposal. Mediated support: Warp's "Moop's NAND as CCNOT plus Ancilla Discard" |
+| The actor as a separate kind | P3: an object whose layer forwards nowhere | Derived proposal |
+| `<->` as involution only | P8 | Derived proposal |
+| The lineage predicate | — | Withdrawn. See M4 |
+| Causal marks as the licence to prune | — | Withdrawn. See M6 |
+| `clone` in favor of the article | — | Withdrawn. See M5 |
+| The `Rebind` slot's version policy | — | Withdrawn. See M7 |
 
-The merge also answers or relocates open questions in this repository's
-own notes:
+For this repository's own open questions, the merge proposes an
+architectural answer at most. A design decision can close an
+architectural question; it does not close a realization or verification
+question.
 
-| Open in `docs/model.md` or `docs/syntax.md` | Standing here |
-|---|---|
-| General invertible functions under `<->` | Answered in form by the clause: two templates, certified by exclusivity. Exact arithmetic needs the modular updates; floating-point rounding is not certified |
-| Reflection: reading a taught chain back | Answered by F1: a taught chain is a code term, and matching it is a template read backward |
-| MAYBE's final semantics | An inward crossing. Agent-resolved and measure-resolved are two handlers |
-| How RAM and the surface exchange values with the system layer | Through ports; addressed memory as a handler is a candidate |
-| How programs are encoded onto the loops | Relocated: a codec between format and realization. Still open |
-| Whether pruned cells are reclaimed or zeroed | Two measurement events of the third stage; neither implies the other |
-| Whether inheritance interacts with `<->` | Birth is a construction clause; inheritance is what the child retains |
-| Logic words: keywords or messages | Messages. A function is not kernel |
-| One gate or a ring of gates | A realization question; the format does not see it |
+| Open in `docs/model.md` or `docs/syntax.md` | Architectural answer proposed | Still open |
+|---|---|---|
+| General invertible functions under `<->` | The clause: two templates, exclusive on both sides (P8) | A certifier; arithmetic on a stated number type; floating-point rounding is not certified |
+| Reflection | A taught chain is a code term (P12) | The surface form; that reading executes nothing; V2 |
+| MAYBE's final semantics | A request answered by the body, with the reply an inward crossing (P5) | Whether that reproduces today's MAYBE; keeping agent-resolved and measure-resolved apart; V3 |
+| How RAM exchanges values with the system layer | Through ports; addressed memory as a handler | Dossier P is a candidate with nine open obligations |
+| How programs are encoded onto the loops | A codec between format and realization (P9) | Entirely open |
+| Whether pruned cells are reclaimed or zeroed | Two measurement events of the third stage | Which of them this repository's prune is. See M6 |
 
 ## 8. Orthogonality
 
-Unification stops where a distinction carries its own guarantee.
+Direct, Warp §8:
 
 | Mechanism | Its guarantee | How the other two preserve it |
 |---|---|---|
@@ -396,151 +305,188 @@ Unification stops where a distinction carries its own guarantee.
 | Clause | The two readings are mutually inverse on the declared domain, and every hole is used once | A term has no hidden state, so matching is deterministic. A crossing has an inverse crossing or is a declared commit point |
 | Port | Every crossing meets exactly one enclosing handler, and authority never exceeds the forwarder's | Holding a code term confers no port. A clause reaches nothing past its sector except through a crossing |
 
-**Kept apart, on purpose.** Logical reversal and reversal by retention.
-Hidden, pruned, and reclaimed or zeroed. Complement and witness. `Iso`
-and `PartialIso`. Interpretation and authority: a seal, a clause and a
-port identifier each confer none. Inspect, execute and install. System
-store and dynamic store. Certification and meaning. Generation,
-inheritance, reversibility and authority. Answering and forwarding. A
-hole and a name. Format and realization.
+**Kept apart.** Warp's list stands (direct): logical reversal and
+reversal by retention; hidden, pruned, and reclaimed or zeroed;
+complement and witness; `Iso` and `PartialIso`; interpretation and
+authority; inspect, execute and install; system store and dynamic
+store; certification and meaning; generation, inheritance, reversibility
+and authority; answering and forwarding; format and realization.
 
-**Rejected**, each because it would cost an admitted mechanism its
-guarantee: implicit copy or drop in the core; shared mutable references;
-a general undo log; installing over a system binding; laziness;
-overlapping clauses resolved by order; multi-shot continuations;
-raw-syntax macros; type-directed dispatch; subtyping; ambient ports;
-re-parenting; pruning what was never hidden (M6). At the grammar level,
-Moop's rejections stand: no receiver keyword and no creation word.
+The review adds three that this record must not collapse:
 
-## 9. Guarantees and costs
+- **Construction, delegation path, lineage.** A birth clause records a
+  generation event. It does not by itself establish the lineage
+  relation, least of all where inheritance, attenuation, cloning,
+  replacement and authority provenance are involved. Warp's register
+  already rules that the handler stack is the delegation path and not
+  the lineage.
+- **Logical hiding, root pruning, physical reclamation** (§3).
+- **The inverse operand of an exchange, retention in the complement, a
+  live version under a version policy** (M7).
 
-Seven properties state what the kernel is meant to guarantee. Each
-follows from the definitions above if `step` passes its own certifier.
-None is proven. The last column records what `make test` checks today,
-which is the realization level only.
+**Rejected** (direct, Weft §2 and Warp §8): implicit copy or drop in the
+core; shared mutable references; a general undo log; installing over a
+system binding; laziness; overlapping clauses resolved by order;
+multi-shot continuations; raw-syntax macros; type-directed dispatch;
+subtyping; ambient ports.
 
-| Property | Statement | Unicore's invariant | Tested in this repository |
+## 9. Guarantees
+
+G1 to G7 are Warp's (direct). Warp says each follows from its
+definitions if `step` passes its own certifier, and that none is proven.
+The mapping to `root_proto`'s invariants is Warp's statement about
+Unicore, so it is mediated. The last column is direct: it is what this
+repository's tests assert, at the level of tapes and gates.
+
+| Property | Statement | `root_proto` invariant | Asserted by this repository's tests |
 |---|---|---|---|
-| G1 Reversibility | `step` then its inverse is the identity on reachable, unpruned states. No global history is kept | `reversibility_guarantor` | Core round trip over a full cycle; every gate self-inverse; `<->` twice is the identity |
-| G2 Totality of ε | Pruning is the only map that is not injective, and pruned bits never exceed ε | — | Pruned bits are counted. ε does not exist |
-| G3 Closure | Every component of machine state is a term the root can match on | `homoiconicity_guarantor` | Both loops are written by execution. Names, taught chains and parent links sit outside any reversible state |
-| G4 Attenuation | A sector's crossings are a subset of what its enclosing handler forwards; the root is the terminus | `attenuation_terminus` | Actor lookup is local; delegation never crosses into the system root |
-| G5 Enforcement | A crossing the barrier rejects does not take effect: the speculative run is run back | `enforcement_binding` | Not implemented |
-| G6 Neutrality | Erasing every certificate changes no run; removing a witness changes no visible result | — | Not implemented |
-| G7 Fixed system store | No candidate installed during a run replaces a system binding | — | In part: `maybe` and `value` refuse redefinition |
+| G1 Reversibility | `step` then its inverse is the identity on reachable, unpruned states | `reversibility_guarantor` | The core round-trips over a full cycle; each gate is self-inverse; `<->` twice is the identity |
+| G2 Totality of ε | Pruning is the only map that is not injective, and nothing is pruned that was not first hidden | — | The opposite, for the core: pruning discards live state that was never hidden (M6). Pruned bits are counted; ε does not exist |
+| G3 Closure | Every component of machine state is a term the root can match on | `homoiconicity_guarantor` | Both loops are written by execution. Names, taught chains and parent links are outside any reversible state |
+| G4 Attenuation | A sector's crossings are a subset of what its enclosing handler forwards | `attenuation_terminus` | Actor lookup is local; delegation never crosses into the system root |
+| G5 Enforcement | A rejected crossing does not take effect | `enforcement_binding` | Nothing |
+| G6 Neutrality | Erasing every certificate changes no run | — | Nothing |
+| G7 Fixed system store | No candidate replaces a system binding during a run | — | `maybe` and `value` refuse redefinition |
 
-Weft's twelve correspondence rows for Moop's invariants stand as Warp
-assesses them: eight restored at machine scope, two more restored where
-a witness layer sits (C05 provenance, C10 crossings), and two translated
-(C07, admission at every crossing; C11, governed self-modification,
-with scope equivalence unestablished).
+Warp's costs stand (direct): space for the complement, linear use,
+interpretation, world effects as commit points, and concurrency.
 
-**Costs.** Space: the complement grows with every hidden bit and every
-world crossing until the root prunes it. Linear use: the core has no
-implicit copy or drop, and each convenience the surface restores is a
-counted crossing. Interpretation: terms are the ground truth and
-compiled code is a projection of them. World effects: running back
-restores the system, not the world, so an output that cannot be
-compensated is a commit point. Concurrency: reversing concurrent sectors
-needs their crossings ordered by cause, and atomicity is not derived.
+## 10. Register of decisions
 
-## 10. For ruling
+Entered from the review of 10 November 2026. Rulings are provisional. A
+decision that conflicts with a prior ruling is not made by being listed
+here; it needs that ruling formally reopened.
 
-Each decision is the author's to make. Each is listed with what this
-document assumes until ruled. M4, M6 and M7 contradict items that
-`CLAUDE.md` records as decided; for those the implementation is
-unchanged.
+| Ref | Decision exposed | Prior record | Provisional ruling | Standing |
+|---|---|---|---|---|
+| M1 | The name of the merged architecture | Warp R1: "Warp" is a working name. Moop already names a source | `moop` is not ratified: reusing a source's name would collapse source and merger. Keep "Warp" as the working name or use an explicitly provisional label. If `moop` is chosen, record that it names the merged successor | Open. This record uses the label "the merged architecture", which is not a name |
+| M2 | Standing of the sources | Warp R2 assumes Warp is a third design beside Weft and Moop | Not ruled; the relationship is undecided | Open. No source's standing changes |
+| M3 | Removing rule (e) | Warp rules eight operational rules with a ninth pending | A plausible derivation, to be entered as a merger decision and not attributed to Warp. Definability and certification must be shown; the realization obligation remains | Proposed merger decision. Not adopted. V1 |
+| M4a | `<-` as the inward crossing | This repository: a lineage predicate, decided. Weft's register: field-only inheritance, settled. Warp R3: inward crossing, assumed until ruled | Follows the existing record unless formally reopened | Not reopened. §6 |
+| M4b | Dissolving lineage into the birth clause | This repository: generation and inheritance are distinct relations. Warp's register: the delegation path is not the lineage | Not dissolved. Lineage may be computed from construction history if the birth relations preserve sufficient ancestry and the result reproduces the existing predicate | Derived proposal P10. V5. Finding below |
+| M5 | The article over `clone` | Warp's register retains `clone`. This repository decides the article and declines `clone` | Too compressed to settle. Preserve the existing `clone` ruling until the exact syntactic proposal and its consequences are shown. A keyword change is not a semantic derivation | Withdrawn. Both records stand in their own source |
+| M6 | Pruning only what was hidden | This repository: causal auto-pruning is the one sanctioned exception, decided | Rejected as stated. Distinguish logical hiding, root pruning and physical reclamation. If auto-pruning removes logical state, the conflict is substantive and needs an explicit ruling | Rejected as stated. The conflict is substantive: finding below. Awaiting an explicit ruling; the implemented behavior stands |
+| M7 | Re-teaching and rebinding as exchanges that keep the previous version | This repository: re-teaching replaces the chain. Weft §10: at most two live versions, "a resource policy, independent of hash identity" | Keep three things apart: the old value as inverse operand, the old value in the complement, the old version live under a version policy. The first two are requirements of reversible execution; the third is a separate policy | Not settled. P11, V6 |
+| M8 | Stage as store-sealing | — | Not ruled | Derived proposal P6 |
+| M9 | Warp's rulings | R1 to R10 | Not ruled | Stand as Warp records them. This record alters none |
 
-| Ref | Question | Assumed here |
-|---|---|---|
-| M1 | The name of the merged design | "moop": the repository and the reference realization already carry it. Warp's R1 lapses |
-| M2 | Standing of Weft and Warp | They stop being designs beside Moop (Warp R2) and become its method and its kernel. Their documents remain the detailed records |
-| M3 | Rule (e) | Vacated. The kernel is seven rules with one pending, which changes Warp's ruled count of eight |
-| M4 | The one-way arrows | `->` is the outward crossing and `<-` the inward crossing. The lineage predicate dissolves into the construction clause read backward. Contradicts "`<-` is a lineage predicate" |
-| M5 | The birth word | The article, as this repository decided. Warp's sketch keeps `clone` (R4), which Moop declined along with every other creation word |
-| M6 | Pruning | Only the root prunes, and only what was hidden. Causal inertness is the policy's test, not a licence. Contradicts auto-pruning of unmarked cells in `moop_core_run` |
-| M7 | Closure over the user medium | Names, taught chains and parent links are components of `M`. Rebinding and re-teaching are exchanges that keep the previous version, and discarding it is a counted `hide`. The two media stay as a realization choice. Contradicts "re-teaching replaces the chain" |
-| M8 | Stage | Compile time is the run before `RUNTIME_START`, with one evaluator |
-| M9 | Warp's remaining rulings | R6 to R10 carry over unchanged. Standing in the wider corpus is unchanged: a realization candidate, with RME-7 a model written in it and no mechanism an office |
+### Finding for M6: what auto-pruning removes
 
-## 11. Realization path in this repository
+Direct, from this repository's source and tests.
 
-The repository already realizes the three mechanisms at the lowest
-level: the gate layer and the core's step and step-back (clause),
-symmetric wiring with no read-only program tape (term), and the bridge
-shape in MAYBE, actors and delegation (port). It realizes lineage, and
-the grammar's chain, words, article and headless chain. What is missing
-is the format level. The order below builds each foundational synergy
-before anything that depends on it. It is a proposed order, not a
-commitment, and every step keeps `make test` passing.
+- `moop_core_prune` zeroes, in place, every set cell that has not been
+  marked since the epoch began, and returns how many set bits it
+  discarded. It reclaims no storage: the loops keep their length.
+- A zeroed cell is not unreachable. It stays in the loop and passes
+  under the gate once per rotation. On loop A it is also what `maybe`
+  and `value` observe.
+- `tests/test_core.c`, `test_pruned_value_fires_later`, pins a witness.
+  With loops of 2 and 5 cells, A = `01`, B = `11000`: cell B[1] is set
+  and unmarked at the epoch boundary (tick 10). Left alone it fires at
+  tick 14, because A[0] was set at tick 5. Auto-pruning discards it at
+  tick 10, and the pruned run then differs from the unpruned run in
+  A[1] and B[0], which pruning never touched.
+- An exhaustive scratch enumeration, not committed, covered every
+  initial tape at the interpreter's body size (8 and 13 cells). Of
+  2,097,152 states, 9,624 hold a set, unmarked cell at the first
+  boundary. In 1,178 of them that cell fires within twelve epochs, and
+  in those the pruned run diverges in other cells. Some small coprime
+  pairs (3/4, 3/5, 4/5, 5/6, 5/7, 6/7) show no such state within forty
+  epochs.
+- The interpreter never calls `moop_core_prune` or `moop_core_run`.
+  Bodies in a REPL session are never pruned; only the unit tests prune.
 
-1. **F1.** Make a chain a value the language can hold: quote one, and
-   read a taught chain back. Let `mirrors` take two templates, with
-   overlapping clause sets refused at definition and `invert` as an
-   ordinary clause. This closes "number↔number bijections" and
-   "reflection", which the REPL reports honestly as absent today.
-2. **F2.** Add `hide` as the single outward loss, with an ε counter.
-   Re-express the irreversible logic layer as clause plus `hide`, and
-   MAYBE as an inward crossing. Results must not change; ε must count
-   each `hide` once.
-3. **F3.** Let a request carry a payload term, so messages take
-   arguments. Make a handler a clause set over requests, and forward
-   what no layer answers.
-4. **F4.** Hold the session as one machine term — stores, focus,
-   continuation, complement — and give the language `step` and its
-   inverse. Apply M6 and M7 here, if ruled.
-5. **Corollaries**, in level order: complement and barrier, then the
-   certifier beyond exclusivity, stage, witness and hoisting, then
-   addressed memory if admitted.
+So auto-pruning removes logical machine state. It is not physical
+reclamation, and the state it removes was never hidden by any
+declaration. That conflicts with G2 as Warp states it. The witness also
+bears on a sentence in `CLAUDE.md`, that unmarked cells hold values
+"provably independent of the rest of the state": that is true of the
+epoch just ended and not of the next. `docs/model.md` already records
+the caveat. Neither file is changed here.
+
+The ruling that is needed is which of these the merged architecture
+takes. The record does not choose.
+
+1. Auto-pruning stays a second lawful removal, beside pruning of the
+   complement. Then "nothing is pruned that was not first hidden" does
+   not hold, and its discarded bits need their own count. The
+   repository already returns that count.
+2. Pruning is restricted to what was hidden. That reverses a decided
+   item and needs it reopened.
+3. Auto-pruning is reclassified as part of the realization's dynamics
+   rather than of the format. Then a run's result depends on the
+   pruning schedule, and the format must say so.
+
+### Finding for M4b: birth and lineage already differ here
+
+Direct, from this repository's source and tests.
+
+- `moop_proto_generate` sets `parent` to the generator only when the
+  generator is user-facing. The system root generates `world`, and
+  `world` has no parent (tested: "the system root generates user-facing
+  roots with no parent").
+- A proto stores no record of its generator. Generation is undone by
+  stepping the generator back, not by reading anything in the child.
+- `inherits` compares the child's `parent` with its right operand. It
+  answers for the direct parent only (tested: "grandchildren do not lie
+  about lineage").
+
+So a relation computed from birth events alone would answer "the system
+root" for `world`, where the predicate answers "no parent". P10 can hold
+only if the birth relation carries the delegation parent separately from
+the generator.
+
+## 11. Verification obligations, foundational first
+
+Each obligation names what must be shown before the proposal it guards
+is treated as closed, and what exists today. They are ordered as §4 is:
+the pairings before anything built on them. Warp's own obligations
+(VT1–7, VC1–8, VP1–9) are unchanged and not repeated.
+
+| ID | Guards | Must be shown | Exists today |
+|---|---|---|---|
+| V1 | Term × Clause; M3, P2, P8 | (a) CNOT and CCNOT, written as clause sets over a two-atom type, meet the clause conditions: first-order patterns, each hole once per side, exclusive and exhaustive on both sides. (b) A certifier establishes (a) and the inverse; a hand check does not count. (c) A realization executes the clause set in both directions and agrees with the gate layer. (d) The word-level updates certify as recursions that are structural in both directions | The gate layer's truth table and self-inverse tests. No clause form and no certifier |
+| V2 | Term × Clause; P12 | A taught chain read back is a term; reading executes nothing; print then parse returns the same tree; a chain read back and taught again behaves identically | Nothing. The REPL reports that reflection is absent |
+| V3 | Clause × Port; P3, P5 | The merged reading reproduces MAYBE as implemented: the same tapes give the same answers, the body's step is undone by stepping back, and the reply is the only irreversible product. Agent-resolved and measure-resolved stay distinguishable, and logic stays two-valued | The first two, at the level of tapes (`test_maybe`). Nothing for the merged reading |
+| V4 | Clause × Port; `hide` and causal marks | Under a stated witness and instrumentation model: whether every hidden term is unmarked while it stays hidden, and whether marks ever flag what was not hidden | The second is answered no: an unmarked cell can be live (M6). Marks are documented as heuristic, conservative metadata |
+| V5 | Port × Term; M4b, P4, P10 | The birth relations retain enough ancestry, and the relation computed from them equals the existing predicate for every proto in a session, including a user root and a grandchild | The predicate's own tests. No construction history |
+| V6 | Port × Term; M7, P11 | Three separate results: an exchange returns the old value as its inverse operand; a disposed old value is in the complement and counted once; a version stays live only under a declared version policy, implied by neither | Nothing. Re-teaching frees the old chain |
+| V7 | The machine; M6 | After the ruling: the three measures stay separate and correctly dimensioned (Warp VC6), and whichever removal is lawful is the only one | The classification itself: auto-pruning removes live state (`test_pruned_value_fires_later`) |
+| V8 | The machine; P6 | One evaluator serves both stages; no candidate replaces a system binding during a run (Warp VT1, VT6); the bootstrap chain is stated and checked (VT7) | Nothing |
+| V9 | Corollary; P7 | A statically resolved handler lowers to a direct call without semantic drift; the replacement for meta records is coherent | Nothing |
+| V10 | Corollary; P9 | Print and parse, and encode and decode, round-trip; a native projection reproduces every crossing | Deposit twice is the identity; decode observes without effect |
+
+A build order for this repository would follow the same sequence. None
+is scheduled, and no step that depends on an open ruling can start.
 
 ## 12. Status
 
-Nothing beyond the Moop realization is implemented or tested.
+**Source-established.** Weft: the selection rule and nine constraints,
+the dossier, recursive unification, `Iso` and `PartialIso` with their
+clause conditions, code identity, realization profiles. Warp: the three
+mechanisms and their rules, the grouping of pairings, the composites of
+§5.1, the machine term, the fixed system store, complement against
+witness, the three stages of loss, G1 to G7 as design claims. This
+repository: the tape model, the bridge shape, generation against
+inheritance, the surface, the deletion test.
 
-**Established in the sources.** Weft: the selection rule and nine
-constraints, the dossier, recursive unification, `Iso` and `PartialIso`
-with their clause conditions, code identity, realization profiles.
-Warp: the three mechanisms, the machine term, the fixed system store,
-the separation of complement and witness, the three stages of loss.
-Unicore: the two axes, and the root as guarantor and terminus. Moop:
-the tape model, the bridge shape, generation against inheritance, the
-surface, the deletion test.
+**Reported, not established** (mediated). Unicore: the two axes,
+`root_proto` as guarantor and terminus with four invariants, the hoisted
+chain walk, the bootstrap arc. Moop's design records: the five
+constituents, admission on every write, 𝒯_Moop, ε, `RUNTIME_START`, the
+two MAYBE forms, `clone`, the arrow readings.
 
-**Pending admission, unchanged.** Role seals (Warp Dossier T) and
-addressed memory as a handler (Dossier P). Contracts remain a Weft
-candidate; they are one way to declare a `PartialIso` domain.
+**Derived proposals.** P1 to P12, the four names of §4 and the reading
+of the machine as the triple, each pending its obligation.
 
-**Derived here.** These follow from reading the sources together and
-are not shown in any realization:
+**Ruled and implemented.** Only this repository's own items, as
+`CLAUDE.md` lists them. Among those this record touched and did not
+change: `<-` as a lineage predicate, the article as birth, causal
+auto-pruning, and re-teaching replacing the chain.
 
-- One mechanism carries one axiom, which fixes the count at three.
-- The four foundational synergies are the three pairs and the triple.
-- Certified primitives are clause sets over two atoms, so rule (e) is a
-  realization obligation.
-- The object is the bridge at rest, and the four ladders are one.
-- Freshness is the inward crossing.
-- Stage is store-sealing, and a bootstrap is a chain of runs.
-- Dispatch replaces meta records, and hoisting is one obligation.
-- Hidden is declared inertness.
-- A level is a codec of the level above, and a spelling is a
-  projection.
-- The lineage predicate is the construction clause read backward.
-
-**Open.** Warp's open items stand, chiefly: whether `step` can be
-written as a certified clause set; inference for templates as types
-under linear use; static exclusivity when templates apply other clauses;
-iteration without history; garbage-minimal complements; the pruning
-policy and where its authority sits; the causal order of crossings
-between concurrent sectors; nearest enclosure against lexical
-capability. The merge adds four:
-
-- How `M` is encoded on the tape pair, and whether one gate suffices.
-- Whether a handler layer or an operations argument keeps the coherence
-  that Weft's meta records give by declaration.
-- Whether word-level updates certify as structural recursions without
-  a primitive, as §3 claims.
-- Which grammar the merged arrows take once M4 is ruled, and how the
-  word forms read for an inward crossing.
-
-Prior art is recorded in Warp's §12 and Weft's kernel-provenance table.
-Moop's own ancestors are in `docs/derivation.md`.
+**Open.** M1, M2 and M6 await rulings. M3, M5 and M7 await the showing
+each provisional ruling asks for. Warp's open items stand, chiefly
+whether `step` can be written as a certified clause set, inference under
+linear use, static exclusivity, iteration without history, the pruning
+policy and where its authority sits, and the causal order of crossings
+between concurrent sectors.

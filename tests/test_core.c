@@ -178,6 +178,42 @@ static void test_auto_prune_epoch(void)
     check(blank, "causally disconnected information is fully pruned");
 }
 
+static void test_pruned_value_fires_later(void)
+{
+    /* What pruning removes is machine state, not unreachable storage.
+     * The inert = independent argument covers the epoch just ended; it
+     * does not cover the next one. Witness (2/5 loops, epoch 10):
+     * b[1] is set, meets a[0] at tick 4 and a[1] at tick 9 while each
+     * is 0, so it never fires and is unmarked at the boundary. But a[0]
+     * was set by the firing at tick 5, so when b[1] meets a[0] again at
+     * tick 14 it fires. Pruning at tick 10 zeroes b[1] and that firing
+     * never happens. Pinned to the current wiring: if the wiring
+     * changes, re-derive a witness, or record that none exists. */
+    bool a[2] = {0, 1}, b[5] = {1, 1, 0, 0, 0}, ma[2], mb[5];
+    bool pa[2] = {0, 1}, pb[5] = {1, 1, 0, 0, 0}, mpa[2], mpb[5];
+    MoopCore kept, pruned;
+    moop_core_init(&kept, a, ma, 2, b, mb, 5);
+    moop_core_init(&pruned, pa, mpa, 2, pb, mpb, 5);
+
+    for (int i = 0; i < 10; i++)
+        moop_core_step(&kept);
+    check(b[1] && !mb[1],
+          "a set cell can end an epoch unmarked: prune would discard it");
+
+    for (int i = 0; i < 2; i++)
+        ma[i] = false;
+    for (int i = 0; i < 5; i++)
+        mb[i] = false;
+    for (int i = 0; i < 5; i++)
+        moop_core_step(&kept); /* ticks 10..14, no prune */
+    check(mb[1], "left unpruned, that cell fires in the next epoch");
+
+    size_t discarded = moop_core_run(&pruned, 15); /* prunes at tick 10 */
+    check(discarded == 1 && !pb[1], "auto-prune discarded exactly that cell");
+    check(pa[1] != a[1] && pb[0] != b[0],
+          "so the pruned run diverges in cells prune never touched");
+}
+
 static void test_ram(void)
 {
     uint8_t bytes[16] = {0};
@@ -455,6 +491,7 @@ int main(void)
     test_reversibility();
     test_causal_pruning();
     test_auto_prune_epoch();
+    test_pruned_value_fires_later();
     test_irreversible_logic();
     test_maybe();
     test_ram();
