@@ -1,7 +1,8 @@
 # Merge record: Moop × Unicore × Weft × Warp
 
-10 November 2026. Revised the same day after review; the provisional
-rulings are entered in §10.
+10 November 2026. Revised the same day, twice: after review, with the
+provisional rulings entered in §10; and after the author supplied an
+account of early Moop's four levels, entered in §13.
 
 This record investigates one architecture for merging four designs. It
 takes Warp's three mechanisms — term, clause, port — as the foundation,
@@ -11,7 +12,7 @@ candidate to investigate, not a ratified synthesis. The merged
 architecture has no name (M1). Several of its derivations are
 conditional on tests that do not exist yet (§11). Nothing in it reopens
 a prior ruling: where it differs from a decided item, the decided item
-stands.
+stands. The proposal is checked against early Moop's four levels in §13.
 
 ## Reading this record
 
@@ -22,6 +23,7 @@ one.
 | Provenance | Meaning |
 |---|---|
 | **Direct** | Stated in a source that was read: Weft, Warp, or this repository |
+| **Author's account** | Stated by the author in review on 10 November 2026 and entered in §13. First-hand and retrospective: it is a source for what early Moop was, and it is not one of the unlocated design records |
 | **Mediated** | A claim about Unicore, or about Moop's design records, known only through Weft's or Warp's description of it. It establishes what Weft or Warp says, not what the original says |
 | **Derived** | This record's own inference. Stated in no source |
 
@@ -43,7 +45,7 @@ support.
 | Weft | How is a mechanism selected? | Direct: Specification rev 72, Moop correspondence rev 9, Derivations rev 6, register |
 | Warp | What are the mechanisms? | Direct: Proposal of 9 November 2026, dossiers, register |
 | Unicore | Who answers for each guarantee? | Mediated only. No Unicore record was located. Everything attributed to it comes from Warp's proposal and Dossier T, and from Weft's correspondence tab, which calls Moop "formerly Unicore" |
-| Moop | What is it made of, and how does it read? | Mixed. Direct for this repository: its documents, source and tests. Mediated for the design records of March to September 2026, which were not located: the five constituents, admission on every write, the trace 𝒯_Moop, ε, `RUNTIME_START`, the two MAYBE forms, `clone` and `root_proto` are known only through Weft and Warp |
+| Moop | What is it made of, and how does it read? | Mixed. Direct for this repository: its documents, source and tests. Author's account for early Moop's four levels (§13). Mediated for the design records of March to September 2026, which were not located: the full list of five constituents, admission on every write, the trace 𝒯_Moop, ε, `RUNTIME_START`, the two MAYBE forms and `clone` are known only through Weft and Warp |
 
 ## 1. Method
 
@@ -182,6 +184,12 @@ Each pairing supplies a relation the other two cannot supply alone.
 That claim is derived, and it is the reason for building these four
 before anything in §5.
 
+This foundation is symmetric: three pairs and a triple. Early Moop's
+was ordered: four cumulative levels, from reversible operations up to
+prototypes. §13 sets the two side by side. They are different
+structures over the same material, and neither is derived from the
+other.
+
 ## 5. Corollaries
 
 ### 5.1 As Warp states them
@@ -218,8 +226,8 @@ until its obligation in §11 is specified and passes.
 |---|---|---|---|---|
 | P1 | One mechanism per invariant fixes the count at three | §2 | The three invariants are the same across the sources, which rests in part on mediated claims | — |
 | P2 | Certified primitives are clause sets (M3) | Direct: Weft §6 certifies a non-recursive `iso` by construction | A certifier proves the tables and a realization executes them | V1 |
-| P3 | The object is the bridge as a standing thing: this repository's actor (reversible body, hosted irreversible messages) is Warp's handler layer plus state term | Direct on both sides | Hosted messages and handler clauses have the same dispatch and the same accounting | V3 |
-| P4 | The ladders coincide: actor → system root → user roots → protos; root handler → system sector → user sectors; Weft's system root and user root | Direct for those three. Mediated for `root_proto` → `Object` → user prototypes | The system/user split is the same split in each. Weft's is a sector typing, this repository's a `facing` field | V5 |
+| P3 | The object is the bridge as a standing thing: an actor (reversible body, hosted irreversible messages) is Warp's handler layer plus state term | Direct on both sides. Author's account: L3 | Hosted messages and handler clauses have the same dispatch and the same accounting, and the actor is not merged into the prototype | V3, V12 |
+| P4 | The ladders coincide: actor → system root → user roots → protos; root handler → system sector → user sectors; Weft's system root and user root | Direct for those three. Author's account for `root_proto` → `Object` → user prototypes | The system/user split is the same split in each. Weft's is a sector typing, this repository's a `facing` field | V5 |
 | P5 | Freshness is one inward crossing: a clean bit, a seal's salt, a type's salt, a birth seed, a MAYBE draw | Direct for clean bits, salts, `Ask` and `Sample` (Warp). Derived for the birth seed and for this repository's MAYBE | The merged reading reproduces MAYBE, which also advances the body by one tick. It is not a bare inward crossing | V3 |
 | P6 | Stage is store-sealing: compile time, `RUNTIME_START` and the two stores are one distinction, with one evaluator | Direct: Weft's comptime; Warp's two stores and its register ("one compile-time and runtime representation and evaluator", design-level). Mediated: Moop's `RUNTIME_START`, Unicore's bootstrap arc | One evaluator serves both stages, and a prior run can produce the next system image | V8 |
 | P7 | A handler layer or an explicit operations argument replaces Weft's meta records; lowering a resolved handler is one obligation (Weft Q3, Warp VP8) | Direct: Warp §6, "types do not direct dispatch; a handler or an explicit operations argument does". Mediated: Unicore's hoisted chain walk | The replacement keeps the coherence that meta records give by declaration | V9 |
@@ -228,6 +236,8 @@ until its obligation in §11 is specified and passes.
 | P10 | Lineage may be computed from construction history | Direct: Weft §11, the child retains its parent and its local specification | The birth relations preserve enough ancestry, and the computed relation reproduces the existing lineage predicate | V5 |
 | P11 | Rebinding and re-teaching are exchanges | Direct: Warp pairing 12; Weft D2 case 5 | See M7: an exchange's inverse operand, complement retention and a live-version policy are three things | V6 |
 | P12 | A taught chain can be read back because code is a term | Direct: Warp pairing 2 | The surface gains a way to hold a chain, and reading executes nothing | V2 |
+| P13 | Early Moop's L2 is Warp's Function: an irreversible operation is a reversible gate into a prepared target, followed by a declared disposal | Author's account: L2 and Ancilla Discard. Direct: Warp's level-2 Function; Weft §6, lifting | The disposal is an explicit, counted operation, and the gate step stays reversible until it happens | V11 |
+| P14 | Each of early Moop's four levels keeps a distinct composite: L1 the clause rules; L2 Function, and Complement and ε; L3 Object; L4 Lineage and attenuation, and the root | The author's correspondence table (§13). Direct: Warp §6 | The composites that share a pairing, and the uses that share rule (f), stay separately specified | V12 |
 
 Two earlier claims are withdrawn rather than made conditional. "Hidden
 is declared inertness" asserted that causal marks detect what `hide`
@@ -273,13 +283,13 @@ third was proposed in the first draft and is withdrawn.
 | Meta records | P7 | Derived proposal |
 | Comptime as a second evaluator | P6 | Derived proposal |
 | The certified-primitive list | P2 | Derived proposal (M3) |
-| This repository's irreversible logic layer | Function: a clause plus `hide` | Derived proposal. Mediated support: Warp's "Moop's NAND as CCNOT plus Ancilla Discard" |
-| The actor as a separate kind | P3: an object whose layer forwards nowhere | Derived proposal |
+| This repository's irreversible logic layer, as an independent definition | Function: a clause plus `hide` | Derived proposal P13, supported by the author's account of L2 (§13) |
 | `<->` as involution only | P8 | Derived proposal |
 | The lineage predicate | — | Withdrawn. See M4 |
 | Causal marks as the licence to prune | — | Withdrawn. See M6 |
 | `clone` in favor of the article | — | Withdrawn. See M5 |
 | The `Rebind` slot's version policy | — | Withdrawn. See M7 |
+| The actor as a separate kind | — | Withdrawn. Early Moop gives actors and prototypes different responsibilities (§13) |
 
 For this repository's own open questions, the merge proposes an
 architectural answer at most. A design decision can close an
@@ -312,7 +322,7 @@ authority; inspect, execute and install; system store and dynamic
 store; certification and meaning; generation, inheritance, reversibility
 and authority; answering and forwarding; format and realization.
 
-The review adds three that this record must not collapse:
+The author's review adds four that this record must not collapse:
 
 - **Construction, delegation path, lineage.** A birth clause records a
   generation event. It does not by itself establish the lineage
@@ -323,6 +333,10 @@ The review adds three that this record must not collapse:
 - **Logical hiding, root pruning, physical reclamation** (§3).
 - **The inverse operand of an exchange, retention in the complement, a
   live version under a version policy** (M7).
+- **The four responsibilities of early Moop's levels** (§13):
+  reversible transformation, declared irreversibility, the entity that
+  acts, and how such entities are defined, related, extended and
+  governed. One pairing, Port × Term, carries the last two.
 
 **Rejected** (direct, Weft §2 and Warp §8): implicit copy or drop in the
 core; shared mutable references; a general undo log; installing over a
@@ -369,6 +383,8 @@ here; it needs that ruling formally reopened.
 | M7 | Re-teaching and rebinding as exchanges that keep the previous version | This repository: re-teaching replaces the chain. Weft §10: at most two live versions, "a resource policy, independent of hash identity" | Keep three things apart: the old value as inverse operand, the old value in the complement, the old version live under a version policy. The first two are requirements of reversible execution; the third is a separate policy | Not settled. P11, V6 |
 | M8 | Stage as store-sealing | — | Not ruled | Derived proposal P6 |
 | M9 | Warp's rulings | R1 to R10 | Not ruled | Stand as Warp records them. This record alters none |
+| M10 | Early Moop's four levels as a source | Previously known only through Weft and Warp | The author's account: four cumulative levels with distinct guarantees. Their relation to the three mechanisms "is a correspondence, not a one-to-one derivation", and the later architecture "must not erase their different responsibilities" | Entered in §13. P13, P14; V11, V12 |
+| M11 | Two differences between that account and this repository | This repository: the logic layer is segregated from system memory; actors are non-hereditary. Both decided | Not ruled | Open. §13 lists them. Neither is changed |
 
 ### Finding for M6: what auto-pruning removes
 
@@ -440,8 +456,12 @@ the generator.
 
 Each obligation names what must be shown before the proposal it guards
 is treated as closed, and what exists today. They are ordered as §4 is:
-the pairings before anything built on them. Warp's own obligations
-(VT1–7, VC1–8, VP1–9) are unchanged and not repeated.
+the pairings before anything built on them. That is also early Moop's
+direction of construction (§13): reversible operations, then declared
+irreversibility, then actors and prototypes. Identifiers are not
+renumbered, so V11 and V12 sit where they belong rather than at the
+end. Warp's own obligations (VT1–7, VC1–8, VP1–9) are unchanged and not
+repeated.
 
 | ID | Guards | Must be shown | Exists today |
 |---|---|---|---|
@@ -449,8 +469,10 @@ the pairings before anything built on them. Warp's own obligations
 | V2 | Term × Clause; P12 | A taught chain read back is a term; reading executes nothing; print then parse returns the same tree; a chain read back and taught again behaves identically | Nothing. The REPL reports that reflection is absent |
 | V3 | Clause × Port; P3, P5 | The merged reading reproduces MAYBE as implemented: the same tapes give the same answers, the body's step is undone by stepping back, and the reply is the only irreversible product. Agent-resolved and measure-resolved stay distinguishable, and logic stays two-valued | The first two, at the level of tapes (`test_maybe`). Nothing for the merged reading |
 | V4 | Clause × Port; `hide` and causal marks | Under a stated witness and instrumentation model: whether every hidden term is unmarked while it stays hidden, and whether marks ever flag what was not hidden | The second is answered no: an unmarked cell can be live (M6). Marks are documented as heuristic, conservative metadata |
+| V11 | Clause × Port; P13 | AND is CCNOT into a clean target and NAND is CCNOT into a set one, as the account states. Repeating the gate undoes the step for as long as the inputs are retained. The result becomes irreversible only at an explicit disposal, and that disposal is counted once | CCNOT's truth table and the logic results are each tested, separately. `logic.c` computes its results directly; there is no disposal operation and no count |
 | V5 | Port × Term; M4b, P4, P10 | The birth relations retain enough ancestry, and the relation computed from them equals the existing predicate for every proto in a session, including a user root and a grandchild | The predicate's own tests. No construction history |
 | V6 | Port × Term; M7, P11 | Three separate results: an exchange returns the old value as its inverse operand; a disposed old value is in the complement and counted once; a version stays live only under a declared version policy, implied by neither | Nothing. Re-teaching frees the old chain |
+| V12 | Port × Term; P3, P14 | A disposal reaching the root, an actor answering a message, and delegation through prototypes stay separately specified although one rule, (f), carries all three. In particular a `hide` reaches the root handler, while delegation stops at a user root and never enters the system root | Delegation stopping at the user root is tested. Nothing for the rest |
 | V7 | The machine; M6 | After the ruling: the three measures stay separate and correctly dimensioned (Warp VC6), and whichever removal is lawful is the only one | The classification itself: auto-pruning removes live state (`test_pruned_value_fires_later`) |
 | V8 | The machine; P6 | One evaluator serves both stages; no candidate replaces a system binding during a run (Warp VT1, VT6); the bootstrap chain is stated and checked (VT7) | Nothing |
 | V9 | Corollary; P7 | A statically resolved handler lowers to a direct call without semantic drift; the replacement for meta records is coherent | Nothing |
@@ -470,13 +492,18 @@ witness, the three stages of loss, G1 to G7 as design claims. This
 repository: the tape model, the bridge shape, generation against
 inheritance, the surface, the deletion test.
 
-**Reported, not established** (mediated). Unicore: the two axes,
-`root_proto` as guarantor and terminus with four invariants, the hoisted
-chain walk, the bootstrap arc. Moop's design records: the five
+**Author's account.** Early Moop's four levels and their cumulative
+order; Ancilla Discard at L2 and Message at L3; the prototype lineage
+`root_proto` → `Object` → user prototypes, with the root as the
+terminus for system-wide guarantees (§13).
+
+**Reported, not established** (mediated). Unicore: the two axes, the
+four named invariants of `root_proto`, the hoisted chain walk, the
+bootstrap arc. Moop's design records: the full list of five
 constituents, admission on every write, 𝒯_Moop, ε, `RUNTIME_START`, the
 two MAYBE forms, `clone`, the arrow readings.
 
-**Derived proposals.** P1 to P12, the four names of §4 and the reading
+**Derived proposals.** P1 to P14, the four names of §4 and the reading
 of the machine as the triple, each pending its obligation.
 
 **Ruled and implemented.** Only this repository's own items, as
@@ -484,9 +511,107 @@ of the machine as the triple, each pending its obligation.
 change: `<-` as a lineage predicate, the article as birth, causal
 auto-pruning, and re-teaching replacing the chain.
 
-**Open.** M1, M2 and M6 await rulings. M3, M5 and M7 await the showing
-each provisional ruling asks for. Warp's open items stand, chiefly
-whether `step` can be written as a certified clause set, inference under
-linear use, static exclusivity, iteration without history, the pruning
-policy and where its authority sits, and the causal order of crossings
-between concurrent sectors.
+**Open.** M1, M2, M6 and M11 await rulings. M3, M5 and M7 await the
+showing each provisional ruling asks for. Warp's open items stand,
+chiefly whether `step` can be written as a certified clause set,
+inference under linear use, static exclusivity, iteration without
+history, the pruning policy and where its authority sits, and the causal
+order of crossings between concurrent sectors.
+
+## 13. Early Moop's four levels
+
+Entered on 10 November 2026 from the author's account. It is first-hand
+and retrospective; the design records of the period remain unlocated.
+Formulas are given in plain text.
+
+"Early Moop was layered from the logic of computation to the
+organization of the entities that compute." Each level introduces a new
+kind of structure and depends on the guarantees established below it.
+
+| Level | Introduces | The account's statement | Constituent it names |
+|---|---|---|---|
+| L1 | Reversible operations and gates | An operation's output determines its input: a bijection over the relevant state space. NOT, CNOT, CCNOT. Computation is a transformation of an existing state, so the program need not be treated as separate from the state it transforms | CCNOT |
+| L2 | Irreversible logic | AND, OR and NAND do not replace L1. They are constructed from its gates together with an explicit operation that discards information: (a, b, 0) → (a, b, a ∧ b), and (a, b, 1) → (a, b, ¬(a ∧ b)). "Irreversibility is an explicit construction, not an unexplained property of the underlying machine" | Ancilla Discard |
+| L3 | Actors | The entities that perform computation. They execute operations, maintain state and interact through messages. An actor is not another gate | Message |
+| L4 | Prototypes | How actors are defined, related, extended and governed: shared behavior, inherited operations, delegation when an actor does not handle a message, and a root that is the structural terminus for system-wide guarantees. Later documented as `root_proto` → `Object` → user prototypes | — |
+
+The account places neither Tape nor Commit Barrier, and does not mention
+MAYBE.
+
+**The composition rule.** "The levels are cumulative, but their
+guarantees remain distinct. A prototype does not make an operation
+reversible. An actor does not make information disposal legitimate
+merely by invoking it. An irreversible logical operation does not change
+the reversible character of the gates from which it was constructed."
+
+**The direction.** In the account's words, "the object system was built
+over a theory of computation, rather than the computation being defined
+as an incidental behavior of objects."
+
+### The author's correspondence
+
+"This is a correspondence, not a one-to-one derivation." The last
+column is this record's: where Warp's composites (direct, §5.1) would
+hold each level.
+
+| Early Moop | Concern | Later correspondence | Warp's composites |
+|---|---|---|---|
+| L1 | Reversible transformation | Clause | Rules (c), (d) and (e). M3 is a question about exactly this level |
+| L2 | Declared irreversibility | Clause + Port | Function and Update; Complement and ε |
+| L3 | Actors and interaction | Port + Term | Object: answering |
+| L4 | Prototypes and inheritance | Term + Port | Lineage and attenuation, and the root handler: forwarding, construction, governance |
+
+### What the comparison shows
+
+All four points are derived.
+
+1. **Four levels do not map onto three pairs and a triple.** L1 is one
+   mechanism. L2 is one pairing. L3 and L4 are the same pairing. Term ×
+   Clause has no level: in the account it is a consequence stated inside
+   L1, that the program need not be separate from the state. Term alone
+   has no level either.
+2. **Early Moop orders what Warp places side by side.** Function and
+   Object are both level-2 composites in Warp. In early Moop,
+   irreversible logic lies below actors, and nothing at L2 needs an
+   actor or a message. In Warp a disposal is a `hide`, a request that
+   propagates to the root handler, so declared loss is expressed with
+   the mechanism that also yields actors and prototypes. The author's
+   correspondence accepts Port at L2. The order still matters for
+   construction: a build or a proof that follows early Moop establishes
+   disposal before it establishes entities.
+3. **One rule carries three responsibilities.** Warp's rule (f),
+   propagation to the nearest enclosing handler, covers a disposal
+   reaching the root (L2), an actor answering a message (L3) and
+   delegation through prototypes (L4). Warp states directly that
+   prototype delegation and the propagation of an unhandled request are
+   one rule. That is where the unification sits, and it is where the
+   account says the responsibilities differ. Warp does keep answering
+   apart from forwarding, and holds delegation and attenuation as
+   separate clause sets on a shared stack. Its level-2 composite is
+   nonetheless named "Object and prototype": one composite for L3 and
+   L4. Whether one rule with three uses is one rule, or three behind one
+   name, is obligation V12.
+4. **The three sentences on distinct guarantees each have a direct
+   counterpart.** A prototype does not make an operation reversible:
+   in this repository bodies take reversibility from the substrate and
+   not from each other. An actor does not legitimate a disposal by
+   invoking it: in Warp no handler can absorb a `hide`. An irreversible
+   result does not change the gates beneath it: in Warp a function is a
+   certified clause plus a crossing, and the clause stays certified.
+
+### The account and this repository
+
+Direct, from the source and the commit history. The differences are
+recorded for ruling (M11) and nothing is changed.
+
+| Level | Agrees | Differs |
+|---|---|---|
+| L1 | `src/gates.c`: NOT, CNOT, CCNOT, each tested as self-inverse, and SWAP | — |
+| L2 | `src/logic.c`: AND, OR, NAND, NOR, XOR as an irreversible layer | The results are computed directly on plain values. They are not constructed from the gate layer, and there is no disposal operation and no count of what is disposed. `CLAUDE.md` forbids this layer from writing system memory at all. MAYBE lives in this file |
+| L3 | `src/actor.c`: a reversible body and a table of hosted messages | Lookup is local and a miss never delegates. The interpreter has one actor, the static system-facing one |
+| L4 | `src/proto.c`: delegation up parent links, under a root | A proto is a separate type from an actor: the same body and message table, plus `parent` and `facing`. In the account prototypes organize actors and give them delegation; here "actor" names only what has no lineage |
+| Order | The history adds the core, then the logic layer, then actors, then protos | — |
+
+The label "L1" also occurs in Warp's description of Unicore ("an L1-wide
+invariant", "`<->` pairs at L1"). Whether that is this L1 is not
+established, and nothing is inferred from the shared label.
