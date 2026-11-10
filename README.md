@@ -99,3 +99,10 @@ involution — the same `<->` twice is the identity (5 XOR-deposited onto
 181 gives 176; deposited again, 181 returns). General invertible
 functions under `<->` are the next open problem, and the interpreter
 says so rather than pretending.
+
+## Design direction
+
+[docs/merge.md](docs/merge.md) merges moop with three sibling designs
+(Unicore, Weft and Warp) into one: three mechanisms — term, clause and
+port — each carrying one axiom. It is a design record with open rulings;
+nothing in it is implemented beyond what is described above.
