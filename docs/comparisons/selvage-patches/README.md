@@ -235,13 +235,16 @@ refused prelude.
 - **XII.6:** decisions C1 to C4, all ruled, with their alternatives.
 - **README:** the tape among the prelude's contents; 145 mutations.
 
-**A question this raises, not decided here.** `Draw` is an ordinary
-request group, so a program may declare its own answer for it, and what
-it then draws is its own answer's. C1 holds in the prelude and in the
-description, but not by the checker. Sealing `Draw` to the tape would
-not fix this: a seal stops other code from sending a group's requests as
-well as from answering them. Whether `Draw` should be reserved to the
-tape, and how, is open.
+**Reserving `Draw` to the tape: decided, mechanism proposed (G7).**
+`Draw` is an ordinary request group, so under 0003 a program may declare
+its own answer for it (`answer Fake for Draw` is accepted) and draw its
+own values. C1 therefore holds in the prelude and the description, not
+by the checker. Sealing `Draw` would not fix this: a seal stops other
+code from sending a group's requests as well as from answering them. The
+maintainer has decided to reserve `Draw` to the tape. The recommended way
+is to make draws and births prelude rules with no request group; it is
+prototyped in `../experiments/ccnot_tape_rules.selv` and awaits approval.
+0003 as it stands keeps the answer.
 
 ### 5c. Verification
 
@@ -251,6 +254,6 @@ tape, and how, is open.
 | Description check | Pass | Pass; the VI.6 block is the prelude's text |
 | Moop's trace, printed by the interpreter | — | Byte for byte |
 | Mutation check | 140 / 140 noticed | Running; not yet recorded |
-| Examples and test programs: output against 0001 | — | Running |
+| Examples and test programs: output against 0001 | — | All 11 examples and 9 programs identical |
 | Benchmarks against 0001 | — | Not yet run: after the mutation check, on an idle machine |
 | 0003 applied to a fresh archive after 0001 | — | Applies; reproduces the tested tree exactly |
