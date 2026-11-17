@@ -356,7 +356,7 @@ static void trace_line(const char *fmt, ...)
 
 static void trace_tape(const MoopCore *core)
 {
-    trace_line("CcnotTape from Tapes([");
+    trace_line("CcnotTape([");
     for (size_t k = 0; k < core->a.len; k++)
         trace_line("%s%d", k ? ", " : "", core->a.cells[k]);
     trace_line("], [");
