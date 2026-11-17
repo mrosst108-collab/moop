@@ -223,7 +223,17 @@ epoch map is a permutation and every period is a multiple of 104):
   and adjacent pairs look unbiased, so a casual check misses it.
 - **Births inherit it.** A child's A cells are draws 0–7 and its B cells
   draws 8–20, so over all parent states its B[k] equals its A[k] in
-  exactly 75% of cases (k < 8), as does B[k+8] with B[k].
+  exactly 75% of cases (k < 8), as does B[k+8] with B[k]. The
+  correlation is inside the child; a child agrees with its parent's
+  cells 50% of the time. Of the 210 pairs of child cells, 18 fall
+  outside 45–55%.
+- **Births reach few bodies.** Over all 2²¹ parents, only 58,662
+  distinct children can be born — 2.80% of possible bodies; many parents
+  produce the same child, and 97% of bodies are nobody's child.
+  Reversibility does not notice: a birth is still an embedding, because
+  the parent keeps its full state. The children are not degenerate,
+  though: their periods are distributed as all states' are (0.40% repeat
+  within 416 draws, against 0.44%).
 
 So MAYBE is a deterministic observation, not a source of randomness, and
 should never be described as one. This does not touch reversibility or
@@ -233,8 +243,11 @@ homoiconicity; it bounds what draws may be used for.
 
 - **Wiring 2: open, not scheduled.** Wiring 1 stays: the tape is not a
   random source, so its correlation is a defect only against an objective
-  nobody has set, and changing it moves the pinned trace. A wiring 2
-  needs a positive objective first, and must then show that it keeps the
+  nobody has set, and changing it moves the pinned trace. The design
+  question that would settle it, which reversibility does not answer:
+  *should birth be able to produce most bodies, or only a small,
+  internally correlated subset of them?* A wiring 2 needs a positive
+  objective first, and must then show that it keeps the
   gate cost (2 Toffolis per drawn bit), keeps births certified and
   undoable, improves the specific property targeted, keeps a fully
   specified state domain, keeps both loops writable (homoiconicity), and
@@ -250,9 +263,12 @@ homoiconicity; it bounds what draws may be used for.
     tick, the state and the cells written are wiring 1's exactly, so the
     periods, the step/step_back round trip and "both loops transformed"
     are unchanged.
-  - *Births* (all 2²¹ parents): a child's B[k] equals its A[k] in
-    50.00% of cases, and B[k+8] its B[k] in 50.00% (wiring 1: 75.00%
-    each). The internal correlation is gone.
+  - *Births* (all 2²¹ parents): every one of the 210 pairs of child
+    cells agrees in 50.00% of cases (wiring 1: 18 pairs outside 45–55%,
+    worst 75.00%), and 1,736,704 distinct children can be born — 82.81%
+    of bodies, against wiring 1's 2.80%. Children's periods are
+    distributed as all states' are. Pairwise 50% agreement is a measured
+    property of pairs, not a proof of independence.
   - *Draws* (every lag 1 to 104): worst agreement 51.0% at lag 39 on the
     trace seed's cycle, 51.2% at lag 104 on the longest (wiring 1: 74.8%
     at lag 8 on both). Sampling noise is ~0.01 to 0.02 points, so this
