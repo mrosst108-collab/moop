@@ -99,10 +99,22 @@ step backward; the inverse is itself code.
 is an involution, involutions are their own inverses, and a *sequence*
 of involutions `f₁ … fₙ` has the inverse `fₙ … f₁`. So a taught chain
 built only from `mirrors` steps is a bijection whose inverse is the
-same chain reversed — derived, not written. This answers the open
-question (`celsius <-> fahrenheit`) without a checker of Selvage's
-size: the certificate is *structural* (only `<->` steps allowed), not
-analytical (clause exclusivity).
+same chain reversed — derived, not written. The certificate is
+*structural* (only `<->` steps allowed), not analytical (clause
+exclusivity). Precedent: Janus, and Theseus, whose pattern-matching
+rules are close to Selvage's clause rules.
+
+This does **not** answer `celsius <-> fahrenheit`, which is a harder
+test than it looks: over integers the division by 5 makes it not a
+bijection, and over floats rounding loses information. The honest
+version is a *partial* bijection or a declared loss — and that needs
+the machinery Selvage's checker carries: values used exactly once,
+updates that don't read their own target, branch conditions the branch
+leaves unchanged. On the gates moop gets inversion free; those
+conditions come back at the user layer and when messages take
+arguments, which are moop's known weak spots. moop also has no
+declared loss yet: its user layer forgets silently, so "reversible"
+holds for the substrate, not for everything moop does.
 
 **Deletion test.** No existing construct covers definable bijections;
 `<->` today accepts only primitive involutions. Reversing a chain is a
