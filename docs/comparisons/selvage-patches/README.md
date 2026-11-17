@@ -269,7 +269,7 @@ language change and is left as a separate, optional question.
 | Description check | Pass | Pass; the VI.6 block is the prelude's text |
 | Moop's regenerated trace | — | Byte for byte, interpreter and compiled; Selvage's copy is moop's file |
 | Mutation check | 140 / 140 noticed | Running; not yet recorded |
-| Examples and test programs: output against 0001 | — | Running |
+| Examples and test programs: output against 0001 | — | All 11 examples and 9 programs identical |
 | Benchmarks against 0001 | — | Not yet run: after the mutation check, on an idle machine |
 | 0003 applied to a fresh archive after 0001 | — | Applies; reproduces the tested tree exactly |
 
