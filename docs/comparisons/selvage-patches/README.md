@@ -198,9 +198,9 @@ No change beyond noise. `fib`'s source is identical in all three trees, and its 
 
 Built against wiring 1 under the maintainer's rulings G3 to G5
 (`../merge-plan.md`), entered in Selvage's description as C1 to C3
-because Selvage's register already uses G1 to G11. Of G6 (C4), the name
-`tape_tick` is ruled; the other names are used as recommended and await
-confirmation. Wiring 1, its trace and birth's definition are unchanged;
+because Selvage's register already uses G1 to G11, and G6 as C4, all
+ruled on 2026-11-17: the names `CcnotTape`, `Tapes`, `tape_tick`,
+`Draw`, `draw` and `birth` as recommended. Wiring 1, its trace and birth's definition are unchanged;
 wiring 2 is not included.
 
 ### 5a. Implementation
@@ -232,7 +232,7 @@ refused prelude.
 - **XI.2:** the tape generator's row (600 tapes, 0 findings) and the mutation count, 145.
 - **XI.4:** suite 184; `TestCcnotTape` and `TestGenerated04` counts.
 - **XII.4:** a Built entry.
-- **XII.6:** decisions C1 to C4 with their alternatives.
+- **XII.6:** decisions C1 to C4, all ruled, with their alternatives.
 - **README:** the tape among the prelude's contents; 145 mutations.
 
 **A question this raises, not decided here.** `Draw` is an ordinary

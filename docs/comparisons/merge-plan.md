@@ -59,11 +59,9 @@ tape:
 
 ## Decisions
 
-Each blocks the phase named. G1 to G5 are decided by the maintainer
-(2026-11-17). Of G6, `tape_tick` is settled; the other names are used as
-recommended and await confirmation. G3 to G6 are entered in Selvage's
-description as C1 to C4, because Selvage's own register already uses
-G1 to G11.
+Each blocks the phase named. All six are decided by the maintainer
+(2026-11-17). G3 to G6 are entered in Selvage's description as C1 to C4,
+because Selvage's own register already uses G1 to G11.
 
 | # | Decision | Status | Blocks |
 |---|---|---|---|
@@ -72,7 +70,7 @@ G1 to G11.
 | G3 | What defines `draw` | **Adopted (C1): the CCNOT tape defines `draw`.** A draw is the tape's deterministic observation; both backends must produce the same tape-defined values. The Feistel rule is a separate generator, never an interchangeable implementation of the tape: the CPU speed difference (~100× per bit) does not justify substituting it. The tape's case is its gate realization (2 Toffolis and 1 CNOT per bit) and its correspondence with moop, not randomness: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`), so the description must forbid treating `draw` as a random source or claiming independence. G3 says what `draw` means; it does not create a general generator abstraction | Phase 3 |
 | G4 | Prelude text: inline head arithmetic, or two helper functions | **Adopted (C2): inline.** 6 reserved names and 26 lines; the transition stays visible where it is defined. The helper version's ~1.9 ns against ~3.5 ns per tick is real but not decisive off the hot path, and does not justify two more names. The helper text is not kept | Phase 3 |
 | G5 | How a program gets a tape | **Adopted (C3): explicitly.** A program makes a tape from a seed and sends it messages, so it controls which tape, which seed, which requests receive it, and how its state flows. No ambient tape in `Object`: that would be a hidden dependency and need a ruling on seed provenance. A seed is an explicit initialization input, not entropy: seeding does not make the tape a random source | Phase 3 |
-| G6 | Names | Entered as C4. Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
+| G6 | Names | **Adopted (C4), as recommended:** `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
 
 ## Phases
 

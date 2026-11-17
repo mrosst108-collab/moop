@@ -29,7 +29,7 @@ index aed26b0..b46b27a 100644
  | `tests/` | conformance suite; `roundtrip_gen.py` generates random certified rules and checks each for a round trip; `generated_04.py` generates programs with an oracle for each 0.4 change; `reference_model.py` is the model of the soundness proof, as an evaluator |
  | `tools/` | `check_description.py`: the description check; `mutation_check.py`: the mutation check |
 diff --git a/SPEC.md b/SPEC.md
-index e13d2d4..00561ab 100644
+index e13d2d4..e980ae8 100644
 --- a/SPEC.md
 +++ b/SPEC.md
 @@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
@@ -156,14 +156,14 @@ index e13d2d4..00561ab 100644
  | M7 | The census counts a constructor as taken apart when a one-clause rule for it matches a node and binds its fields, and as put together when that clause rebuilds the node. Its nodes are every declaration as written and every derived inverse as it runs. The state of a run is listed as not being a form | VIII.1 | A census of declared types only, which would not show a form the parser writes and no type declares |
  | M8 | `derivative`'s `Name` clause gives `Literal(d)` with `d` a counted `I64`, so its result is evaluated at an integer. A clause cannot choose between two right sides by a condition | VIII.2 | A way for a clause to bind one name in both branches of an `if`, which would let it give `Literal(1)` or `Literal(0)` as written |
  
-+Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G6 between moop and Selvage, entered here as C1 to C4 because G1 to G11 are taken. The maintainer ruled C1 to C3 on 2026-11-17, and of C4 the name `tape_tick`; entering them in XII.1 is the maintainer's:
++Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G6 between moop and Selvage, entered here as C1 to C4 because G1 to G11 are taken. The maintainer ruled C1 to C4 on 2026-11-17; entering them in XII.1 is the maintainer's:
 +
 +| # | Decision | Where | The alternative |
 +|---|---|---|---|
 +| C1 | The CCNOT tape defines `draw`: a deterministic observation, the same in every backend, with no claim of randomness or independence. Another generator is a rule of its own, never an implementation of the tape | VI.6 | A faster generator for `draw` on the CPU (a certified rule over words is about 100 times faster per bit), giving the backends different values; or `Draw` as a general generator interface |
 +| C2 | The tick's head arithmetic is written inline: six names reserved, the transition visible where it is defined | VI.6 | Two helper functions for the head moves: about twice as fast per tick, and two more reserved names |
 +| C3 | A program makes its tape and sends it messages; no tape is ambient | VI.6 | A tape held by `Object`, so that `ask draw()` works anywhere, with a ruling on where its seed comes from (open question 10) |
-+| C4 | The names `Tapes`, `tape_tick`, `Draw`, `draw`, `birth` and `CcnotTape`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names; `tape_tick` is ruled, the rest await confirmation |
++| C4 | The names `Tapes`, `tape_tick`, `Draw`, `draw`, `birth` and `CcnotTape`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names |
 +
  Taken in entering T1 to T4, and while building 0.4.9. T5 and Q13 were recommended for ratification in review, T5 with the qualification that its proof show the entries of the runs sharing a result to be uniquely decodable:
  
