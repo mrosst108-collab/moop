@@ -79,14 +79,17 @@ what the plan assumes.
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | Both defects fixed; answers report an extent; suite green under Clang 18 |
 | 2. Build the audit rulings | Selvage | — | `repeat while` and `repeat N times` gone; 37 keywords |
-| 3. Admit the tape | Selvage | 0, 1, G3–G6 | The tape is in the prelude, interpreted, tested against the trace |
+| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6; and wiring 2's trace, only if wiring 2 is adopted | The tape is in the prelude, interpreted, tested against the trace |
 | 4. Compile answers | Selvage | 3 | `tape -> draw()` runs in compiled code |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
 
-Phases 1 and 2 are independent of the tape and of each other, and can
-start now. Phase 0 is done.
+Phases 1 and 2 are independent of the tape, of each other and of the
+open birth-diversity requirement (`docs/model.md`), and can start now.
+Phase 0 is done. No tape changes are made until the birth requirement
+is decided; if it adopts wiring 2, that wiring's trace must exist before
+Phase 3.
 
 ### Phase 0 — Pin the reference (moop) — done
 
