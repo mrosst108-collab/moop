@@ -1,0 +1,14 @@
+# Minimal reproduction: a copy of an answer instance shares its array.
+request Poke
+    poke() returns ()
+
+answer Cell for Poke takes Array(I64)
+    (poke(), a) <-> ((), a) where
+        add 1 to a[0]
+
+rule main uses Output
+    x is Cell from array(I64, 2)
+    y is x
+    r is x -> poke()
+    output x
+    output y

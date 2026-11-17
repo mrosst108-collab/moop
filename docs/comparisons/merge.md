@@ -4,7 +4,9 @@ An exploration, not a decision. It asks what "system-facing
 reversibility" has to mean for a merge to keep both performance and
 minimalism, and tests the load-bearing claims against the Selvage 0.4.9
 toolchain (Clang 18.1.3). The test programs are in
-`experiments/`. Nothing here changes moop; see "What this means for
+`experiments/`. The plan that follows from it is `merge-plan.md`,
+which supersedes two details here: the tape's heads are bounded as in
+moop (not one wrapping counter), and the prelude text is 26 lines. Nothing here changes moop; see "What this means for
 moop" at the end.
 
 ## 1. What system-facing reversibility is

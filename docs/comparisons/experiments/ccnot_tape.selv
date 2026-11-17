@@ -1,0 +1,43 @@
+# Candidate prelude text for the CCNOT tape.  Heads are bounded as in moop's
+# src/tapeloop.c: head i of tape a moves forward, head j of tape b backward.
+
+type Tapes(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
+
+# One tick: two CCNOTs sharing their controls, then both heads move.
+rule tape_tick takes Tapes returns Tapes
+    Tapes(a, b, i, j) <-> Tapes(a, b, ni, nj) where
+        add a[i] * b[j] to a[(i + 1) mod length(a)]
+        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]
+        ni is (i + 1) mod length(a)
+        i was (ni + length(a) - 1) mod length(a)
+        nj is (j + length(b) - 1) mod length(b)
+        j was (nj + 1) mod length(b)
+
+request Draw
+    draw() returns Bit
+    birth() returns CcnotTape
+
+answer CcnotTape for Draw takes Tapes
+    (draw(), s) <-> (seen, s) where
+        s is tape_tick(s)
+        seen is s.a[s.i]
+    (birth(), s) <-> (child, s) where
+        ca is array(Bit, length(s.a))
+        cb is array(Bit, length(s.b))
+        repeat with k from 0 to length(ca) - 1
+            s is tape_tick(s)
+            add s.a[s.i] to ca[k]
+        repeat with k from 0 to length(cb) - 1
+            s is tape_tick(s)
+            add s.a[s.i] to cb[k]
+        child is CcnotTape from Tapes(ca, cb, 0, 0)
+
+rule main uses Output
+    a is array(Bit, 8)
+    b is array(Bit, 13)
+    repeat with k from 0 to 7
+        set a[k] to Bit((k * k + 1) mod 2)
+    repeat with k from 0 to 12
+        set b[k] to Bit(((k * 5) / 3 + 1) mod 2)
+    tape is CcnotTape from Tapes(a, b, 0, 0)
+    output tape
