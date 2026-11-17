@@ -1,0 +1,128 @@
+# Selvage 0.4.9 — Phase 1 and 2 patches
+
+Merge-plan Phases 1 and 2 (`../merge-plan.md`), built against the 0.4.9
+release archive. Nothing here touches the CCNOT tape or its pinned trace.
+
+| File | What it is |
+|---|---|
+| `0001-phase1-and-a2.patch` | Phase 1 (two defects, answer-rule extents, the mutation count) and ruling A2 (`repeat n times` removed), with A3 in the description. Apply to the 0.4.9 archive |
+| `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). Apply on top of 0001, **only if A1 is re-ruled** (see "A1 needs a re-ruling") |
+| `a1-evidence/` | The five programs behind the A1 measurements |
+
+```bash
+cd selvage-0.4.9 && git apply 0001-phase1-and-a2.patch
+```
+
+```bash
+git apply 0002-a1-remove-repeat-while.patch
+```
+
+Both patches were checked to apply cleanly to a fresh extraction of the
+archive and to reproduce the trees that were tested, byte for byte. The
+version number is left at 0.4.9 throughout; setting it is the
+maintainer's call.
+
+The report keeps three things apart, as asked: what changed in the
+implementation, what changed in the description, and what the evidence
+shows. A passing suite is reported as a passing suite, not as proof of
+the claims it exercises.
+
+## 1. Implementation changes in 0001
+
+| Change | Files | Regression test (fails without the change) |
+|---|---|---|
+| **A copied instance shares nothing.** `deep_copy` returned an answer instance as it was, so after `y is x` a message to `x` changed `y` — directly, and through records and tuples. Now an instance is copied with its state; its parameters stay shared, since the language never writes them | `interp.py` | `TestBuiltValues.test_a_copied_instance_shares_nothing` |
+| **A text holds no NUL byte.** The lexer refuses a NUL in a text literal, raw or after a backslash, so `check`, `run` and `build` all refuse it alike (status 1). This is the only way a NUL could enter a text: no escape writes one, joining combines texts, and world replies are not text | `lexer.py` | `TestC23Backend.test_text_is_the_same_bytes_in_both_backends`, which also checks that tab, UTF-8, quote and backslash print and are charged alike in both backends |
+| **Each answer rule reports its extent.** `extent()` refused answer rules outright. An answer's rule for one request now takes the request's fields with the state and gives the reply with the state, and is settled by running, by steps or by counting like any rule. `selvage check` lists each request's extent under the answer | `extent.py`, `__main__.py` | `TestExtent.test_an_answer_s_rules_report_their_extent` (all three methods); the extent generator now also hosts every generated rule in an answer and requires the same extent both ways (`TestGenerated04.test_how_far_a_certified_rule_reaches`, at least 130 answers) |
+| **The mutation count.** The tool lists 140 mutations; the README said 120. README corrected | `README.md` | — |
+| **`repeat n times` removed (A2).** Keyword `times`, the `RepeatTimes` constructor, `mirror`'s clause for it, and its paths in the checker, interpreter, C backend, inverter, printer, lineage and extent analysis. `repeat with i from 1 to n` replaces it in examples, benchmarks, tests and generators; the refusal names the replacement. 38 keywords | `parser.py`, `checker.py`, `interp.py`, `cgen.py`, `invert.py`, `printer.py`, `lineage.py`, `extent.py`, `prelude.selv`; `tests/reference_model.py` | `TestSemanticContracts.test_repeat_n_times_is_a_count` |
+
+Test infrastructure adjusted with A2: the two generators that wrote
+`repeat n times` now write a counted loop with a fresh counter; the census
+program and its expected counts (`Code`: 48 of 49 constructors met); one
+mutation retargeted from the deleted `mirror` clause to the `RepeatWith`
+clause ("a loop body is not mirrored"), and one re-anchored to re-indented
+checker text. Still 140 mutations, every one of which finds its text
+exactly once.
+
+**Decision taken for you, reversible: NUL is refused rather than carried.**
+The alternative is a length-carrying `Text` in compiled code, which
+changes its C representation in printing, equality, charges and decision
+contexts. Refusing fits `Text`'s role in the description (output; bytes
+belong in `Array(U8)`), and a NUL in source is invisible — a mistake that
+would otherwise become an action. If `Text` should hold arbitrary bytes,
+the length-carrying change is the one to make instead.
+
+## 2. A1 needs a re-ruling
+
+Ruling A1 deleted `repeat while` on the ground that "a self tail call
+covers it", with the condition that this be confirmed against
+compiled-code speed before building. It holds for some loops and not for
+others:
+
+| Loop | `repeat while` | Rule that calls itself last | Counted loop |
+|---|---|---|---|
+| Collatz chain (stops on data, no array) | 0.4.9 benchmark | Benchmark pending (section 4) | — |
+| Sieve inner loop (array in place, count computable), n = 80,000 | 0.005 s | **7.7 s** | 0.005 s |
+| Insertion sort, sorted input (array in place, stops on data), n = 40,000 | 0.005 s | worse than the counted loop (copies per call; not timed) | **0.29 s** |
+
+Why: a rule's parameters are read and never updated, so a rule that calls
+itself while changing an array takes a copy at each call. A counted loop
+works in place but cannot stop early. A loop that both changes an array in
+place and stops on what it finds there has no replacement of the same
+complexity. This passes moop's deletion test (no silence, no ambiguity),
+but it weakens soft constraint 11 (C competitiveness), which the
+admission test's "interference" step does not allow.
+
+0002 is built and verified anyway, so the decision costs nothing to act
+on either way. If A1 is kept, 0002 also rewrites the collatz benchmark as
+a rule that calls itself last and the sieve as a counted loop, and states
+the cost in V.3.
+
+## 3. Specification changes
+
+In 0001:
+- **I.0, I.1, XI.4:** suite size 178; per-class counts for `TestBuiltValues`, `TestC23Backend`, `TestExtent` and `TestSemanticContracts`.
+- **I.2 (H2), IV:** 38 keywords; the grammar loses `repeat expr times`; a lexical rule saying a loop counts, and how to repeat n times.
+- **III.1:** `Bit` described as the 1-bit unsigned word (A3); `Text` holds no NUL byte.
+- **IV:** a NUL in a text literal is refused, and why.
+- **V.2:** answers listed with each request rule's extent, plus a status row (Built, Proposed).
+- **V.2, V.6:** code blocks rewritten with counted loops; the `repeat n times` row of the inversion table removed.
+- **VIII.1, VIII.2:** census figures (48 of 49); `mirror`'s listing without the `RepeatTimes` clause.
+- **XI.3:** the `repeat n times` row of the step table and its case of the proof removed. The model keeps `repeat with`, so loops remain inside the proved model.
+- **XII.2:** `repeat n times` listed as replaced (A2).
+- **XII.4:** a "Built after 0.4.9" list.
+- **XII.6:** three defect rows: the instance copy, NUL text, and answer extents.
+
+In 0002:
+- 37 keywords; the grammar loses `repeat while`.
+- V.3's `repeat while` line replaced by the self-tail-call rule and its stated cost.
+- V.6's `repeat while` row removed; VI.4's decided-condition rule names `if` alone.
+- Census 47 of 48; suite 177.
+- XII.2 and XII.4 entries.
+
+Left for the maintainer: entering rulings A1 to A7 in XII.1, and the
+version number.
+
+## 4. Verification evidence
+
+All runs on x86_64 Linux, 4 cores, Python 3.13, Clang 18.1.3.
+
+| Check | 0.4.9 | 0001 | 0001 + 0002 |
+|---|---|---|---|
+| Full suite | 174 / 174 pass | 178 / 178 pass (205 s) | 177 / 177 pass (204 s) |
+| Description check (`tools/check_description.py`: every code block in SPEC.md) | — | Pass | Pass |
+| Mutation check (`tools/mutation_check.py`) | Running; not yet recorded | Running; not yet recorded | Running; not yet recorded |
+| Examples and test programs: interpreter output against 0.4.9 | — | All 11 examples and 9 programs identical | Running |
+| Benchmarks: compiled output against the published numbers | — | Identical | Identical (collatz 2298025, sieve 3001134) |
+
+**Benchmarks**, interleaved: each round times every binary once, in a
+rotated order. Each toolchain compiles its own benchmark sources, and C
+is handwritten.
+
+*Not yet run: the benchmarks run after the mutation checks, on an idle machine.*
+
+**What the evidence does not show.**
+- The suite and the generators are tests of the cases they run.
+- The new answer extents rest on the same analysis as clause-rule extents, and are cross-checked against it on generated rules. They are not proved.
+- The A1 timings are single programs at one size each, chosen to show complexity, not a benchmark suite.

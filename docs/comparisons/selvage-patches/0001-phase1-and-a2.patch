@@ -1,0 +1,1134 @@
+diff --git a/README.md b/README.md
+index 79c5188..aed26b0 100644
+--- a/README.md
++++ b/README.md
+@@ -42,7 +42,7 @@ python3 tests/roundtrip_gen.py 2000              # generated rules: undo is the
+ python3 tests/generated_04.py 500                # generated programs with oracles: arrows, delegation, rows, operators, Any, refusal,
+                                                  #   seal, witness, depth, structures, decisions, journal, names, accounting, extent, forms, and the model of the proof
+ python3 tests/reference_model.py 600             # the interpreter and invert against the model of SPEC.md XI.3
+-python3 tools/mutation_check.py                  # break the toolchain 120 ways; the generated tests must notice each
++python3 tools/mutation_check.py                  # break the toolchain 140 ways; the generated tests must notice each
+ python3 tools/check_description.py               # every code block of SPEC.md, checked with the toolchain
+ python3 bench/run.py                             # Selvage vs C23 vs Rust
+ ```
+diff --git a/SPEC.md b/SPEC.md
+index a4981af..e13d2d4 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+ - Part XII records binding rulings, deprecated forms, implementation work and open questions.
+ 
+-The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 174 tests.
++The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 178 tests.
+ 
+ What is proved, what is an open obligation, and what rests on tests:
+ 
+@@ -75,14 +75,14 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 174 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 178 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+ | # | Constraint | How Selvage meets it | Implementation | Design | Evidence |
+ |---|---|---|---|---|---|
+ | H1 | Foundation-first synergy: derive higher-level capabilities from the smallest sufficient foundations; prefer composition to specialized mechanisms | Every capability is admitted at the lowest tier that can build it (I.4). Inversion is a code transformation run by the one forward engine and checked by the one checker; every reversible realization traces to `ccnot` (VII.6) | Built | Ratified | TestInversion: the inversion laws, and lineage reaching `ccnot` |
+-| H2 | Minimalism: minimize independent mechanisms, semantic rules, special cases, compiler machinery and runtime infrastructure | Three mechanisms, one realization primitive, eight checking rules, 39 keywords. There is no backward interpreter or reverse emitter: the prelude rule `mirror` derives inverse code from the backward reading of each step (V.6, VIII.2) | Built | Ratified | TestInversion: one engine runs rules and their inverses; TestC23Backend: the same inverse, compiled |
++| H2 | Minimalism: minimize independent mechanisms, semantic rules, special cases, compiler machinery and runtime infrastructure | Three mechanisms, one realization primitive, eight checking rules, 38 keywords. There is no backward interpreter or reverse emitter: the prelude rule `mirror` derives inverse code from the backward reading of each step (V.6, VIII.2) | Built | Ratified | TestInversion: one engine runs rules and their inverses; TestC23Backend: the same inverse, compiled |
+ 
+ ### I.3 Soft constraints
+ 
+@@ -237,11 +237,11 @@ rule and_gate takes (Bit, Bit) returns Bit
+ | Type | Values | Notes |
+ |---|---|---|
+ | `I8` … `I64`, `U8` … `U64` | Fixed-width integers | Operations over the modular domain ℤ/2ⁿ; signed types read the same bits in two's complement. Division truncates toward zero |
+-| `Bit` | 0, 1 | ℤ/2: `add` is XOR, `*` is AND |
++| `Bit` | 0, 1 | The 1-bit unsigned word, ℤ/2: `add` is XOR, `*` is AND |
+ | `Bool` | `true`, `false` | A sub-shape of `Trit`: a `Bool` is accepted where a `Trit` is declared. A `Trit` is accepted where a `Bool` is declared nowhere: not as an input, a parameter, a result, a field, a request's argument, an answer's reply or state, the value `set` gives, or the other side of a `swap`. It becomes a `Bool` only by `decide` (VI.4) |
+ | `Trit` | `true`, `false`, `maybe` | Kleene's strong logic (VI.4). Realized as two bits *(known, value)*: `false` 10, `true` 11, `maybe` 00. The pair 01 is not a `Trit` |
+ | `F64` | IEEE 754 binary64 | IEEE 754 operations, rounding to nearest, ties to even |
+-| `Text` | Text | Output; joining with `+` |
++| `Text` | Text | Output; joining with `+`. A text holds no NUL byte: a literal with one is refused (IV) |
+ | `(T, U, …)` | Tuples | `()` is unit |
+ | Records and variants | `type Point(x: I64, y: I64)`; a block of constructors | A record is a variant with one constructor. Types are nominal: two types with the same fields are different types |
+ | `Array(T)` | Owned, bounds-checked arrays | `array(T, n)` is filled with zeros |
+@@ -402,12 +402,13 @@ A refusal at run time is the request `refuse` (VI.5). Unless an installed answer
+ 
+ **Lexical rules:**
+ - Indentation opens and closes blocks; tabs in indentation are refused.
++- A loop counts: `repeat with i from a to b`, or `from b down to a`. To repeat n times, count from 1 to n.
+ - `#` starts a comment.
+ - Line breaks inside `( )` and `[ ]` are ignored.
+-- Literals: integers (`42`, `0xFF`, `1_000_000`), floats (`2.5`, `1e-7`), text (`"…"`), `true`, `false`, `maybe`.
++- Literals: integers (`42`, `0xFF`, `1_000_000`), floats (`2.5`, `1e-7`), text (`"…"`), `true`, `false`, `maybe`. A text that holds a NUL byte is refused: it is invisible in the source, and compiled code holds a text as a C string, which a NUL would end.
+ - `=` tests equality and `not=` inequality. Names are bound with `is`, released with `was`, and changed only with update words.
+ 
+-**Keywords (39):** `add and answer ask commit decide discard discarded down false for from if is maybe mod not or otherwise output quote repeat request returns rule set subtract swap takes times to true type undo uses was where while with`
++**Keywords (38):** `add and answer ask commit decide discard discarded down false for from if is maybe mod not or otherwise output quote repeat request returns rule set subtract swap takes to true type undo uses was where while with`
+ 
+ **The four arrows:**
+ 
+@@ -434,7 +435,6 @@ statement   = pattern "is" expr | pattern "was" expr | Name "was" "discarded"
+             | "add" expr "to" target | "subtract" expr "from" target
+             | "set" target "to" expr | "swap" target "and" target | "discard" Name | "output" expr | "commit"
+             | "if" expr NEWLINE block { "otherwise" "if" expr NEWLINE block } [ "otherwise" NEWLINE block ]
+-            | "repeat" expr "times" NEWLINE block
+             | "repeat" "with" Name "from" expr [ "down" ] "to" expr NEWLINE block
+             | "repeat" "while" expr NEWLINE block | expr
+ expr        = or_expr [ "from" or_expr ] [ "with" expr ]
+@@ -509,7 +509,7 @@ The two certified classes are read off the clauses: `bijection` says the left si
+ 
+ The test by steps is a sufficient one. A step outside it is not thereby able to refuse; the rule is then reported as not established, never as refusing. A call into a cycle of rules counts as able to refuse.
+ 
+-`selvage check` prints the extent of each certified rule in place of its class, with how it was established. An embedding is never reported as a permutation, and a rule whose reach is not established is reported as one-to-one and nothing more.
++`selvage check` prints the extent of each certified rule in place of its class, with how it was established. An answer is listed with its class, and under it the extent of its rule for each request: that rule takes the request's fields with the state and gives the reply with the state, and its extent is settled the same three ways. An embedding is never reported as a permutation, and a rule whose reach is not established is reported as one-to-one and nothing more.
+ 
+ The checker names each loss, for example:
+ - *it discards items*;
+@@ -522,7 +522,7 @@ The arrow states the certificate. A rule whose checker class is lossy must write
+ ```selvage
+ rule damped_orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) => Phase(q, p) where
+-        repeat steps times
++        repeat with i from 1 to steps
+             add k * q / 2000 to p
+             subtract p from q
+             add k * q / 2000 to p
+@@ -533,6 +533,7 @@ rule damped_orbit(k: I64, steps: I64) takes Phase returns Phase
+ |---|---|---|---|
+ | The three classes | Built | Proposed | TestChecker.test_classification |
+ | The extent of a certified rule reported apart from its class: permutation, embedding, partial inverse, partial; nothing claimed that is not established | Built | Ratified | TestExtent.test_a_gate_is_a_permutation_and_an_ancilla_makes_an_embedding, test_a_rule_over_words_is_settled_by_its_steps_or_by_counting, test_nothing_is_claimed_that_is_not_established; TestGenerated04.test_how_far_a_certified_rule_reaches |
++| The extent of an answer's rule for each request, listed under the answer | Built | Proposed | TestExtent.test_an_answer_s_rules_report_their_extent; TestGenerated04.test_how_far_a_certified_rule_reaches (every generated rule hosted by an answer as well) |
+ | The arrow matches the class, and a mismatch either way is refused | Built | Ratified | TestChecker.test_the_arrow_states_the_certificate; TestGenerated04.test_arrows_state_the_certificate_and_lossy_runs_rewind |
+ | R4 under either arrow | Built | Proposed | TestSoundness.test_r4_holds_under_either_arrow |
+ 
+@@ -612,7 +613,6 @@ Inversion is defined in the language. The table below is the prelude's rule `mir
+ | `swap a and b` | `swap a and b` | No index of `a` or `b` reads what the swap changes (R4) |
+ | `discard x` | `x was discarded` | — |
+ | `if c` A `otherwise` B | `if c` A′ `otherwise` B′ | Neither branch changes anything `c` reads, so `c` chooses the same branch backward |
+-| `repeat n times` A | `repeat n times` A′ | The body does not change anything `n` reads |
+ | `repeat with i from a to b` A | `repeat with i from b down to a` A′ | The body does not change anything `a` or `b` reads |
+ | `repeat while c` A | None | Refused in clause rules: without an exit assertion, the iteration count cannot be reconstructed |
+ | `L <-> R where S` | `R <-> L where S′` | — |
+@@ -650,7 +650,7 @@ rule undo leapfrog(k: I64) takes (I64, I64) returns (I64, I64)
+ 
+ rule undo damped_orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) => Phase(q, p) where
+-        repeat steps times
++        repeat with i from steps down to 1
+             old_p was discarded
+             swap p and old_p
+             old_p was p - p / 64
+@@ -1371,7 +1371,7 @@ rule turned takes Declaration returns Declaration
+ | Taken apart | A one-clause rule written for that constructor, checked by the ordinary checker, matches the node and binds every field |
+ | Put together | The same clause builds the node again from what it bound, and the result is the same value |
+ 
+-For every declaration, its printed text must read back as the same declaration. On a program that uses every form the parser can write, 49 of `Code`'s 50 constructors are met, the fiftieth being `After`, which only `mirror` writes; every constructor of every other form type is met; and nothing escapes.
++For every declaration, its printed text must read back as the same declaration. On a program that uses every form the parser can write, 48 of `Code`'s 49 constructors are met, the forty-ninth being `After`, which only `mirror` writes; every constructor of every other form type is met; and nothing escapes.
+ 
+ **Not forms.** What a run has, and no program holds as a value: the answers installed around it, as a list; the run in progress and the runs the system may still rewind; the depth and its bound; the world decider and the record it replays. An answer instance is a value, and the journal is a form read through `Witness` (VII.2).
+ 
+@@ -1430,8 +1430,6 @@ rule mirror takes Code returns Code
+     If(c, yes, no) <-> If(c, sey, on) where
+         sey is mirror(yes)
+         on is mirror(no)
+-    RepeatTimes(n, body) <-> RepeatTimes(n, ydob) where
+-        ydob is mirror(body)
+     RepeatWith(i, a, b, body) <-> RepeatDown(i, b, a, ydob) where
+         ydob is mirror(body)
+     RepeatDown(i, b, a, body) <-> RepeatWith(i, a, b, ydob) where
+@@ -1758,7 +1756,6 @@ Both rest on tests. For the second, the model is written out as a second evaluat
+ | `i was A(k) from p` | (σ∖i) ∪ match(p, v), provided σ(i) is an instance of A with parameters ⟦k⟧σ and state v; otherwise ⊥ |
+ | `d is decide e`, `d was decide e`, e a `Bool` | As `d is e` and `d was e` |
+ | `if c` A `otherwise` B | F<sub>A</sub>(σ) when ⟦c⟧σ is true, F<sub>B</sub>(σ) when it is false |
+-| `repeat n times` A | F<sub>A</sub> applied max(0, ⟦n⟧σ) times |
+ | `repeat with i from a to b` A | With α = ⟦a⟧σ and β = ⟦b⟧σ: F<sub>A</sub> applied with i = α, α+1, …, β in turn. `from b down to a` applies it with i = β, …, α |
+ 
+ - **A block** S = s₁ … s<sub>n</sub> denotes F<sub>S</sub> = F<sub>s<sub>n</sub></sub> ∘ … ∘ F<sub>s₁</sub>.
+@@ -1794,7 +1791,6 @@ Both rest on tests. For the second, the model is written out as a second evaluat
+ - **`i is A(k) from p` and `i was A(k) from p`.** By O3 the parameters have the same value before and after. By (M), unpacking the instance just packed gives back p's names, and packing what was just unpacked gives back the instance.
+ - **`decide` on a `Bool`.** As `p is e` and `p was e`.
+ - **`if c` A `otherwise` B.** Say ⟦c⟧σ is true, so σ′ = F<sub>A</sub>(σ). By O4 A writes no name c reads, so ⟦c⟧σ′ is true (Lemma 1) and the inverse runs Ā. A is a smaller block, so F<sub>Ā</sub>(σ′) = σ.
+-- **`repeat n times` A.** By O4 the count m is the same in σ′. Then (F<sub>Ā</sub>)<sup>m</sup> ∘ (F<sub>A</sub>)<sup>m</sup> is the identity where defined, by induction on m.
+ - **`repeat with i from a to b` A.** By O4 the bounds are the same in σ′, and the body does not write i. The inverse runs Ā with i = β, …, α: each undoes the forward iteration with the same i, last first. ∎
+ 
+ **Proof of Part 2.** Let G(x) = y through clause k: β = match(L<sub>k</sub>, x), σ₁ = F<sub>S<sub>k</sub></sub>(β), y = build(R<sub>k</sub>, σ₁). By O2 the names live in σ₁ are exactly those of R<sub>k</sub>. The clauses of `invert(r)` are `R_j <-> L_j where S̄_j`. By (M), match(R<sub>k</sub>, y) = σ₁, and by O6 no other right side matches y, so the inverse runs clause k. By Lemma 3, F<sub>S̄<sub>k</sub></sub>(σ₁) = β, and by (M) build(L<sub>k</sub>, β) = x. So G⁻(y) = x. By O1 no step of either run keeps anything or takes anything back. An answer the run messaged is an instance held in the state, and the state was restored. ∎
+@@ -1850,7 +1846,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9 passes 174 tests. Every test source is in the notation of this description.
++Toolchain 0.4.9, with the corrections listed under XII.4, passes 178 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -1860,20 +1856,20 @@ Toolchain 0.4.9 passes 174 tests. Every test source is in the notation of this d
+ | TestReversibility | 6 | `undo` round trips and refusals outside the image; rewinding lossy rules and requests; ε |
+ | TestPrograms | 3 | The examples' output; the defined-behaviour battery, ending with status 70; the default depth bound reached in every shape, and no further |
+ | TestMaybe | 8 | Kleene tables; undecided conditions refused; escalation; record and replay; rewinding a decision; the REPL |
+-| TestC23Backend | 16 | Output and ε identical to the interpreter, generated procedures included; the charges of VII.5 alike, the corrected ones against one expected ε; a name bound twice refused alike by the run and the build; derived inverses compiled; sameness; refusals with status 70; the depth bound, at chosen bounds and at the default, identical to the interpreter's; the depth argument as the backend's own |
++| TestC23Backend | 17 | Output and ε identical to the interpreter, generated procedures included; the charges of VII.5 alike, the corrected ones against one expected ε; a name bound twice refused alike by the run and the build; a text the same bytes in both, and a NUL in one refused alike; derived inverses compiled; sameness; refusals with status 70; the depth bound, at chosen bounds and at the default, identical to the interpreter's; the depth argument as the backend's own |
+ | TestMirror | 5 | Inversion as the prelude's certified rule: `invert` having no table but the rule; the rule its own inverse, clause for clause; the rule run by the interpreter, the clauses run by `invert` and an independent table agreeing on every clause, certified or lossy; sequences read from either end |
+ | TestInversion | 10 | The inversion laws; loss as a message to Root through Object; authority; lineage reaching `ccnot`; delegation keeping each certificate where it is answered |
+ | TestJournalIdentity | 6 | An entry naming the code that kept it, by identity; no identity changed by renaming a rule or reordering its clauses; a call holding the identity of the rule called, under another name, declared elsewhere, or changed; rules that call themselves or each other; code taking back only what its mirror kept, whoever it was kept by; identities of code and of rules compared as the forms they name |
+ | TestCodeIdentity | 11 | Variables identified by their binding, under renaming and under every change of binding structure; the example of III.3; the order of declaration as a tie-breaker only; quoted code as written; a ring that shares an identity and stays a ring; no name bound where it is already bound; requests and answers referred to by identity, with same-signature requests and same-code answers kept apart; exclusive clauses a set and first-match clauses a sequence; a cycle identified as a whole, under renaming and reordering; rules that share an identity interchangeable, a ring of them being the rule that calls itself; an identity granting no authority |
+ | TestJournalContract | 5 | Entries appended and restored exactly; rewinds out of step refused; only the system writes: ten routes refused by the seal; control-flow obligations |
+-| TestSemanticContracts | 9 | `history` as a copy; the escalation path rebuilt; crisp `decide`; clause-choice order; a rewind bound to its run by the canonical form; replay matched on question and context, each record once and in order; Kleene circuits |
++| TestSemanticContracts | 10 | `history` as a copy; the escalation path rebuilt; crisp `decide`; clause-choice order; a rewind bound to its run by the canonical form; replay matched on question and context, each record once and in order; Kleene circuits; `repeat n times` refused with what replaces it |
+ | TestTwoTiers | 4 | No lossy clause in the prelude; ordinary gates as a reversible gate and a `discard`, resting on `ccnot` and on Root's `keep`; certified code unable to rest on a dissipative rule; Boolean logic run on the Kleene circuits |
+ | TestAccounting | 9 | A clause choice kept only where the output leaves one; a dropped value charged by its type; only the constructors still possible counted; a value still computable dropped for nothing; the charges of the inputs that share an output a code; a `Text` charged its length and its bytes; a word charged its declared width however it was written; a decision charged by the answers installed, at 14, 15 and 16; ε as the sum |
+ | TestDeclaredTypes | 5 | A `Trit` refused at each of the sixteen sites where a `Bool` is declared, with its reason, and the same program with a `Bool` accepted; a `Bool` given where a `Trit` is; no certified rule deciding a `Trit`; `set` writing its value in the cell's type; a request's arguments and an answer's reply and state compared with what is declared |
+-| TestExtent | 3 | Gates as permutations and an ancilla as an embedding, with its inverse partial; rules over words settled by their steps or by counting; nothing claimed that is not established |
++| TestExtent | 4 | Gates as permutations and an ancilla as an embedding, with its inverse partial; rules over words settled by their steps or by counting; nothing claimed that is not established; an answer's rule for each request, settled each of the three ways |
+ | TestDeclarations | 8 | The form types as the prelude's own text, and a declaration not being `Code`; the example; every declaration held as a value and written back; `definition` for rules, answers, types and requests; the program as a form; all of the code written to be taken apart; holding a declaration granting nothing; a name not given back against an expression that reads it |
+ | TestCensus | 3 | Every form the parser writes taken apart and put together; nothing escaping in any example; a tag with no constructor reported |
+-| TestBuiltValues | 1 | A literal inside a constructor taking the type its field declares |
++| TestBuiltValues | 2 | A literal inside a constructor taking the type its field declares; a copied instance sharing nothing with the original |
+ | TestSoundness | 10 | R4 for indices and parameters, under either arrow; sameness; instance unpacking; an uncompute proved only in the pattern that bound it; generated certified rules; the description check; a refused example checked for its reason; a generator requiring its prelude |
+ | TestSealAndWitness | 14 | The seal as a rule about places; `history` through `Witness`; Root's three groups kept apart; hosts deciding what inner code reads; an inquiry leaving the journal as it was; giving the copy back: what was transactional rewound, a kept record refusing it, a refused withdrawal leaving the answers further out as they stood, a host keeping nothing of it; a host in its installer's row; the one request passed outward; instance states typed; commit points in the row; layout as the only lineage exemption |
+ | TestGenerated04 | 20 | The nineteen generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
+@@ -2050,6 +2046,7 @@ Deprecated forms are listed here and nowhere else in this description.
+ | `<->` on every clause, lossy ones included | `<->` certified only; `=>` for lossy clauses (R1) | Refused |
+ | `uses Discard` declaring loss | The `=>` arrow (R1) | Refused |
+ | `<-` on answers, inheriting request rules onto the child's state | Delegation to the one state component that answers (R2, P5) | Refused |
++| `repeat n times` | `repeat with i from 1 to n` (audit ruling A2) | Refused, with what replaces it |
+ | `Object <- Root`, with `history` on Object | `Object` taking `Root` and delegating to it (R2) | Removed |
+ | `inherited` as a lineage certificate | `delegated` (R2) | Removed |
+ | Every expression rule classed as a function; a decision made directly in one neither kept nor counted | Functions and procedures (P1) | Removed |
+@@ -2299,6 +2296,13 @@ Built in toolchain 0.4.9, a release of corrections:
+ - **A value taken back typed** as it was discarded, so that lossy rules which change or copy an input before discarding it compile.
+ - **The declared-types generator** (XI.2), and a regression test for each correction.
+ 
++Built after 0.4.9, as corrections and the audit rulings (the version number is the maintainer's to set):
++- **A copied instance shares nothing.** A copy of an answer instance, directly or inside a record or tuple, copies its state, so a message to one copy leaves the others as they were (III.2).
++- **A text holds no NUL byte** (III.1, IV): a literal with one is refused alike by `check`, `run` and `build`, where 0.4.9 printed it in the interpreter and an empty line compiled.
++- **The extent of each answer rule** (V.2), reported under the answer, and checked on every generated rule hosted by an answer.
++- **`repeat n times` removed** (audit ruling A2): one keyword, one `Code` constructor and one clause of `mirror` fewer; `repeat with i from 1 to n` replaces it everywhere, examples and benchmarks included.
++- **`Bit` described as the 1-bit unsigned word** (audit ruling A3); the toolchain already treated it so.
++
+ Ratified and next:
+ - **Typed encode and decode** (K5): for each serializable form type, tests that decoding an encoding gives the value, that encoding a decoding gives the canonical encoding, that an invalid encoding is refused, that the distinctions of identity are kept, and that the interpreter and compiled code agree.
+ 
+@@ -2363,10 +2367,13 @@ Taken in entering T1 to T4, and while building 0.4.9. T5 and Q13 were recommende
+ | U4 | A literal given as a clause rule's input or parameter is of the type declared there, in the interpreter as in compiled code | III.1, VII.5 | Holding it at a literal's width until it meets another word |
+ | U5 | A rule that, read backward, would put a `Trit` where a `Bool` is declared is refused as written, with the reason its inverse gives | V.6 | Treating it as a failure of the toolchain, as for other inverses that fail to check |
+ 
+-Defects found while building 0.4.2 to 0.4.9, and corrected:
++Defects found while building 0.4.2 to 0.4.9, and after it, and corrected:
+ 
+ | Defect | Present in | Found by | Now |
+ |---|---|---|---|
++| A copy of an answer instance shared its state's arrays with the original: after `y is x`, a message to `x` changed `y`, directly and through records and tuples. Values are owned and copied, never shared (III.2) | 0.4.9 and earlier | A conformance test of the CCNOT tape, which is an instance holding arrays | Copied with its state (TestBuiltValues.test_a_copied_instance_shares_nothing) |
++| A text holding a NUL byte printed the NUL in the interpreter and an empty line in compiled code, which holds a text as a C string | 0.4.9 and earlier | Review of 0.4.9 | Refused alike by `check`, `run` and `build` (TestC23Backend.test_text_is_the_same_bytes_in_both_backends) |
++| `selvage check` printed an answer as `bijection` with no extent, though its rules may be embeddings: a deposit replies `Deposited` and never `Withdrew` | 0.4.7 to 0.4.9 | Review of a certified answer whose rule is an embedding | Each answer rule's extent is reported (TestExtent.test_an_answer_s_rules_report_their_extent) |
+ | A name given back against an expression that reads it, `n was 0 + n`, passed the checker's reading of the rule and failed in its derived inverse, ending the check with an internal failure and no refusal | 0.3.4 to 0.4.7 | Writing a program that uses every form, for the census | Refused, with its reason (TestDeclarations) |
+ | `evaluate` given a step ended the interpreter with an error of its own and no refusal | 0.3.4 to 0.4.7 | The test that holding a declaration grants nothing | Refused: `evaluate` runs an expression (VIII.2) |
+ | This description said every expression was a form; twenty-four forms the parser writes were no constructor of `Code`, and no rule could match `a and b` | 0.3.2 to 0.4.7 | The form census | Each is a constructor (VIII.1, M3) |
+diff --git a/bench/io/selvage-100x/nbody.selv b/bench/io/selvage-100x/nbody.selv
+index cc44eed..043f302 100644
+--- a/bench/io/selvage-100x/nbody.selv
++++ b/bench/io/selvage-100x/nbody.selv
+@@ -64,7 +64,7 @@ rule simulate(steps: I64) returns (F64, F64)
+     set vy[0] to -py / solar
+     set vz[0] to -pz / solar
+     e0 is energy(x, y, z, vx, vy, vz, m)
+-    repeat steps times
++    repeat with round from 1 to steps
+         repeat with i from 0 to 4
+             repeat with j from i + 1 to 4
+                 dx is x[i] - x[j]
+diff --git a/bench/io/selvage-100x/orbit.selv b/bench/io/selvage-100x/orbit.selv
+index 3eeae29..93235ed 100644
+--- a/bench/io/selvage-100x/orbit.selv
++++ b/bench/io/selvage-100x/orbit.selv
+@@ -4,7 +4,7 @@ type Phase(q: I64, p: I64)
+ 
+ rule orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) <-> Phase(q, p) where
+-        repeat steps times
++        repeat with i from 1 to steps
+             subtract k * q / 2000 from p
+             add p to q
+             subtract k * q / 2000 from p
+diff --git a/bench/io/selvage-100x/prefix.selv b/bench/io/selvage-100x/prefix.selv
+index 669ac48..0f902a4 100644
+--- a/bench/io/selvage-100x/prefix.selv
++++ b/bench/io/selvage-100x/prefix.selv
+@@ -5,7 +5,7 @@ rule prefix_sum takes Array(U64) returns Array(U64)
+ 
+ rule churn(rounds: I64) takes Array(U64) returns Array(U64)
+     a <-> a where
+-        repeat rounds times
++        repeat with i from 1 to rounds
+             a is prefix_sum(a)
+             a is undo prefix_sum(a)
+ 
+diff --git a/bench/io/selvage-same/nbody.selv b/bench/io/selvage-same/nbody.selv
+index ae1bb71..de4996a 100644
+--- a/bench/io/selvage-same/nbody.selv
++++ b/bench/io/selvage-same/nbody.selv
+@@ -64,7 +64,7 @@ rule simulate(steps: I64) returns (F64, F64)
+     set vy[0] to -py / solar
+     set vz[0] to -pz / solar
+     e0 is energy(x, y, z, vx, vy, vz, m)
+-    repeat steps times
++    repeat with round from 1 to steps
+         repeat with i from 0 to 4
+             repeat with j from i + 1 to 4
+                 dx is x[i] - x[j]
+diff --git a/bench/io/selvage-same/orbit.selv b/bench/io/selvage-same/orbit.selv
+index dd85a8a..cc0c863 100644
+--- a/bench/io/selvage-same/orbit.selv
++++ b/bench/io/selvage-same/orbit.selv
+@@ -4,7 +4,7 @@ type Phase(q: I64, p: I64)
+ 
+ rule orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) <-> Phase(q, p) where
+-        repeat steps times
++        repeat with i from 1 to steps
+             subtract k * q / 2000 from p
+             add p to q
+             subtract k * q / 2000 from p
+diff --git a/bench/io/selvage-same/prefix.selv b/bench/io/selvage-same/prefix.selv
+index a8196f6..3d6af5e 100644
+--- a/bench/io/selvage-same/prefix.selv
++++ b/bench/io/selvage-same/prefix.selv
+@@ -5,7 +5,7 @@ rule prefix_sum takes Array(U64) returns Array(U64)
+ 
+ rule churn(rounds: I64) takes Array(U64) returns Array(U64)
+     a <-> a where
+-        repeat rounds times
++        repeat with i from 1 to rounds
+             a is prefix_sum(a)
+             a is undo prefix_sum(a)
+ 
+diff --git a/bench/selvage/damped.selv b/bench/selvage/damped.selv
+index 531ee5f..43697b9 100644
+--- a/bench/selvage/damped.selv
++++ b/bench/selvage/damped.selv
+@@ -6,7 +6,7 @@ type Phase(q: I64, p: I64)
+ 
+ rule damped(k: I64) takes Phase returns Phase
+     Phase(q, p) => Phase(q, p) where
+-        repeat 1000 times
++        repeat with i from 1 to 1000
+             subtract k * q / 2000 from p
+             add p to q
+             subtract k * q / 2000 from p
+@@ -14,7 +14,7 @@ rule damped(k: I64) takes Phase returns Phase
+ 
+ rule main uses Output, System
+     s is Phase(100000000, 0)
+-    repeat 100000 times
++    repeat with i from 1 to 100000
+         set s to damped(10)(s)
+         commit
+     output s
+diff --git a/bench/selvage/nbody.selv b/bench/selvage/nbody.selv
+index cb4d7b6..4daab77 100644
+--- a/bench/selvage/nbody.selv
++++ b/bench/selvage/nbody.selv
+@@ -64,7 +64,7 @@ rule simulate(steps: I64) returns (F64, F64)
+     set vy[0] to -py / solar
+     set vz[0] to -pz / solar
+     e0 is energy(x, y, z, vx, vy, vz, m)
+-    repeat steps times
++    repeat with round from 1 to steps
+         repeat with i from 0 to 4
+             repeat with j from i + 1 to 4
+                 dx is x[i] - x[j]
+diff --git a/bench/selvage/orbit.selv b/bench/selvage/orbit.selv
+index c45ff22..fdbe52d 100644
+--- a/bench/selvage/orbit.selv
++++ b/bench/selvage/orbit.selv
+@@ -4,7 +4,7 @@ type Phase(q: I64, p: I64)
+ 
+ rule orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) <-> Phase(q, p) where
+-        repeat steps times
++        repeat with i from 1 to steps
+             subtract k * q / 2000 from p
+             add p to q
+             subtract k * q / 2000 from p
+diff --git a/bench/selvage/prefix.selv b/bench/selvage/prefix.selv
+index d4ebadd..d1561d1 100644
+--- a/bench/selvage/prefix.selv
++++ b/bench/selvage/prefix.selv
+@@ -6,7 +6,7 @@ rule prefix_sum takes Array(U64) returns Array(U64)
+ 
+ rule churn(rounds: I64) takes Array(U64) returns Array(U64)
+     a <-> a where
+-        repeat rounds times
++        repeat with i from 1 to rounds
+             a is prefix_sum(a)
+             a is undo prefix_sum(a)
+ 
+diff --git a/examples/messages.selv b/examples/messages.selv
+index cf012fd..553e890 100644
+--- a/examples/messages.selv
++++ b/examples/messages.selv
+@@ -36,7 +36,7 @@ answer Replay(path: Array(F64)) for Noise takes I64
+ # its float updates round, so it is lossy; the journal keeps both.
+ rule walk(n: I64) takes F64 returns F64 uses Noise
+     x => x where
+-        repeat n times
++        repeat with i from 1 to n
+             dw is ask sample(0.5)
+             add dw to x
+             discard dw
+diff --git a/examples/orbit.selv b/examples/orbit.selv
+index cd01ff0..122d2b7 100644
+--- a/examples/orbit.selv
++++ b/examples/orbit.selv
+@@ -10,7 +10,7 @@ type Phase(q: I64, p: I64)
+ # Each update reads only what it does not change, so the step is certified.
+ rule orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) <-> Phase(q, p) where
+-        repeat steps times
++        repeat with i from 1 to steps
+             subtract k * q / 2000 from p
+             add p to q
+             subtract k * q / 2000 from p
+@@ -19,7 +19,7 @@ rule orbit(k: I64, steps: I64) takes Phase returns Phase
+ # discard, so this rule is lossy; the system can still rewind it.
+ rule damped_orbit(k: I64, steps: I64) takes Phase returns Phase
+     Phase(q, p) => Phase(q, p) where
+-        repeat steps times
++        repeat with i from 1 to steps
+             subtract k * q / 2000 from p
+             add p to q
+             subtract k * q / 2000 from p
+diff --git a/selvage/__main__.py b/selvage/__main__.py
+index fe84ece..bea3013 100644
+--- a/selvage/__main__.py
++++ b/selvage/__main__.py
+@@ -63,6 +63,11 @@ def classify_report(m, user_only=True):
+         gave = ', '.join(f'{op} to its {part}' for op, (_, part) in a.delegates.items())
+         lines.append(f'  {name:<20} {a.cls:<15} (answer for {", ".join(a.group_order)}) {why}'
+                      + (f'; delegates {gave}' if gave else ''))
++        for op, r in a.ops.items():
++            # each request rule is certified on its own, and reaches as far as it reaches (V.2)
++            kind, how = extent(m, r)
++            if kind is not None:
++                lines.append(f'    {op:<18} {kind:<15} {how}')
+     return '\n'.join(lines)
+ 
+ 
+diff --git a/selvage/cgen.py b/selvage/cgen.py
+index 4c64416..bc4711e 100644
+--- a/selvage/cgen.py
++++ b/selvage/cgen.py
+@@ -624,17 +624,6 @@ class CGen:
+                 self.scoped(k[2], lines, pad + '    ', ctx)
+             lines.append(f'{pad}}}')
+             return
+-        if tag == 'RepeatTimes':
+-            self.tmp += 1
+-            i = self.tmp
+-            t = settle(self.ty(k[0]))
+-            if t in INTS and INT_TYPES[t][1]:
+-                lines.append(f'{pad}for (int64_t _n{i} = (int64_t)({self.ex(k[0], t)}), _i{i} = 0; _i{i} < _n{i}; _i{i}++) {{')
+-            else:
+-                lines.append(f'{pad}for (uint64_t _n{i} = (uint64_t)({self.ex(k[0], t)}), _i{i} = 0; _i{i} < _n{i}; _i{i}++) {{')
+-            self.scoped(k[1], lines, pad + '    ', ctx)
+-            lines.append(f'{pad}}}')
+-            return
+         if tag == 'RepeatWith':
+             var, lo, hi, body = k
+             t = settle(m.etypes.get(id(s), 'I64'))
+diff --git a/selvage/checker.py b/selvage/checker.py
+index 094ab09..a29f4de 100644
+--- a/selvage/checker.py
++++ b/selvage/checker.py
+@@ -992,8 +992,6 @@ class Checker:
+             return exchange_and_discard(target, new, taken, line)
+         if t == 'If':
+             return [Form('If', (k[0], self.elab_block(k[1], taken), self.elab_block(k[2], taken)), line)]
+-        if t == 'RepeatTimes':
+-            return [Form('RepeatTimes', (k[0], self.elab_block(k[1], taken)), line)]
+         if t in ('RepeatWith', 'RepeatDown'):
+             return [Form(t, k[:3] + (self.elab_block(k[3], taken),), line)]
+         return [s]
+@@ -1166,12 +1164,9 @@ class Checker:
+             if last and k[2].kids:
+                 return join(t1, t2, m, line, 'the branches of `if`')
+             return 'Unit'
+-        if tag in ('RepeatTimes', 'RepeatWhile'):
++        if tag == 'RepeatWhile':
+             ct = self.tyof(k[0], env, line)
+-            if tag == 'RepeatWhile':
+-                self.need_decided(ct, line, '`repeat while`')
+-            if tag == 'RepeatTimes' and ct not in INTS and ct not in ('Lit', 'Any'):
+-                m.err(line, '`repeat n times` needs an integer')
++            self.need_decided(ct, line, '`repeat while`')
+             self.check_block_expr(k[1], dict(env), r)
+             return 'Unit'
+         if tag in ('RepeatWith', 'RepeatDown'):
+@@ -1459,7 +1454,7 @@ class Checker:
+                 block(k[1], inside)
+                 if len(k) > 2 and isinstance(k[2], Form):
+                     block(k[2], inside)
+-            elif t in ('RepeatTimes', 'RepeatWith', 'RepeatDown', 'RepeatWhile'):
++            elif t in ('RepeatWith', 'RepeatDown', 'RepeatWhile'):
+                 bounds = set().union(*[free_names(e) for e in k[:-1] if isinstance(e, Form)])
+                 inside = under or bool(bounds & taint)
+                 while True:            # what one iteration taints, the next may carry further
+@@ -1884,13 +1879,9 @@ class Checker:
+             # names read inside the branches
+             for blk in (then, other):
+                 reads |= self.block_reads(blk) & before
+-        elif tag in ('RepeatTimes', 'RepeatWith', 'RepeatDown'):
+-            if tag in ('RepeatWith', 'RepeatDown'):
+-                var, lo, hi, body = k
+-                bounds = [lo, hi]
+-            else:
+-                var, body = None, k[1]
+-                bounds = [k[0]]
++        elif tag in ('RepeatWith', 'RepeatDown'):
++            var, lo, hi, body = k
++            bounds = [lo, hi]
+             br = set()
+             br_shape = set()
+             for b in bounds:
+@@ -1898,21 +1889,18 @@ class Checker:
+                 br |= self.reads_of(b, live, ctx, line)
+                 br_shape |= length_only_names(b)
+             reads |= br
+-            if var is not None:
+-                t = settle(join(self.tyof(lo, types, line), self.tyof(hi, types, line), m, line, 'loop bounds'))
+-                types[var] = t
+-                m.etypes[id(s)] = t
+-                outer = var in ctx['params']        # a parameter, or the counter of a loop this one is in
+-                if var in live or outer:
+-                    m.err(line, f'{var} is already bound; a loop takes a counter of its own')
+-                ctx['params'] = set(ctx['params']) | {var}
+-            else:
+-                self.tyof(bounds[0], types, line)
++            t = settle(join(self.tyof(lo, types, line), self.tyof(hi, types, line), m, line, 'loop bounds'))
++            types[var] = t
++            m.etypes[id(s)] = t
++            outer = var in ctx['params']        # a parameter, or the counter of a loop this one is in
++            if var in live or outer:
++                m.err(line, f'{var} is already bound; a loop takes a counter of its own')
++            ctx['params'] = set(ctx['params']) | {var}
+             before = set(live)
+             lb = dict(live)
+             ib = self.walk_block(body, lb, ctx)
+             self.finish_block(body, lb, ctx, top=False)
+-            if var is not None and not outer:
++            if not outer:
+                 ctx['params'] = set(ctx['params']) - {var}
+             if set(lb) != before:
+                 m.err(line, 'a repeated block must leave the same names live (it may update them, '
+diff --git a/selvage/extent.py b/selvage/extent.py
+index 67cb0ee..0ea458b 100644
+--- a/selvage/extent.py
++++ b/selvage/extent.py
+@@ -12,6 +12,9 @@ questions, each on its own, and never claims what it has not established:
+   partial           neither
+   one-to-one        certified, with one or both questions not established
+ 
++An answer's rule for one request is a clause rule like any other: it takes the request's fields
++with the state and gives the reply with the state, and its extent is settled the same ways.
++
+ How each is established is reported with it:
+ 
+   by running it     the input type has few values, and the rule was run on every one
+@@ -121,19 +124,41 @@ def copy(v):
+     return v
+ 
+ 
++def sides(m, r):
++    """The types a certified rule takes and gives.  An answer's rule for one request takes the
++    request's fields with the state and gives the reply with the state; read backward, the
++    other way round."""
++    if not r.is_answer:
++        return r.takes, r.returns
++    pts, ret = m.requests[m.ops[r.op]][r.op]
++    request = ('Tuple', tuple(pt for _, pt in pts))
++    asked, replied = ('Tuple', (request, r.takes)), ('Tuple', (ret, r.takes))
++    return (replied, asked) if r.backward else (asked, replied)
++
++
++def as_input(r, x):
++    """A value of the type `sides` gives, as the rule is run on it: an answer's rule takes its
++    request as the request form the interpreter sends."""
++    if r.is_answer and not r.backward:
++        fields, state = x
++        return Form(r.op, tuple(fields)), state
++    return x
++
++
+ def by_running(m, r):
+     """Run the rule on every input: (defined on all, size of image, inputs), or None."""
+     from .interp import Interp
+-    dom = cardinality(m, r.takes)
++    takes, _ = sides(m, r)
++    dom = cardinality(m, takes)
+     pars = cardinality(m, ('Tuple', tuple(t for _, t in r.params)))
+     if dom is None or pars is None or dom * pars > LIMIT:
+         return None
+     total, least = True, None
+     for p in values(m, ('Tuple', tuple(t for _, t in r.params))):
+         image = set()
+-        for x in values(m, r.takes):
++        for x in values(m, takes):
+             try:
+-                image.add(encode(Interp(m).run_rule(r, copy(p), copy(x))))
++                image.add(encode(Interp(m).run_rule(r, copy(p), as_input(r, copy(x)))))
+             except Fault:
+                 total = False
+         least = len(image) if least is None else min(least, len(image))
+@@ -143,7 +168,7 @@ def by_running(m, r):
+ def steps_never_refuse(m, r, visiting=()):
+     """Whether no run of the rule can be refused, as far as its code shows.  It is cautious:
+     anything it does not know to be safe counts as able to refuse."""
+-    if r is None or r.kind != 'clauses' or not r.left_exhaustive or r.name in visiting or r.is_answer:
++    if r is None or r.kind != 'clauses' or not r.left_exhaustive or r.name in visiting:
+         return False
+     visiting = visiting + (r.name,)
+ 
+@@ -211,8 +236,6 @@ def steps_never_refuse(m, r, visiting=()):
+             return id(s) in m.proved
+         if s.tag == 'If':
+             return expr(k[0]) and block(k[1]) and block(k[2])
+-        if s.tag == 'RepeatTimes':
+-            return expr(k[0]) and block(k[1])
+         if s.tag in ('RepeatWith', 'RepeatDown'):
+             return expr(k[1]) and expr(k[2]) and block(k[3])
+         return False
+@@ -223,13 +246,17 @@ def steps_never_refuse(m, r, visiting=()):
+ 
+ 
+ def extent(m, r):
+-    """(kind, how) for a certified clause rule; (None, None) for any other."""
+-    if r.kind != 'clauses' or r.cls == 'lossy' or r.is_answer or r.inverse is None:
++    """(kind, how) for a certified clause rule, an answer's rule for one request among them;
++    (None, None) for any other."""
++    if r.kind != 'clauses' or r.cls == 'lossy' or r.inverse is None:
++        return None, None
++    if r.is_answer and r.op not in m.ops:
+         return None, None
+     got = getattr(r, '_extent', None)
+     if got is not None:
+         return got
+-    dom, cod = cardinality(m, r.takes), cardinality(m, r.returns)
++    takes, returns = sides(m, r)
++    dom, cod = cardinality(m, takes), cardinality(m, returns)
+     ran = by_running(m, r)
+     if ran is not None:
+         total, image, inputs = ran
+@@ -244,8 +271,8 @@ def extent(m, r):
+         # value the rule does not take, or does not give
+         fewer = dom is not None and cod is not None and dom < cod
+         more = dom is not None and cod is not None and cod < dom
+-        gap_in = not r.left_exhaustive and closed(m, r.takes)
+-        gap_out = not r.inverse.left_exhaustive and closed(m, r.returns)
++        gap_in = not r.left_exhaustive and closed(m, takes)
++        gap_out = not r.inverse.left_exhaustive and closed(m, returns)
+         total = True if fwd else (False if more or gap_in else None)
+         onto = True if bwd else (False if fewer or gap_out else None)
+         said = []
+diff --git a/selvage/interp.py b/selvage/interp.py
+index 1132840..30bf9f1 100644
+--- a/selvage/interp.py
++++ b/selvage/interp.py
+@@ -25,11 +25,18 @@ from .declared import declared, undeclared, is_declared
+ 
+ 
+ def deep_copy(v):
++    """A copy that shares nothing a later update could change.  Arrays are updated in place,
++    and an instance's state holds arrays, so an instance is copied with its state; its
++    parameters are only ever read, so they stay shared."""
+     if isinstance(v, Arr):
++        if v.data and isinstance(v.data[0], (Arr, tuple, Form, Inst)):
++            return Arr(v.ty, [deep_copy(x) for x in v.data])
+         return Arr(v.ty, list(v.data))
+     if isinstance(v, tuple):
+         return tuple(deep_copy(x) for x in v)
+-    if isinstance(v, Form) and v.kids and any(isinstance(k, (Arr, tuple, Form)) for k in v.kids):
++    if isinstance(v, Inst):
++        return Inst(v.answer, v.params, deep_copy(v.state))
++    if isinstance(v, Form) and v.kids and any(isinstance(k, (Arr, tuple, Form, Inst)) for k in v.kids):
+         return Form(v.tag, tuple(deep_copy(k) for k in v.kids), v.line)
+     return v
+ 
+@@ -969,11 +976,6 @@ class Interp:
+             branch = k[1] if self.truth(self.ev(k[0], env), line) else k[2]
+             self.run_scoped(branch, env, r, journal)
+             return
+-        if tag == 'RepeatTimes':
+-            n = self.ev(k[0], env)
+-            for _ in range(max(0, n.v)):
+-                self.run_scoped(k[1], env, r, journal)
+-            return
+         if tag in ('RepeatWith', 'RepeatDown'):
+             var, first, last, body = k
+             fv, lv = self.ev(first, env), self.ev(last, env)
+diff --git a/selvage/invert.py b/selvage/invert.py
+index 62f4273..de26c4a 100644
+--- a/selvage/invert.py
++++ b/selvage/invert.py
+@@ -36,7 +36,7 @@ def flip_name(n):
+ 
+ 
+ # ---- a block as a sequence, read from either end -------------------------------------
+-BODIES = {'If': (1, 2), 'RepeatTimes': (1,), 'RepeatWith': (3,), 'RepeatDown': (3,), 'RepeatWhile': (1,),
++BODIES = {'If': (1, 2), 'RepeatWith': (3,), 'RepeatDown': (3,), 'RepeatWhile': (1,),
+           'Clause': (2,), 'LossyClause': (2,)}      # where a step or a clause holds a block
+ DONE = Form('Done', ())
+ 
+diff --git a/selvage/lexer.py b/selvage/lexer.py
+index 19dafca..e563f13 100644
+--- a/selvage/lexer.py
++++ b/selvage/lexer.py
+@@ -74,6 +74,10 @@ def lex(src):
+                     j += 1
+                 if j >= n:
+                     raise SyntaxFault(f'line {ln}: unterminated text')
++                if '\0' in buf:
++                    # Text is for output; a NUL byte is invisible in source and would end the
++                    # text early in compiled code, so it is refused rather than guessed at
++                    raise SyntaxFault(f'line {ln}: text cannot hold a NUL byte')
+                 toks.append(Tok('STR', ''.join(buf), ln))
+                 i = j + 1
+                 continue
+diff --git a/selvage/lineage.py b/selvage/lineage.py
+index 3236009..3ef173d 100644
+--- a/selvage/lineage.py
++++ b/selvage/lineage.py
+@@ -243,7 +243,7 @@ def links(m, node):
+             if isinstance(kid, Form) and kid.tag == 'Block':
+                 for x in kid.kids:
+                     step(x, types, inner)
+-            elif wiring and tag in ('RepeatTimes', 'RepeatWith', 'RepeatDown') and structural(kid, layout):
++            elif wiring and tag in ('RepeatWith', 'RepeatDown') and structural(kid, layout):
+                 pass    # layout: how many gates, fixed when the rule is unrolled
+             else:
+                 operators(m, kid, add, layout if wiring else None, skip)
+diff --git a/selvage/parser.py b/selvage/parser.py
+index cdbacae..88fd924 100644
+--- a/selvage/parser.py
++++ b/selvage/parser.py
+@@ -8,7 +8,7 @@ from .lexer import lex, SyntaxFault
+ 
+ KEYWORDS = {
+     'rule', 'type', 'takes', 'returns', 'uses', 'is', 'where', 'add', 'to', 'subtract',
+-    'from', 'swap', 'and', 'was', 'discarded', 'down', 'discard', 'set', 'output', 'commit', 'if', 'otherwise', 'repeat', 'times', 'with', 'while', 'not', 'or', 'mod',
++    'from', 'swap', 'and', 'was', 'discarded', 'down', 'discard', 'set', 'output', 'commit', 'if', 'otherwise', 'repeat', 'with', 'while', 'not', 'or', 'mod',
+     'ask', 'answer', 'for', 'request', 'undo', 'quote', 'true', 'false', 'maybe', 'decide',
+ }
+ 
+@@ -382,31 +382,31 @@ class Parser:
+         return F('If', cond, then, other, line=line)
+ 
+     def repeat_stmt(self):
++        # a counted loop, or one that runs while a condition holds; `repeat n times` is
++        # `repeat with i from 1 to n`
+         line = self.word('repeat').line
+         if self.at_word('while'):
+             self.take()
+             cond = self.expr()
+             self.take('NEWLINE')
+             return F('RepeatWhile', cond, self.block(), line=line)
+-        if self.at_word('with'):
++        if not self.at_word('with'):
++            raise SyntaxFault(f'line {line}: a loop is `repeat with i from a to b` or `repeat while c`; '
++                              f'to repeat n times, count from 1 to n')
++        self.take()
++        var = self.name()
++        self.word('from')
++        first = self.expr()
++        down = False
++        if self.at_word('down'):
+             self.take()
+-            var = self.name()
+-            self.word('from')
+-            first = self.expr()
+-            down = False
+-            if self.at_word('down'):
+-                self.take()
+-                down = True
+-            self.word('to')
+-            last = self.expr()
+-            self.take('NEWLINE')
+-            if down:   # counts from first down to last; the backward reading of counting up
+-                return F('RepeatDown', var, first, last, self.block(), line=line)
+-            return F('RepeatWith', var, first, last, self.block(), line=line)
+-        n = self.expr()
+-        self.word('times')
++            down = True
++        self.word('to')
++        last = self.expr()
+         self.take('NEWLINE')
+-        return F('RepeatTimes', n, self.block(), line=line)
++        if down:   # counts from first down to last; the backward reading of counting up
++            return F('RepeatDown', var, first, last, self.block(), line=line)
++        return F('RepeatWith', var, first, last, self.block(), line=line)
+ 
+     # ---- expressions ------------------------------------------------------
+     def expr(self, no_from=False):
+diff --git a/selvage/prelude.selv b/selvage/prelude.selv
+index d2f5ba1..8845a49 100644
+--- a/selvage/prelude.selv
++++ b/selvage/prelude.selv
+@@ -146,7 +146,6 @@ type Code
+     Commit
+     Do(expression: Code)
+     If(condition: Code, yes: Any, no: Any)
+-    RepeatTimes(count: Code, body: Any)
+     RepeatWith(name: Text, first: Code, last: Code, body: Any)
+     RepeatDown(name: Text, first: Code, last: Code, body: Any)
+     RepeatWhile(condition: Code, body: Any)
+@@ -206,8 +205,6 @@ rule mirror takes Code returns Code
+     If(c, yes, no) <-> If(c, sey, on) where
+         sey is mirror(yes)
+         on is mirror(no)
+-    RepeatTimes(n, body) <-> RepeatTimes(n, ydob) where
+-        ydob is mirror(body)
+     RepeatWith(i, a, b, body) <-> RepeatDown(i, b, a, ydob) where
+         ydob is mirror(body)
+     RepeatDown(i, b, a, body) <-> RepeatWith(i, a, b, ydob) where
+diff --git a/selvage/printer.py b/selvage/printer.py
+index afaa3a9..ef06815 100644
+--- a/selvage/printer.py
++++ b/selvage/printer.py
+@@ -21,7 +21,7 @@ IND = '    '
+ 
+ 
+ STEP_TAGS = {'Let', 'Was', 'AddTo', 'SubtractFrom', 'Set', 'Swap', 'Discard', 'Restore', 'Output', 'Commit',
+-             'If', 'RepeatTimes', 'RepeatWith', 'RepeatDown', 'RepeatWhile', 'Do'}
++             'If', 'RepeatWith', 'RepeatDown', 'RepeatWhile', 'Do'}
+ 
+ 
+ def is_code_form(v):
+@@ -165,8 +165,6 @@ def stmt_lines(s, depth):
+                 out += [pad + 'otherwise'] + block_lines(other, depth + 1)
+                 break
+         return out
+-    if t == 'RepeatTimes':
+-        return [f'{pad}repeat {expr_text(k[0])} times'] + block_lines(k[1], depth + 1)
+     if t == 'RepeatWith':
+         return ([f'{pad}repeat with {k[0]} from {expr_text(k[1])} to {expr_text(k[2])}']
+                 + block_lines(k[3], depth + 1))
+diff --git a/tests/generated_04.py b/tests/generated_04.py
+index beb35d0..ffc8525 100644
+--- a/tests/generated_04.py
++++ b/tests/generated_04.py
+@@ -1172,7 +1172,7 @@ def withdrawal_routes(rng):
+         ('a bit of it in its state', True, host(f'        out is Empty\n        if {cond}\n            add 1 to mine\n',
+                                                 'mine', 'I64')),
+         ('a bit of it carried by a loop', True,
+-         host(f'        t is 0\n        out is Empty\n        repeat 2 times\n            swap t and mine\n'
++         host(f'        t is 0\n        out is Empty\n        repeat with round from 1 to 2\n            swap t and mine\n'
+               f'            if {cond}\n                add 1 to t\n        t was 0\n', 'mine', 'I64')),
+         ('a copy in the journal', True, host(copy + '        discard c\n        out is Empty\n')),
+         ('a copy sent to another request', True,
+@@ -1505,7 +1505,8 @@ class Structures:
+                 if r.random() < 0.4:
+                     out += [f'{pad}otherwise'] + self.steps(pad + '    ', depth + 1)
+             elif k == 'repeat' and depth < 2:      # the count is often data the body may try to change
+-                out += [f'{pad}repeat {r.choice(["2", "b", "a", "b", "a"])} times'] + self.steps(pad + '    ', depth + 1)
++                j = self.name('j')
++                out += [f'{pad}repeat with {j} from 1 to {r.choice(["2", "b", "a", "b", "a"])}'] + self.steps(pad + '    ', depth + 1)
+             elif k == 'count' and depth < 2:
+                 i = self.name('i')
+                 out += [f'{pad}repeat with {i} from 0 to {r.choice(["2", "a", "b"])}', f'{pad}    add {i} to {x}'] \
+@@ -2575,6 +2576,18 @@ class Gates:
+             lines.append(f'        {w} was {lit(k)}')
+         return '\n'.join(lines) + '\n'
+ 
++    def answer_program(self):
++        """The same rule hosted by an answer: the request's fields are its input, the reply its
++        output, and the state is (), so the answer's rule has the rule's extent."""
++        t = 'I64' if self.words else 'Bit'
++        ty = lambda ws: f'({", ".join([t] * len(ws))})' if len(ws) != 1 else t   # noqa: E731
++        pat = lambda ws: f'({", ".join(ws)})' if len(ws) != 1 else ws[0]         # noqa: E731
++        body = self.program().splitlines()[2:]
++        fields = ', '.join(f'{w}: {t}' for w in self.wires)
++        return '\n'.join([f'request Go\n    go({fields}) returns {ty(self.out)}',
++                          'answer G for Go takes ()',
++                          f'    (go({", ".join(self.wires)}), st) <-> ({pat(self.out)}, st) where'] + body) + '\n'
++
+     # the oracle, over bits: every input, run by a simulator of its own
+     def run(self, x):
+         env = dict(zip(self.wires, x))
+@@ -2620,7 +2633,8 @@ def extents(programs=200, seed=1):
+     from selvage.extent import extent
+     rng = random.Random(seed)
+     stats = {'gate rules': 0, 'permutations': 0, 'embeddings': 0, 'partial inverses': 0, 'partial': 0,
+-             'word rules': 0, 'claimed onto': 0, 'claimed total': 0, 'not established': 0, 'claims tried': 0}
++             'word rules': 0, 'claimed onto': 0, 'claimed total': 0, 'not established': 0, 'claims tried': 0,
++             'answers': 0}
+     findings = []
+     for n in range(programs):
+         words = n % 3 == 2
+@@ -2638,6 +2652,18 @@ def extents(programs=200, seed=1):
+         back, _ = extent(m, r.inverse)
+         flipped = {'permutation': 'permutation', 'embedding': 'partial inverse', 'partial inverse': 'embedding',
+                    'partial': 'partial', 'one-to-one': 'one-to-one'}
++        # the same rule hosted by an answer reaches exactly as far, both ways
++        asrc = g.answer_program()
++        why = refusal(asrc)
++        if why is not None:
++            findings.append(('a rule the checker certifies, refused as an answer', asrc, why))
++        else:
++            am = load(asrc)[0]
++            ar = am.answers['G'].ops['go']
++            stats['answers'] += 1
++            if extent(am, ar)[0] != kind or extent(am, ar.inverse)[0] != back:
++                findings.append(('the extent of a rule hosted by an answer', asrc,
++                                 f'{extent(am, ar)[0]} and {extent(am, ar.inverse)[0]}, expected {kind} and {back}'))
+         if not words:
+             stats['gate rules'] += 1
+             want = g.kind()
+diff --git a/tests/programs/every_form.selv b/tests/programs/every_form.selv
+index 86c16a7..27a3394 100644
+--- a/tests/programs/every_form.selv
++++ b/tests/programs/every_form.selv
+@@ -20,7 +20,7 @@ rule step(k: I64) takes (I64, I64) returns (I64, I64)
+         t is k * 2
+         add t to a
+         subtract k / 3 + k mod 2 from b
+-        repeat 2 times
++        repeat with r from 1 to 2
+             swap a and b
+         repeat with i from 0 to 2
+             add i to a
+diff --git a/tests/reference_model.py b/tests/reference_model.py
+index db4960e..9c21c9a 100644
+--- a/tests/reference_model.py
++++ b/tests/reference_model.py
+@@ -218,10 +218,6 @@ class Model:
+         if t == 'If':
+             c = self.value(k[0], env)
+             return self.block(k[1] if c else k[2], env)
+-        if t == 'RepeatTimes':
+-            for _ in range(max(0, self.value(k[0], env))):
+-                self.block(k[1], env)
+-            return
+         if t in ('RepeatWith', 'RepeatDown'):
+             var, first, last, body = k
+             a, b = self.value(first, env), self.value(last, env)
+@@ -336,8 +332,6 @@ def model_invert(x):
+         return Form('Block', tuple(model_invert(s) for s in reversed(k)))
+     if t == 'If':
+         return Form('If', (k[0], model_invert(k[1]), model_invert(k[2])))
+-    if t == 'RepeatTimes':
+-        return Form('RepeatTimes', (k[0], model_invert(k[1])))
+     if t in ('RepeatWith', 'RepeatDown'):
+         return Form(BACKWARD[t], (k[0], k[2], k[1], model_invert(k[3])))
+     if t in BACKWARD:
+diff --git a/tests/roundtrip_gen.py b/tests/roundtrip_gen.py
+index 409d3d7..c1e9cde 100644
+--- a/tests/roundtrip_gen.py
++++ b/tests/roundtrip_gen.py
+@@ -88,8 +88,10 @@ class Gen:
+                 lines.append(f'{pad}repeat with {i} from 0 to {self.r.randrange(1, N)}')
+                 lines += self.block(pad + '    ', depth + 1, loop + [i])
+             elif depth < 2:
+-                lines.append(f'{pad}repeat {self.target(loop)} times')
+-                lines += self.block(pad + '    ', depth + 1, loop)
++                self.fresh += 1
++                i = f'i{self.fresh}'
++                lines.append(f'{pad}repeat with {i} from 1 to {self.target(loop)}')
++                lines += self.block(pad + '    ', depth + 1, loop + [i])
+             else:
+                 lines.append(f'{pad}swap x and y')
+         return lines
+diff --git a/tests/test_selvage.py b/tests/test_selvage.py
+index 0b021f3..1df2d9c 100644
+--- a/tests/test_selvage.py
++++ b/tests/test_selvage.py
+@@ -925,8 +925,7 @@ class TestJournalContract(unittest.TestCase):
+         self.assertEqual(it.entry_bits(F_('Decided', ('c0de', 'r', W(3), True))), 3)
+ 
+     def test_control_flow_inverts_only_when_it_can_be_reconstructed(self):
+-        for body in ('if a > 0\n            add 1 to a', 'repeat with i from 0 to a\n            add 1 to a',
+-                     'repeat a times\n            add 1 to a'):
++        for body in ('if a > 0\n            add 1 to a', 'repeat with i from 0 to a\n            add 1 to a'):
+             with self.assertRaises(CheckError):
+                 load(f'rule f takes (I64, I64) returns (I64, I64)\n    (a, b) <-> (a, b) where\n        {body}\n')
+         m = load('rule f takes (I64, I64) returns (I64, I64)\n    (a, b) <-> (a, b) where\n'
+@@ -1727,6 +1726,38 @@ class TestExtent(unittest.TestCase):
+             x = Interp(m).undo(r, (W(3), W(2)), y)
+             self.assertEqual(Interp(m).forward(r, (W(3), W(2)), x), y)
+ 
++    def test_an_answer_s_rules_report_their_extent(self):
++        # an answer's rule for one request takes the request's fields with the state and gives
++        # the reply with the state; its extent is settled as any rule's is, and reported with
++        # the answer, so that an embedding is never shown as a bare "bijection"
++        m = load(src('prototypes.selv'))[0]
++        self.assertEqual(extent(m, m.answers['Count'].ops['bump']),
++                         ('permutation', 'defined on every input (no step of it can refuse); '
++                                         'onto (no step of its inverse can refuse)'))
++        m = load(src('messages.selv'))[0]
++        # a deposit always replies Deposited: a Receipt it never gives, so more outputs than inputs
++        self.assertEqual(extent(m, m.answers['Ledger'].ops['deposit']),
++                         ('embedding', 'defined on every input (no step of it can refuse); '
++                                       'not onto (fewer inputs than outputs)'))
++        text = ('request Peek\n    peek() returns Bit\n'
++                'answer Lamp for Peek takes Bit\n    (peek(), b) <-> (c, b) where\n        c is b\n'
++                'request Poke\n    poke() returns ()\n'
++                'answer Cell for Poke takes Array(I64)\n    (poke(), a) <-> ((), a) where\n        add 1 to a[0]\n')
++        m = load(text)[0]
++        r = m.answers['Lamp'].ops['peek']
++        self.assertEqual(extent(m, r), ('embedding', 'run on all 2 inputs: defined on every one; it gives 2 of 4 outputs'))
++        self.assertEqual(extent(m, r.inverse)[0], 'partial inverse')
++        # an index can refuse, and an array's values are not counted: nothing is claimed
++        self.assertEqual(extent(m, m.answers['Cell'].ops['poke']),
++                         ('one-to-one', 'defined on every input: not established; onto: not established'))
++        path = os.path.join(tempfile.mkdtemp(), 'lamp.selv')
++        with open(path, 'w') as f:
++            f.write(text)
++        lines = cli('check', path).stdout.splitlines()
++        self.assertIn('  Lamp                 bijection       (answer for Peek) certified', lines)
++        self.assertIn('    peek               embedding       run on all 2 inputs: defined on every one; '
++                      'it gives 2 of 4 outputs', lines)
++
+ 
+ class TestDeclarations(unittest.TestCase):
+     """A declaration and a program are forms a rule takes apart (VIII.1).  A declaration is
+@@ -1869,7 +1900,7 @@ class TestCensus(unittest.TestCase):
+         # value writes as parts
+         for tag in parser_tags():
+             self.assertTrue(tag in met or tag in REWRITTEN or tag in ('Field', 'Program'), tag)
+-        self.assertGreaterEqual(len([1 for t, *_ in rows if t == 'Code']), 49)
++        self.assertGreaterEqual(len([1 for t, *_ in rows if t == 'Code']), 48)
+         self.assertEqual({t for t, *_ in rows} >= {'Code', 'Parts', 'TypeExpr', 'Param', 'Slot', 'Ctor', 'Op',
+                                                    'Declaration', 'Program'}, True)
+ 
+@@ -1883,7 +1914,7 @@ class TestCensus(unittest.TestCase):
+     def test_the_census_reports_what_it_finds(self):
+         r = cli('census', os.path.join(PROGS, 'every_form.selv'))
+         self.assertEqual(r.returncode, 0, r.stderr)
+-        self.assertRegex(r.stdout, r'Code\s+49 of 50\s+\d+\s+yes\s+yes')
++        self.assertRegex(r.stdout, r'Code\s+48 of 49\s+\d+\s+yes\s+yes')
+         self.assertIn('escapes (a tag that is no constructor of a form type): none', r.stdout)
+         self.assertIn("the parser's tags this program does not use: none", r.stdout)
+         self.assertIn('not forms: the answers installed around a run', r.stdout)
+@@ -2035,6 +2066,23 @@ class TestSemanticContracts(unittest.TestCase):
+             load('rule f takes I64 returns I64\n    a <-> a where\n        repeat while a > 0\n'
+                  '            subtract 1 from a\n')
+ 
++    def test_repeat_n_times_is_a_count(self):
++        from selvage.lexer import SyntaxFault
++        # A2: `repeat n times` is `repeat with i from 1 to n`, and is not the language's.  It is
++        # refused where it was written, in a clause rule and in an expression rule, with what replaces it
++        for loop in ('repeat a times', 'repeat 3 times'):
++            for text in ('rule f takes I64 returns I64\n    a <-> a where\n        ' + loop +
++                         '\n            subtract 1 from a\n',
++                         'rule f(a: I64) returns I64\n    n is a\n    ' + loop + '\n        set n to n - 1\n    n\n'):
++                with self.assertRaises(SyntaxFault) as e:      # refused as it is read, before any check
++                    load(text)
++                self.assertIn('count from 1 to n', str(e.exception), loop)
++        out, _ = run_interp('rule main uses Output\n    s is 0\n    repeat with i from 1 to 4\n        add i to s\n'
++                            '    repeat with i from 1 to 0\n        add 100 to s\n    output s\n')
++        self.assertEqual(out.strip(), '10')                 # from 1 to 0 runs no times, as `repeat 0 times` did
++        self.assertNotIn('times', selvage.parser.KEYWORDS)
++        self.assertEqual(len(selvage.parser.KEYWORDS), 38)
++
+ 
+ class TestSoundness(unittest.TestCase):
+     """R4 for the cells a step changes and the parameters of what it consumes; sameness on
+@@ -2165,6 +2213,35 @@ class TestBuiltValues(unittest.TestCase):
+         self.assertEqual(identity(back), identity(x))
+         self.assertEqual(identity(it.forward(m.rules['light'], (), Word(0, 'Bit'))), identity(x))
+ 
++    def test_a_copied_instance_shares_nothing(self):
++        # values are owned and copied, never shared (III.2): an instance whose state holds an
++        # array is copied with its state, directly, inside a record and inside a tuple, so a
++        # message to one copy leaves every other copy as it was
++        text = ('request Poke\n    poke() returns ()\n'
++                'answer Cell for Poke takes Array(I64)\n'
++                '    (poke(), a) <-> ((), a) where\n        add 1 to a[0]\n'
++                'type Box(c: Cell, k: I64)\n'
++                'rule main uses Output\n'
++                '    x is Cell from array(I64, 2)\n'
++                '    y is x\n'
++                '    r1 is x -> poke()\n'
++                '    output (x, y)\n'
++                '    bx is Box(Cell from array(I64, 2), 0)\n'
++                '    by is bx\n'
++                '    c is bx.c\n'
++                '    r2 is c -> poke()\n'
++                '    output (c, by)\n'
++                '    t is (Cell from array(I64, 2), 0)\n'
++                '    u is t\n'
++                '    (d, k) is t\n'
++                '    r3 is d -> poke()\n'
++                '    output (d, u)\n')
++        out, _ = run_interp(text)
++        self.assertEqual(out.splitlines(), [
++            '(Cell from [1, 0], Cell from [0, 0])',
++            '(Cell from [1, 0], Box(Cell from [0, 0], 0))',
++            '(Cell from [1, 0], (Cell from [0, 0], 0))'])
++
+ 
+ class TestSealAndWitness(unittest.TestCase):
+     """P3: retention is sealed to Root, disclosure goes through Witness, and a host mediates."""
+@@ -2443,7 +2520,7 @@ class TestGenerated04(unittest.TestCase):
+ 
+     def test_how_far_a_certified_rule_reaches(self):
+         self.part('extent', 150, gate_rules=90, permutations=15, embeddings=15, partial_inverses=4, partial=6,
+-                  word_rules=40, claims_tried=250)
++                  word_rules=40, claims_tried=250, answers=130)
+ 
+     def test_arrows_state_the_certificate_and_lossy_runs_rewind(self):
+         self.part('arrows', 240, lossy=20, certified=20, rewinds=200)
+@@ -2584,6 +2661,30 @@ class TestC23Backend(unittest.TestCase):
+             r = cli('run', path, env={'SELVAGE_STATS': '1'})
+             self.assertEqual(r.stderr.strip().splitlines()[-1], f'epsilon={eps} journal_bits=0', what)
+ 
++    def test_text_is_the_same_bytes_in_both_backends(self):
++        # compiled code holds Text as a C string, so a NUL byte would end it early: 0.4.9
++        # printed "\0a" in the interpreter and an empty line compiled.  A NUL is refused in a
++        # text, alike by check, run and build; every other byte prints and is charged alike
++        for what, body in (('a NUL byte', b'\x00a'), ('a NUL byte after a backslash', b'\\\x00a')):
++            path = os.path.join(self.tmp, 'nul.selv')
++            with open(path, 'wb') as f:
++                f.write(b'rule main uses Output\n    output "' + body + b'"\n')
++            for cmd in ('check', 'run', 'build'):
++                r = cli(cmd, path, '-o', os.path.join(self.tmp, 'nul')) if cmd == 'build' else cli(cmd, path)
++                self.assertEqual(r.returncode, 1, (what, cmd))
++                self.assertIn('text cannot hold a NUL byte', r.stderr, (what, cmd))
++        path = os.path.join(self.tmp, 'bytes.selv')
++        with open(path, 'wb') as f:
++            f.write(b'rule f takes (Text, I64) returns I64\n    (t, n) => n where\n        discard t\n'
++                    b'rule main uses Output, System\n'
++                    b'    output "tab\there"\n    output "caf\xc3\xa9 \xe2\x9c\x93"\n    output "q\\"b\\\\s"\n'
++                    b'    output f(("tab\there", 1))\n    output f(("caf\xc3\xa9 \xe2\x9c\x93", 2))\n'
++                    b'    output f(("q\\"b\\\\s", 3))\n')
++        self.compare(path)
++        r = cli('run', path, env={'SELVAGE_STATS': '1'})
++        # 64 for each length, and 8 for each byte: 8, 9 and 5 bytes
++        self.assertEqual(r.stderr.strip().splitlines()[-1], f'epsilon={3 * 64 + 8 * (8 + 9 + 5)} journal_bits=0')
++
+     def test_a_name_bound_twice_is_refused_alike(self):
+         # the checker refuses it, so neither backend meets one: the run and the build end
+         # with the same refusal
+diff --git a/tools/mutation_check.py b/tools/mutation_check.py
+index 603e6e2..7a2609e 100644
+--- a/tools/mutation_check.py
++++ b/tools/mutation_check.py
+@@ -139,7 +139,7 @@ MUTATIONS = [
+   "    RepeatWith(i, a, b, body) <-> RepeatDown(i, b, a, ydob) where\n        ydob is mirror(body)\n    RepeatDown(i, b, a, body) <-> RepeatWith(i, a, b, ydob) where",
+   "    RepeatWith(i, a, b, body) <-> RepeatWith(i, a, b, ydob) where\n        ydob is mirror(body)\n    RepeatDown(i, b, a, body) <-> RepeatDown(i, b, a, ydob) where", 'model'),
+  ('mirror: a loop body is not mirrored', 'prelude.selv',
+-  "    RepeatTimes(n, body) <-> RepeatTimes(n, ydob) where\n        ydob is mirror(body)", "    RepeatTimes(n, body) <-> RepeatTimes(n, body)", 'structures'),
++  "    RepeatWith(i, a, b, body) <-> RepeatDown(i, b, a, ydob) where\n        ydob is mirror(body)\n", "    RepeatWith(i, a, b, body) <-> RepeatDown(i, b, a, body)\n", 'structures'),
+  ('mirror: a discard is read backward as a discard', 'prelude.selv',
+   "    Discard(x) <-> Restore(x)\n    Restore(x) <-> Discard(x)", "    Discard(x) <-> Discard(x)\n    Restore(x) <-> Restore(x)", 'arrows'),
+  ('mirror: a sequence read from its last step runs in the wrong order', 'invert.py',
+@@ -198,7 +198,7 @@ MUTATIONS = [
+  ('scope: a name may be bound again where it is bound', 'checker.py',
+   "                elif n in env:\n", "                elif False:\n", 'names'),
+  ('scope: a counter may take the name of a parameter or of the loop it is in', 'checker.py',
+-  "                if var in live or outer:", "                if var in live:", 'names'),
++  "            if var in live or outer:", "            if var in live:", 'names'),
+  ('scope: a counter in a body may take a name already bound', 'checker.py',
+   "            if var in env or var in dict(r.params):", "            if False:", 'names'),
+  ('refusal: never taken', 'interp.py',

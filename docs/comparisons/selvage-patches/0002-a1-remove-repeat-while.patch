@@ -1,0 +1,510 @@
+diff --git a/SPEC.md b/SPEC.md
+index e13d2d4..d7e0ca3 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+ - Part XII records binding rulings, deprecated forms, implementation work and open questions.
+ 
+-The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 178 tests.
++The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 177 tests.
+ 
+ What is proved, what is an open obligation, and what rests on tests:
+ 
+@@ -75,14 +75,14 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 178 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 177 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+ | # | Constraint | How Selvage meets it | Implementation | Design | Evidence |
+ |---|---|---|---|---|---|
+ | H1 | Foundation-first synergy: derive higher-level capabilities from the smallest sufficient foundations; prefer composition to specialized mechanisms | Every capability is admitted at the lowest tier that can build it (I.4). Inversion is a code transformation run by the one forward engine and checked by the one checker; every reversible realization traces to `ccnot` (VII.6) | Built | Ratified | TestInversion: the inversion laws, and lineage reaching `ccnot` |
+-| H2 | Minimalism: minimize independent mechanisms, semantic rules, special cases, compiler machinery and runtime infrastructure | Three mechanisms, one realization primitive, eight checking rules, 38 keywords. There is no backward interpreter or reverse emitter: the prelude rule `mirror` derives inverse code from the backward reading of each step (V.6, VIII.2) | Built | Ratified | TestInversion: one engine runs rules and their inverses; TestC23Backend: the same inverse, compiled |
++| H2 | Minimalism: minimize independent mechanisms, semantic rules, special cases, compiler machinery and runtime infrastructure | Three mechanisms, one realization primitive, eight checking rules, 37 keywords. There is no backward interpreter or reverse emitter: the prelude rule `mirror` derives inverse code from the backward reading of each step (V.6, VIII.2) | Built | Ratified | TestInversion: one engine runs rules and their inverses; TestC23Backend: the same inverse, compiled |
+ 
+ ### I.3 Soft constraints
+ 
+@@ -402,13 +402,13 @@ A refusal at run time is the request `refuse` (VI.5). Unless an installed answer
+ 
+ **Lexical rules:**
+ - Indentation opens and closes blocks; tabs in indentation are refused.
+-- A loop counts: `repeat with i from a to b`, or `from b down to a`. To repeat n times, count from 1 to n.
++- A loop counts: `repeat with i from a to b`, or `from b down to a`. To repeat n times, count from 1 to n; to repeat while a condition holds, a rule calls itself last, which is a loop (V.3).
+ - `#` starts a comment.
+ - Line breaks inside `( )` and `[ ]` are ignored.
+ - Literals: integers (`42`, `0xFF`, `1_000_000`), floats (`2.5`, `1e-7`), text (`"…"`), `true`, `false`, `maybe`. A text that holds a NUL byte is refused: it is invisible in the source, and compiled code holds a text as a C string, which a NUL would end.
+ - `=` tests equality and `not=` inequality. Names are bound with `is`, released with `was`, and changed only with update words.
+ 
+-**Keywords (38):** `add and answer ask commit decide discard discarded down false for from if is maybe mod not or otherwise output quote repeat request returns rule set subtract swap takes to true type undo uses was where while with`
++**Keywords (37):** `add and answer ask commit decide discard discarded down false for from if is maybe mod not or otherwise output quote repeat request returns rule set subtract swap takes to true type undo uses was where with`
+ 
+ **The four arrows:**
+ 
+@@ -435,8 +435,7 @@ statement   = pattern "is" expr | pattern "was" expr | Name "was" "discarded"
+             | "add" expr "to" target | "subtract" expr "from" target
+             | "set" target "to" expr | "swap" target "and" target | "discard" Name | "output" expr | "commit"
+             | "if" expr NEWLINE block { "otherwise" "if" expr NEWLINE block } [ "otherwise" NEWLINE block ]
+-            | "repeat" "with" Name "from" expr [ "down" ] "to" expr NEWLINE block
+-            | "repeat" "while" expr NEWLINE block | expr
++            | "repeat" "with" Name "from" expr [ "down" ] "to" expr NEWLINE block | expr
+ expr        = or_expr [ "from" or_expr ] [ "with" expr ]
+ or_expr     = and_expr { "or" and_expr }        and_expr = not_expr { "and" not_expr }
+ not_expr    = "not" not_expr | cmp              cmp = sum [ ( "=" | "not=" | "<" | ">" | "<=" | ">=" ) sum ]
+@@ -542,7 +541,7 @@ rule damped_orbit(k: I64, steps: I64) takes Phase returns Phase
+ An expression rule takes only parameters and computes a value. Systems code lives here.
+ - The last statement is the value.
+ - A self tail call is a loop, in both backends: it adds nothing to the depth of the run (III.5).
+-- `repeat while` is available here, and only here.
++- A loop that runs while a condition holds is written as a rule that calls itself last: a loop, with nothing added to the depth. Its parameters are read and never updated, so a rule that changes an array as it goes takes a copy at each call. Where the number of iterations can be computed beforehand, a counted loop does the same work in place; a loop that both changes an array in place and stops on what it finds there has neither, and pays for the copy or for the iterations it cannot skip (audit ruling A1).
+ 
+ Its `uses` row says which of two things it is:
+ 
+@@ -614,7 +613,6 @@ Inversion is defined in the language. The table below is the prelude's rule `mir
+ | `discard x` | `x was discarded` | — |
+ | `if c` A `otherwise` B | `if c` A′ `otherwise` B′ | Neither branch changes anything `c` reads, so `c` chooses the same branch backward |
+ | `repeat with i from a to b` A | `repeat with i from b down to a` A′ | The body does not change anything `a` or `b` reads |
+-| `repeat while c` A | None | Refused in clause rules: without an exit assertion, the iteration count cannot be reconstructed |
+ | `L <-> R where S` | `R <-> L where S′` | — |
+ | `L => R where S` | `R => L where S′` | Where the output matches the right side of more than one clause, the clause choice is kept, and the inverse takes it back to choose. Where it matches one, that clause ran, and nothing is kept |
+ | `rule f … takes T returns U` | `rule undo f … takes U returns T` | — |
+@@ -801,7 +799,7 @@ Every product is a `ccnot` into an empty cell and every sum a `cnot`; the checke
+ 
+ `defer` is the protocol outcome written as `maybe` in a reply: the answer passes the question on. It is not a fourth truth value.
+ 
+-- `if` and `repeat while` need a decided condition. A condition that can be `maybe` is refused at check time: *`if` needs a decided condition, and this one can be maybe; say `decide` to settle it*.
++- `if` needs a decided condition. A condition that can be `maybe` is refused at check time: *`if` needs a decided condition, and this one can be maybe; say `decide` to settle it*.
+ - `decide e` on `true` or `false` passes straight through and never calls out. On `maybe`, `settle` goes to the nearest answer for `Decide`. An answer that defers passes it to the next answer out, so the stack of answers is the escalation chain. The world decides last; if the world also defers, `decide` is refused.
+ - A rule that decides declares `uses Decide`, so every place a program defers a judgment is visible in its signature. A procedure that decides also lists `System`, since the world's reply is kept (V.3).
+ 
+@@ -1371,7 +1369,7 @@ rule turned takes Declaration returns Declaration
+ | Taken apart | A one-clause rule written for that constructor, checked by the ordinary checker, matches the node and binds every field |
+ | Put together | The same clause builds the node again from what it bound, and the result is the same value |
+ 
+-For every declaration, its printed text must read back as the same declaration. On a program that uses every form the parser can write, 48 of `Code`'s 49 constructors are met, the forty-ninth being `After`, which only `mirror` writes; every constructor of every other form type is met; and nothing escapes.
++For every declaration, its printed text must read back as the same declaration. On a program that uses every form the parser can write, 47 of `Code`'s 48 constructors are met, the forty-eighth being `After`, which only `mirror` writes; every constructor of every other form type is met; and nothing escapes.
+ 
+ **Not forms.** What a run has, and no program holds as a value: the answers installed around it, as a list; the run in progress and the runs the system may still rewind; the depth and its bound; the world decider and the record it replays. An answer instance is a value, and the journal is a form read through `Witness` (VII.2).
+ 
+@@ -1846,7 +1844,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9, with the corrections listed under XII.4, passes 178 tests. Every test source is in the notation of this description.
++Toolchain 0.4.9, with the corrections listed under XII.4, passes 177 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -1862,7 +1860,7 @@ Toolchain 0.4.9, with the corrections listed under XII.4, passes 178 tests. Ever
+ | TestJournalIdentity | 6 | An entry naming the code that kept it, by identity; no identity changed by renaming a rule or reordering its clauses; a call holding the identity of the rule called, under another name, declared elsewhere, or changed; rules that call themselves or each other; code taking back only what its mirror kept, whoever it was kept by; identities of code and of rules compared as the forms they name |
+ | TestCodeIdentity | 11 | Variables identified by their binding, under renaming and under every change of binding structure; the example of III.3; the order of declaration as a tie-breaker only; quoted code as written; a ring that shares an identity and stays a ring; no name bound where it is already bound; requests and answers referred to by identity, with same-signature requests and same-code answers kept apart; exclusive clauses a set and first-match clauses a sequence; a cycle identified as a whole, under renaming and reordering; rules that share an identity interchangeable, a ring of them being the rule that calls itself; an identity granting no authority |
+ | TestJournalContract | 5 | Entries appended and restored exactly; rewinds out of step refused; only the system writes: ten routes refused by the seal; control-flow obligations |
+-| TestSemanticContracts | 10 | `history` as a copy; the escalation path rebuilt; crisp `decide`; clause-choice order; a rewind bound to its run by the canonical form; replay matched on question and context, each record once and in order; Kleene circuits; `repeat n times` refused with what replaces it |
++| TestSemanticContracts | 9 | `history` as a copy; the escalation path rebuilt; crisp `decide`; clause-choice order; a rewind bound to its run by the canonical form; replay matched on question and context, each record once and in order; Kleene circuits; `repeat while` and `repeat n times` refused with what replaces them |
+ | TestTwoTiers | 4 | No lossy clause in the prelude; ordinary gates as a reversible gate and a `discard`, resting on `ccnot` and on Root's `keep`; certified code unable to rest on a dissipative rule; Boolean logic run on the Kleene circuits |
+ | TestAccounting | 9 | A clause choice kept only where the output leaves one; a dropped value charged by its type; only the constructors still possible counted; a value still computable dropped for nothing; the charges of the inputs that share an output a code; a `Text` charged its length and its bytes; a word charged its declared width however it was written; a decision charged by the answers installed, at 14, 15 and 16; ε as the sum |
+ | TestDeclaredTypes | 5 | A `Trit` refused at each of the sixteen sites where a `Bool` is declared, with its reason, and the same program with a `Bool` accepted; a `Bool` given where a `Trit` is; no certified rule deciding a `Trit`; `set` writing its value in the cell's type; a request's arguments and an answer's reply and state compared with what is declared |
+@@ -2047,6 +2045,7 @@ Deprecated forms are listed here and nowhere else in this description.
+ | `uses Discard` declaring loss | The `=>` arrow (R1) | Refused |
+ | `<-` on answers, inheriting request rules onto the child's state | Delegation to the one state component that answers (R2, P5) | Refused |
+ | `repeat n times` | `repeat with i from 1 to n` (audit ruling A2) | Refused, with what replaces it |
++| `repeat while c` | A rule that calls itself last, or a counted loop where the count can be computed (audit ruling A1) | Refused, with what replaces it |
+ | `Object <- Root`, with `history` on Object | `Object` taking `Root` and delegating to it (R2) | Removed |
+ | `inherited` as a lineage certificate | `delegated` (R2) | Removed |
+ | Every expression rule classed as a function; a decision made directly in one neither kept nor counted | Functions and procedures (P1) | Removed |
+@@ -2302,6 +2301,7 @@ Built after 0.4.9, as corrections and the audit rulings (the version number is t
+ - **The extent of each answer rule** (V.2), reported under the answer, and checked on every generated rule hosted by an answer.
+ - **`repeat n times` removed** (audit ruling A2): one keyword, one `Code` constructor and one clause of `mirror` fewer; `repeat with i from 1 to n` replaces it everywhere, examples and benchmarks included.
+ - **`Bit` described as the 1-bit unsigned word** (audit ruling A3); the toolchain already treated it so.
++- **`repeat while` removed** (audit ruling A1): one keyword and one `Code` constructor fewer. The collatz benchmark is a rule that calls itself last and the sieve counts its inner loop; a loop that changes an array in place and stops on its contents loses its early exit (V.3).
+ 
+ Ratified and next:
+ - **Typed encode and decode** (K5): for each serializable form type, tests that decoding an encoding gives the value, that encoding a decoding gives the canonical encoding, that an invalid encoding is refused, that the distinctions of identity are kept, and that the interpreter and compiled code agree.
+diff --git a/bench/io/selvage-100x/collatz.selv b/bench/io/selvage-100x/collatz.selv
+index 473774f..bc89336 100644
+--- a/bench/io/selvage-100x/collatz.selv
++++ b/bench/io/selvage-100x/collatz.selv
+@@ -1,19 +1,16 @@
+-rule chain(start: U64) returns U64
+-    n is start
+-    steps is U64(0)
+-    repeat while n not= 1
+-        if n mod 2 = 0
+-            set n to n / 2
+-        otherwise
+-            set n to 3 * n + 1
+-        set steps to steps + 1
+-    steps
++rule chain(n: U64, steps: U64) returns U64
++    if n = 1
++        steps
++    otherwise if n mod 2 = 0
++        chain(n / 2, steps + 1)
++    otherwise
++        chain(3 * n + 1, steps + 1)
+ 
+ rule longest(limit: U64) returns U64
+     best is U64(0)
+     best_start is U64(1)
+     repeat with s from U64(1) to limit
+-        c is chain(s)
++        c is chain(s, U64(0))
+         if c > best
+             set best to c
+             set best_start to s
+diff --git a/bench/io/selvage-100x/sieve.selv b/bench/io/selvage-100x/sieve.selv
+index a3892c4..dcdfc29 100644
+--- a/bench/io/selvage-100x/sieve.selv
++++ b/bench/io/selvage-100x/sieve.selv
+@@ -4,10 +4,9 @@ rule count_primes(n: I64) returns I64
+     repeat with i from 2 to n - 1
+         if not composite[i]
+             set count to count + 1
+-            j is i * i
+-            repeat while j < n
+-                set composite[j] to true
+-                set j to j + i
++            if i * i < n
++                repeat with k from 0 to (n - 1 - i * i) / i
++                    set composite[i * i + k * i] to true
+     count
+ 
+ rule main uses Output
+diff --git a/bench/io/selvage-same/collatz.selv b/bench/io/selvage-same/collatz.selv
+index 4759e1f..6b33084 100644
+--- a/bench/io/selvage-same/collatz.selv
++++ b/bench/io/selvage-same/collatz.selv
+@@ -1,19 +1,16 @@
+-rule chain(start: U64) returns U64
+-    n is start
+-    steps is U64(0)
+-    repeat while n not= 1
+-        if n mod 2 = 0
+-            set n to n / 2
+-        otherwise
+-            set n to 3 * n + 1
+-        set steps to steps + 1
+-    steps
++rule chain(n: U64, steps: U64) returns U64
++    if n = 1
++        steps
++    otherwise if n mod 2 = 0
++        chain(n / 2, steps + 1)
++    otherwise
++        chain(3 * n + 1, steps + 1)
+ 
+ rule longest(limit: U64) returns U64
+     best is U64(0)
+     best_start is U64(1)
+     repeat with s from U64(1) to limit
+-        c is chain(s)
++        c is chain(s, U64(0))
+         if c > best
+             set best to c
+             set best_start to s
+diff --git a/bench/io/selvage-same/sieve.selv b/bench/io/selvage-same/sieve.selv
+index 8df9c83..7f50346 100644
+--- a/bench/io/selvage-same/sieve.selv
++++ b/bench/io/selvage-same/sieve.selv
+@@ -4,10 +4,9 @@ rule count_primes(n: I64) returns I64
+     repeat with i from 2 to n - 1
+         if not composite[i]
+             set count to count + 1
+-            j is i * i
+-            repeat while j < n
+-                set composite[j] to true
+-                set j to j + i
++            if i * i < n
++                repeat with k from 0 to (n - 1 - i * i) / i
++                    set composite[i * i + k * i] to true
+     count
+ 
+ rule main uses Output
+diff --git a/bench/selvage/collatz.selv b/bench/selvage/collatz.selv
+index 473774f..bc89336 100644
+--- a/bench/selvage/collatz.selv
++++ b/bench/selvage/collatz.selv
+@@ -1,19 +1,16 @@
+-rule chain(start: U64) returns U64
+-    n is start
+-    steps is U64(0)
+-    repeat while n not= 1
+-        if n mod 2 = 0
+-            set n to n / 2
+-        otherwise
+-            set n to 3 * n + 1
+-        set steps to steps + 1
+-    steps
++rule chain(n: U64, steps: U64) returns U64
++    if n = 1
++        steps
++    otherwise if n mod 2 = 0
++        chain(n / 2, steps + 1)
++    otherwise
++        chain(3 * n + 1, steps + 1)
+ 
+ rule longest(limit: U64) returns U64
+     best is U64(0)
+     best_start is U64(1)
+     repeat with s from U64(1) to limit
+-        c is chain(s)
++        c is chain(s, U64(0))
+         if c > best
+             set best to c
+             set best_start to s
+diff --git a/bench/selvage/sieve.selv b/bench/selvage/sieve.selv
+index 08e6aee..50319c3 100644
+--- a/bench/selvage/sieve.selv
++++ b/bench/selvage/sieve.selv
+@@ -4,10 +4,9 @@ rule count_primes(n: I64) returns I64
+     repeat with i from 2 to n - 1
+         if not composite[i]
+             set count to count + 1
+-            j is i * i
+-            repeat while j < n
+-                set composite[j] to true
+-                set j to j + i
++            if i * i < n
++                repeat with k from 0 to (n - 1 - i * i) / i
++                    set composite[i * i + k * i] to true
+     count
+ 
+ rule main uses Output
+diff --git a/selvage/cgen.py b/selvage/cgen.py
+index bc4711e..c404f24 100644
+--- a/selvage/cgen.py
++++ b/selvage/cgen.py
+@@ -653,11 +653,6 @@ class CGen:
+             lines.append(f'{pad}  }}')
+             lines.append(f'{pad}}}')
+             return
+-        if tag == 'RepeatWhile':
+-            lines.append(f'{pad}while ({self.ex(k[0], "Bool")}) {{')
+-            self.scoped(k[1], lines, pad + '    ', ctx)
+-            lines.append(f'{pad}}}')
+-            return
+         if tag == 'Do':
+             lines.append(f'{pad}(void)({self.ex(k[0])});')
+             return
+diff --git a/selvage/checker.py b/selvage/checker.py
+index a29f4de..93cf5a5 100644
+--- a/selvage/checker.py
++++ b/selvage/checker.py
+@@ -1164,11 +1164,6 @@ class Checker:
+             if last and k[2].kids:
+                 return join(t1, t2, m, line, 'the branches of `if`')
+             return 'Unit'
+-        if tag == 'RepeatWhile':
+-            ct = self.tyof(k[0], env, line)
+-            self.need_decided(ct, line, '`repeat while`')
+-            self.check_block_expr(k[1], dict(env), r)
+-            return 'Unit'
+         if tag in ('RepeatWith', 'RepeatDown'):
+             var, lo, hi, body = k
+             t = settle(join(self.tyof(lo, env, line), self.tyof(hi, env, line), m, line, 'loop bounds'))
+@@ -1454,7 +1449,7 @@ class Checker:
+                 block(k[1], inside)
+                 if len(k) > 2 and isinstance(k[2], Form):
+                     block(k[2], inside)
+-            elif t in ('RepeatWith', 'RepeatDown', 'RepeatWhile'):
++            elif t in ('RepeatWith', 'RepeatDown'):
+                 bounds = set().union(*[free_names(e) for e in k[:-1] if isinstance(e, Form)])
+                 inside = under or bool(bounds & taint)
+                 while True:            # what one iteration taints, the next may carry further
+@@ -1914,8 +1909,6 @@ class Checker:
+                 if lb[n].modified:
+                     live[n].modified = True
+             reads |= self.block_reads(body) & before
+-        elif tag == 'RepeatWhile':
+-            m.err(line, '`repeat while` has no exit assertion, so it is available in expression rules only')
+         elif tag == 'Do':
+             m.err(line, 'bind the result with `is`; a clause cannot drop a value silently')
+         else:
+diff --git a/selvage/interp.py b/selvage/interp.py
+index 30bf9f1..d54dd68 100644
+--- a/selvage/interp.py
++++ b/selvage/interp.py
+@@ -986,10 +986,6 @@ class Interp:
+                 self.run_scoped(body, env, r, journal)
+             env.pop(var, None)
+             return
+-        if tag == 'RepeatWhile':
+-            while self.truth(self.ev(k[0], env), line):
+-                self.run_scoped(k[1], env, r, journal)
+-            return
+         if tag == 'Do':
+             env['$result'] = self.ev(k[0], env)
+             return
+diff --git a/selvage/invert.py b/selvage/invert.py
+index de26c4a..6307a42 100644
+--- a/selvage/invert.py
++++ b/selvage/invert.py
+@@ -36,7 +36,7 @@ def flip_name(n):
+ 
+ 
+ # ---- a block as a sequence, read from either end -------------------------------------
+-BODIES = {'If': (1, 2), 'RepeatWith': (3,), 'RepeatDown': (3,), 'RepeatWhile': (1,),
++BODIES = {'If': (1, 2), 'RepeatWith': (3,), 'RepeatDown': (3,),
+           'Clause': (2,), 'LossyClause': (2,)}      # where a step or a clause holds a block
+ DONE = Form('Done', ())
+ 
+diff --git a/selvage/parser.py b/selvage/parser.py
+index 88fd924..2d958d8 100644
+--- a/selvage/parser.py
++++ b/selvage/parser.py
+@@ -8,7 +8,7 @@ from .lexer import lex, SyntaxFault
+ 
+ KEYWORDS = {
+     'rule', 'type', 'takes', 'returns', 'uses', 'is', 'where', 'add', 'to', 'subtract',
+-    'from', 'swap', 'and', 'was', 'discarded', 'down', 'discard', 'set', 'output', 'commit', 'if', 'otherwise', 'repeat', 'with', 'while', 'not', 'or', 'mod',
++    'from', 'swap', 'and', 'was', 'discarded', 'down', 'discard', 'set', 'output', 'commit', 'if', 'otherwise', 'repeat', 'with', 'not', 'or', 'mod',
+     'ask', 'answer', 'for', 'request', 'undo', 'quote', 'true', 'false', 'maybe', 'decide',
+ }
+ 
+@@ -382,17 +382,12 @@ class Parser:
+         return F('If', cond, then, other, line=line)
+ 
+     def repeat_stmt(self):
+-        # a counted loop, or one that runs while a condition holds; `repeat n times` is
+-        # `repeat with i from 1 to n`
++        # one loop: a counted one.  `repeat n times` is `repeat with i from 1 to n`, and a loop
++        # that runs while a condition holds is a rule that calls itself last (a loop, V.3)
+         line = self.word('repeat').line
+-        if self.at_word('while'):
+-            self.take()
+-            cond = self.expr()
+-            self.take('NEWLINE')
+-            return F('RepeatWhile', cond, self.block(), line=line)
+         if not self.at_word('with'):
+-            raise SyntaxFault(f'line {line}: a loop is `repeat with i from a to b` or `repeat while c`; '
+-                              f'to repeat n times, count from 1 to n')
++            raise SyntaxFault(f'line {line}: a loop is `repeat with i from a to b`; to repeat n times, count '
++                              f'from 1 to n, and to repeat while a condition holds, write a rule that calls itself last')
+         self.take()
+         var = self.name()
+         self.word('from')
+diff --git a/selvage/prelude.selv b/selvage/prelude.selv
+index 8845a49..a5582cc 100644
+--- a/selvage/prelude.selv
++++ b/selvage/prelude.selv
+@@ -148,7 +148,6 @@ type Code
+     If(condition: Code, yes: Any, no: Any)
+     RepeatWith(name: Text, first: Code, last: Code, body: Any)
+     RepeatDown(name: Text, first: Code, last: Code, body: Any)
+-    RepeatWhile(condition: Code, body: Any)
+     Clause(left: Code, right: Code, steps: Any)
+     LossyClause(left: Code, right: Code, steps: Any)
+     Done
+diff --git a/selvage/printer.py b/selvage/printer.py
+index ef06815..fdfea6c 100644
+--- a/selvage/printer.py
++++ b/selvage/printer.py
+@@ -21,7 +21,7 @@ IND = '    '
+ 
+ 
+ STEP_TAGS = {'Let', 'Was', 'AddTo', 'SubtractFrom', 'Set', 'Swap', 'Discard', 'Restore', 'Output', 'Commit',
+-             'If', 'RepeatWith', 'RepeatDown', 'RepeatWhile', 'Do'}
++             'If', 'RepeatWith', 'RepeatDown', 'Do'}
+ 
+ 
+ def is_code_form(v):
+@@ -171,8 +171,6 @@ def stmt_lines(s, depth):
+     if t == 'RepeatDown':
+         return ([f'{pad}repeat with {k[0]} from {expr_text(k[1])} down to {expr_text(k[2])}']
+                 + block_lines(k[3], depth + 1))
+-    if t == 'RepeatWhile':
+-        return [f'{pad}repeat while {expr_text(k[0])}'] + block_lines(k[1], depth + 1)
+     raise TypeError(f'not a statement form: {t}')
+ 
+ 
+diff --git a/tests/programs/every_form.selv b/tests/programs/every_form.selv
+index 27a3394..5befae2 100644
+--- a/tests/programs/every_form.selv
++++ b/tests/programs/every_form.selv
+@@ -53,8 +53,8 @@ rule low(p: Pair, xs: Array(I64)) returns Bool
+ rule main uses Output, Store, Decide, System
+     xs is array(I64, 2)
+     n is 0
+-    repeat while n < 2
+-        set xs[n] to n
++    repeat with i from 0 to 1
++        set xs[i] to i
+         set n to n + 1
+     output low(Pair(1, 2), xs)
+     (r, cell) is ask put(4) with Cell from 0
+diff --git a/tests/test_selvage.py b/tests/test_selvage.py
+index 1df2d9c..08cd9dc 100644
+--- a/tests/test_selvage.py
++++ b/tests/test_selvage.py
+@@ -186,8 +186,6 @@ class TestChecker(unittest.TestCase):
+          '            add b to a\n'): 'condition',
+         'rule f(i: I64) takes Array(U64) returns Array(U64)\n    a <-> a where\n        add a[i] to a[i]\n': 'R4',
+         'rule f(a: U8, b: I64) returns U8\n    a + b\n': 'type mismatch',
+-        ('rule f takes I64 returns I64\n    x <-> x where\n        repeat while x > 0\n'
+-         '            subtract 1 from x\n'): 'exit assertion',
+         'rule f takes (I64, I64) returns (I64, I64, I64)\n    (a, b) <-> (a, b, a)\n': 'twice',
+         'rule length(x: I64) returns I64\n    x\n': 'built-in',
+         ('rule f takes Array(I64) returns Array(I64)\n    a <-> a where\n        repeat with i from 0 to length(a) - 1\n'
+@@ -1900,7 +1898,7 @@ class TestCensus(unittest.TestCase):
+         # value writes as parts
+         for tag in parser_tags():
+             self.assertTrue(tag in met or tag in REWRITTEN or tag in ('Field', 'Program'), tag)
+-        self.assertGreaterEqual(len([1 for t, *_ in rows if t == 'Code']), 48)
++        self.assertGreaterEqual(len([1 for t, *_ in rows if t == 'Code']), 47)
+         self.assertEqual({t for t, *_ in rows} >= {'Code', 'Parts', 'TypeExpr', 'Param', 'Slot', 'Ctor', 'Op',
+                                                    'Declaration', 'Program'}, True)
+ 
+@@ -1914,7 +1912,7 @@ class TestCensus(unittest.TestCase):
+     def test_the_census_reports_what_it_finds(self):
+         r = cli('census', os.path.join(PROGS, 'every_form.selv'))
+         self.assertEqual(r.returncode, 0, r.stderr)
+-        self.assertRegex(r.stdout, r'Code\s+48 of 49\s+\d+\s+yes\s+yes')
++        self.assertRegex(r.stdout, r'Code\s+47 of 48\s+\d+\s+yes\s+yes')
+         self.assertIn('escapes (a tag that is no constructor of a form type): none', r.stdout)
+         self.assertIn("the parser's tags this program does not use: none", r.stdout)
+         self.assertIn('not forms: the answers installed around a run', r.stdout)
+@@ -2061,27 +2059,28 @@ class TestSemanticContracts(unittest.TestCase):
+             self.assertEqual(m.rules[n].cls, 'bijection')
+         self.assertEqual(verify(m, ('kleene',))[:2], (21, 0))
+ 
+-    def test_repeat_while_is_refused_in_clause_rules(self):
+-        with self.assertRaises(CheckError):
+-            load('rule f takes I64 returns I64\n    a <-> a where\n        repeat while a > 0\n'
+-                 '            subtract 1 from a\n')
+-
+-    def test_repeat_n_times_is_a_count(self):
++    def test_a_loop_is_counted(self):
+         from selvage.lexer import SyntaxFault
+-        # A2: `repeat n times` is `repeat with i from 1 to n`, and is not the language's.  It is
+-        # refused where it was written, in a clause rule and in an expression rule, with what replaces it
+-        for loop in ('repeat a times', 'repeat 3 times'):
++        # A1 and A2: `repeat while` and `repeat n times` are not the language's.  Each is refused
++        # where it was written, in a clause rule and in an expression rule, with what replaces it
++        for loop in ('repeat while a > 0', 'repeat a times', 'repeat 3 times'):
+             for text in ('rule f takes I64 returns I64\n    a <-> a where\n        ' + loop +
+                          '\n            subtract 1 from a\n',
+                          'rule f(a: I64) returns I64\n    n is a\n    ' + loop + '\n        set n to n - 1\n    n\n'):
+                 with self.assertRaises(SyntaxFault) as e:      # refused as it is read, before any check
+                     load(text)
+                 self.assertIn('count from 1 to n', str(e.exception), loop)
+-        out, _ = run_interp('rule main uses Output\n    s is 0\n    repeat with i from 1 to 4\n        add i to s\n'
+-                            '    repeat with i from 1 to 0\n        add 100 to s\n    output s\n')
+-        self.assertEqual(out.strip(), '10')                 # from 1 to 0 runs no times, as `repeat 0 times` did
++                self.assertIn('calls itself last', str(e.exception), loop)
++        # what replaces them: a count, and a rule that calls itself last, which is a loop (V.3)
++        out, _ = run_interp('rule count_down(n: I64, k: I64) returns I64\n    if n <= 0\n        k\n    otherwise\n'
++                            '        count_down(n - 1, k + 1)\n'
++                            'rule main uses Output\n    s is 0\n    repeat with i from 1 to 4\n        add i to s\n'
++                            '    repeat with i from 1 to 0\n        add 100 to s\n'
++                            '    output (s, count_down(200000, 0))\n')
++        self.assertEqual(out.strip(), '(10, 200000)')     # from 1 to 0 runs no times; 200,000 calls, no depth refused
+         self.assertNotIn('times', selvage.parser.KEYWORDS)
+-        self.assertEqual(len(selvage.parser.KEYWORDS), 38)
++        self.assertNotIn('while', selvage.parser.KEYWORDS)
++        self.assertEqual(len(selvage.parser.KEYWORDS), 37)
+ 
+ 
+ class TestSoundness(unittest.TestCase):

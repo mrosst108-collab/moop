@@ -1,0 +1,19 @@
+rule mark(c: Array(Bool), j: I64, i: I64, n: I64) returns Array(Bool)
+    if j < n
+        d is c
+        set d[j] to true
+        mark(d, j + i, i, n)
+    otherwise
+        c
+
+rule count_primes(n: I64) returns I64
+    composite is array(Bool, n)
+    count is 0
+    repeat with i from 2 to n - 1
+        if not composite[i]
+            set count to count + 1
+            set composite to mark(composite, i * i, i, n)
+    count
+
+rule main uses Output
+    output count_primes(80000)

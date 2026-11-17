@@ -1,0 +1,12 @@
+rule sorted_count(n: I64) returns I64
+    a is array(I64, n)
+    repeat with k from 0 to n - 1
+        set a[k] to k
+    repeat with j from 1 to n - 1
+        repeat with m from j down to 1
+            if a[m - 1] > a[m]
+                swap a[m - 1] and a[m]
+    a[n - 1]
+
+rule main uses Output
+    output sorted_count(40000)
