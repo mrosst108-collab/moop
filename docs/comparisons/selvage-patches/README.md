@@ -62,8 +62,9 @@ others:
 
 | Loop | `repeat while` | Rule that calls itself last | Counted loop |
 |---|---|---|---|
-| Collatz chain (stops on data, no array) | 0.4.9 benchmark | Benchmark pending (section 4) | — |
+| Collatz chain (stops on data, no array), limit 3,000,000 | 0.530 s | 0.531 s | — |
 | Sieve inner loop (array in place, count computable), n = 80,000 | 0.005 s | **7.7 s** | 0.005 s |
+| Sieve, the benchmark at n = 50,000,000 | 0.428 s | not run (quadratic) | 0.429 s |
 | Insertion sort, sorted input (array in place, stops on data), n = 40,000 | 0.005 s | worse than the counted loop (copies per call; not timed) | **0.29 s** |
 
 Why: a rule's parameters are read and never updated, so a rule that calls
@@ -120,7 +121,20 @@ All runs on x86_64 Linux, 4 cores, Python 3.13, Clang 18.1.3.
 rotated order. Each toolchain compiles its own benchmark sources, and C
 is handwritten.
 
-*Not yet run: the benchmarks run after the mutation checks, on an idle machine.*
+Seven interleaved rounds, median seconds; every binary printed the same numbers.
+
+| Benchmark | 0.4.9 | main | main+A1 | C | 0.4.9 / C | main / C | main+A1 / C |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| fib | 0.145 | 0.135 | 0.137 | 0.118 | 1.23 | 1.14 | 1.16 |
+| collatz | 0.530 | 0.525 | 0.531 | 0.521 | 1.02 | 1.01 | 1.02 |
+| sieve | 0.428 | 0.431 | 0.429 | 0.402 | 1.06 | 1.07 | 1.06 |
+| prefix | 0.387 | 0.377 | 0.386 | 0.326 | 1.19 | 1.16 | 1.18 |
+| orbit | 0.840 | 0.834 | 0.814 | 0.700 | 1.20 | 1.19 | 1.16 |
+| damped | 0.539 | 0.530 | 0.530 | 0.454 | 1.19 | 1.17 | 1.17 |
+| nbody | 0.593 | 0.592 | 0.598 | 0.592 | 1.00 | 1.00 | 1.01 |
+| **geometric mean** |  |  |  |  | **1.12** | **1.10** | **1.11** |
+
+No change beyond noise. `fib`'s source is identical in all three trees, and its 0.145 s against 0.135 s shows the noise is about 7%. The published 0.4.9 geometric mean was 1.12, reproduced here. Under 0002 the collatz benchmark is a rule that calls itself last, and the sieve a counted loop; both match their `repeat while` originals.
 
 **What the evidence does not show.**
 - The suite and the generators are tests of the cases they run.
