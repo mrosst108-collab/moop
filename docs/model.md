@@ -33,10 +33,11 @@ per `lcm(len_a, len_b)` ticks.
 ### Pinned, with a second implementation
 
 The wiring above is **wiring 1**, frozen when the tape gained a second
-implementation: Selvage's `CcnotTape`, a certified answer whose
-candidate prelude text is `docs/comparisons/experiments/ccnot_tape.selv`
-(see `docs/comparisons/merge-plan.md`). moop stays a separate language
-and is that answer's **reference model**.
+implementation: Selvage's CCNOT tape, the prelude record `CcnotTape`
+with the certified rules `tape_tick`, `draw` and `birth`, whose text is
+`docs/comparisons/experiments/ccnot_tape.selv` (see
+`docs/comparisons/merge-plan.md`). moop stays a separate language and is
+its **reference model**.
 
 **Naming convention** (decided 2026-11-17; no renames):
 
