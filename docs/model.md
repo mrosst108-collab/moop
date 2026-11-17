@@ -250,9 +250,10 @@ homoiconicity; it bounds what draws may be used for.
 - **Wiring 2: open, not scheduled.** Wiring 1 stays: the tape is not a
   random source, so its correlation is a defect only against an objective
   nobody has set, and changing it moves the pinned trace.
-  **Open design requirement:** does birth promise only valid reversible
-  initialization, or also broad reachability across possible child
-  bodies? Three meanings, which reversibility does not choose between:
+  **Birth's current promise:** valid reversible initialization — a
+  child state the parent can step back from. Wiring 1 meets it.
+  **Open design requirement:** does birth promise only that, or also
+  broad reachability across possible child bodies? Three meanings, which reversibility does not choose between:
   *state initialization* (a valid reversible child state — wiring 1
   meets it); *body diversity* (birth reaches a broad part of the body
   space — wiring 1 reaches 2.80%); *behavioural diversity* (distinct
