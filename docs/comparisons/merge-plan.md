@@ -70,7 +70,7 @@ what the plan assumes.
 | G3 | What defines `draw` | Recommended: the tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 Toffolis and 1 CNOT per bit on gates (the Feistel's gate count, ~100, is an estimate), draws are rare, and both backends must give the same values. The description must call a draw a deterministic observation, never random: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`) | Phase 3 |
 | G4 | Prelude text: inline head arithmetic, or two helper functions | Recommended: inline. 6 reserved names and 26 lines at ~3.5 ns per tick. The helper version is ~1.9 ns per tick but reserves 8 names; the tape is not on a hot path | Phase 3 |
 | G5 | How a program gets a tape | Recommended: explicitly. it makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
-| G6 | Names | Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it | Phase 3 |
+| G6 | Names | Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
 
 ## Phases
 
