@@ -234,6 +234,12 @@ epoch map is a permutation and every period is a multiple of 104):
   the parent keeps its full state. The children are not degenerate,
   though: their periods are distributed as all states' are (0.40% repeat
   within 416 draws, against 0.44%).
+- **Children behave alike more often than their bodies coincide.**
+  Observing only tape A hides much of B: the 58,662 possible children
+  produce only 14,274 distinct first-21-draw sequences and 54,027
+  distinct first-64-draw sequences. Identical bodies behaving identically
+  is the dynamics, not a defect; distinct bodies behaving identically for
+  64 draws is a property of the observation.
 
 So MAYBE is a deterministic observation, not a source of randomness, and
 should never be described as one. This does not touch reversibility or
@@ -243,11 +249,17 @@ homoiconicity; it bounds what draws may be used for.
 
 - **Wiring 2: open, not scheduled.** Wiring 1 stays: the tape is not a
   random source, so its correlation is a defect only against an objective
-  nobody has set, and changing it moves the pinned trace. The design
-  question that would settle it, which reversibility does not answer:
-  *should birth be able to produce most bodies, or only a small,
-  internally correlated subset of them?* A wiring 2 needs a positive
-  objective first, and must then show that it keeps the
+  nobody has set, and changing it moves the pinned trace.
+  **Open design requirement:** does birth promise only valid reversible
+  initialization, or also broad reachability across possible child
+  bodies? Three meanings, which reversibility does not choose between:
+  *state initialization* (a valid reversible child state — wiring 1
+  meets it); *body diversity* (birth reaches a broad part of the body
+  space — wiring 1 reaches 2.80%); *behavioural diversity* (distinct
+  children do not draw alike — measured below, and bounded by body size
+  more than by wiring: with 21-cell bodies, even uniform births make two
+  identical children likely within about 1,700 births). A wiring 2 needs
+  a positive objective first, and must then show that it keeps the
   gate cost (2 Toffolis per drawn bit), keeps births certified and
   undoable, improves the specific property targeted, keeps a fully
   specified state domain, keeps both loops writable (homoiconicity), and
@@ -266,9 +278,12 @@ homoiconicity; it bounds what draws may be used for.
   - *Births* (all 2²¹ parents): every one of the 210 pairs of child
     cells agrees in 50.00% of cases (wiring 1: 18 pairs outside 45–55%,
     worst 75.00%), and 1,736,704 distinct children can be born — 82.81%
-    of bodies, against wiring 1's 2.80%. Children's periods are
-    distributed as all states' are. Pairwise 50% agreement is a measured
-    property of pairs, not a proof of independence.
+    of bodies, against wiring 1's 2.80% (about 1.2 parents per child,
+    against about 36). Children's periods are distributed as all states'
+    are (0.44% repeat within 416 draws). Their first 64 draws tell all
+    but one pair of children apart (1,736,703 distinct sequences).
+    Pairwise 50% agreement is a measured property of pairs, not a proof
+    of independence, which would need higher-order tests.
   - *Draws* (every lag 1 to 104): worst agreement 51.0% at lag 39 on the
     trace seed's cycle, 51.2% at lag 104 on the longest (wiring 1: 74.8%
     at lag 8 on both). Sampling noise is ~0.01 to 0.02 points, so this

@@ -9,7 +9,7 @@
  * From the repository root:
  *   cc -std=c2x -O2 -Isrc docs/comparisons/experiments/tape_statistics.c \
  *      src/tapeloop.c src/gates.c src/logic.c -lm -o build/tape_statistics
- *   build/tape_statistics          (about a minute) */
+ *   build/tape_statistics          (about a minute and a half) */
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -285,6 +285,55 @@ static void children(const char *name, Observe obs)
     printf("\n");
 }
 
+/* Behavioural diversity: how many distinct draw sequences children produce
+ * over their first 21 and 64 draws, each under its wiring's own
+ * observation (bounded above by the number of distinct bodies). */
+static uint64_t first_draws(uint32_t state, Observe obs, int n)
+{
+    uint64_t d = 0;
+    load(state);
+    for (int i = 0; i < n; i++) {
+        moop_core_step(&core);
+        d |= (uint64_t)obs(&core) << i;
+    }
+    return d;
+}
+
+static int by_value(const void *x, const void *y)
+{
+    uint64_t p = *(const uint64_t *)x, q = *(const uint64_t *)y;
+    return (p > q) - (p < q);
+}
+
+static uint64_t count_distinct(uint64_t *v)
+{
+    qsort(v, N, sizeof *v, by_value);
+    uint64_t d = 1;
+    for (size_t i = 1; i < N; i++)
+        d += v[i] != v[i - 1];
+    return d;
+}
+
+static void behaviour(const char *name, Observe obs)
+{
+    uint64_t *p21 = malloc(sizeof *p21 * N), *p64 = malloc(sizeof *p64 * N);
+    uint64_t *all = malloc(sizeof *all * N);
+    for (uint32_t parent = 0; parent < N; parent++) {
+        uint32_t child = (uint32_t)first_draws(parent, obs, LA + LB);
+        p21[parent] = first_draws(child, obs, 21);
+        p64[parent] = first_draws(child, obs, 64);
+        all[parent] = first_draws(parent, obs, 64);
+    }
+    printf("  %-10s distinct children's first 21 draws %7llu, first 64 %7llu "
+           "(all states, first 64: %7llu)\n", name,
+           (unsigned long long)count_distinct(p21),
+           (unsigned long long)count_distinct(p64),
+           (unsigned long long)count_distinct(all));
+    free(p21);
+    free(p64);
+    free(all);
+}
+
 int main(void)
 {
     cycles();
@@ -311,5 +360,8 @@ int main(void)
     printf("what births can produce, over all %d parents:\n", N);
     children("wiring 1", obs_a);
     children("A xor B", obs_a_xor_b);
+    printf("how children behave, over all %d parents:\n", N);
+    behaviour("wiring 1", obs_a);
+    behaviour("A xor B", obs_a_xor_b);
     return 0;
 }
