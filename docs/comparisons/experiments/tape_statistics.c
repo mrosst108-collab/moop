@@ -8,8 +8,9 @@
  *
  * From the repository root:
  *   cc -std=c2x -O2 -Isrc docs/comparisons/experiments/tape_statistics.c \
- *      src/tapeloop.c src/gates.c src/logic.c -o build/tape_statistics
- *   build/tape_statistics          (about 6 seconds) */
+ *      src/tapeloop.c src/gates.c src/logic.c -lm -o build/tape_statistics
+ *   build/tape_statistics          (about a minute) */
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,6 +162,66 @@ static void observation(const char *name, Observe obs, uint32_t s0)
     printf("\n");
 }
 
+/* Every lag 1..104 along one cycle: the worst agreement, and the sampling
+ * noise it should be compared with (about 0.5 / sqrt(draws)). */
+static void lag_scan(const char *name, Observe obs, uint32_t s0)
+{
+    static uint8_t ring[EPOCH + 1];
+    uint64_t agree[EPOCH + 1] = {0}, n = 0;
+    load(s0);
+    for (;;) {
+        moop_core_step(&core);
+        bool d = obs(&core);
+        if (n >= EPOCH)
+            for (int l = 1; l <= EPOCH; l++)
+                agree[l] += d == ring[(n - l) % (EPOCH + 1)];
+        ring[n % (EPOCH + 1)] = d;
+        n++;
+        if (n % EPOCH == 0 && pack() == s0)
+            break;
+    }
+    double m = (double)(n - EPOCH), worst = 0.5;
+    int at = 1;
+    for (int l = 1; l <= EPOCH; l++) {
+        double v = agree[l] / m;
+        if (fabs(v - 0.5) > fabs(worst - 0.5)) {
+            worst = v;
+            at = l;
+        }
+    }
+    printf("  %-28s %9llu draws: worst lag %3d at %.4f (noise ~%.4f)\n", name,
+           (unsigned long long)n, at, worst, 0.5 / sqrt(m));
+}
+
+/* Births over every parent state, seeded in src/proto.c's order (A's cells,
+ * then B's), each cell one draw through the given observation. */
+static void births(const char *name, Observe obs)
+{
+    uint64_t ba = 0, bb = 0, ap = 0;
+    for (uint32_t s = 0; s < N; s++) {
+        bool ca[LA], cb[LB];
+        load(s);
+        for (int k = 0; k < LA; k++) {
+            moop_core_step(&core);
+            ca[k] = obs(&core);
+        }
+        for (int k = 0; k < LB; k++) {
+            moop_core_step(&core);
+            cb[k] = obs(&core);
+        }
+        for (int k = 0; k < LA; k++) {
+            ba += cb[k] == ca[k];
+            ap += ca[k] == ((s >> k) & 1);
+        }
+        for (int k = 0; k < LB - LA; k++)
+            bb += cb[k + LA] == cb[k];
+    }
+    printf("  %-28s child B[k]=A[k] %.4f; B[k+8]=B[k] %.4f; "
+           "child A[k]=parent's A[k] %.4f\n", name,
+           (double)ba / ((double)N * LA), (double)bb / ((double)N * (LB - LA)),
+           (double)ap / ((double)N * LA));
+}
+
 int main(void)
 {
     cycles();
@@ -176,5 +237,13 @@ int main(void)
     observation("B under its head", obs_b, seed);
     observation("A xor B under the heads", obs_a_xor_b, seed);
     observation("parity of all of A", obs_a_parity, seed);
+    printf("every lag 1..104, wiring 1 against the wiring-2 candidate:\n");
+    lag_scan("wiring 1, trace seed", obs_a, seed);
+    lag_scan("A xor B, trace seed", obs_a_xor_b, seed);
+    lag_scan("wiring 1, longest cycle", obs_a, 1u | 1u << LA);
+    lag_scan("A xor B, longest cycle", obs_a_xor_b, 1u | 1u << LA);
+    printf("births over all %d parents:\n", N);
+    births("wiring 1", obs_a);
+    births("A xor B", obs_a_xor_b);
     return 0;
 }

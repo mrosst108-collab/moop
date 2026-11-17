@@ -240,15 +240,29 @@ homoiconicity; it bounds what draws may be used for.
   specified state domain, keeps both loops writable (homoiconicity), and
   is pinned by its own trace. Passing that would still not make it
   "random"; that claim needs its own statistical evaluation.
-  The leading candidate, measured: observe **A xor B under the two
-  heads** instead of A alone. Same dynamics (periods and reversibility
-  unchanged), no extra Toffoli (the observation is two CNOTs into an
-  empty cell instead of one), and on the trace's seed no agreement above
-  50.3% at lags 1, 2, 8, 13, 21 or 104. Moving the observation to a
-  single other cell does not work: every cell returns under a head
-  periodically, so observing B moves the 74.8% to lag 13, and A's parity
-  moves it to lag 1. Six lags on one cycle is evidence about this
-  correlation, not a statistical test suite.
+  The leading candidate, kept as an experimental observation rule (not
+  adopted here, not promoted into Selvage's prelude): observe **A xor B
+  under the two heads** instead of A alone. The tape's dynamics and its
+  observation are separable, so this is a narrow change:
+  - *Gate cost:* 2 Toffolis and 2 CNOTs per drawn bit (wiring 1 has 1
+    CNOT). No Toffoli added.
+  - *Domain, reversibility, homoiconicity:* met by construction. The
+    tick, the state and the cells written are wiring 1's exactly, so the
+    periods, the step/step_back round trip and "both loops transformed"
+    are unchanged.
+  - *Births* (all 2²¹ parents): a child's B[k] equals its A[k] in
+    50.00% of cases, and B[k+8] its B[k] in 50.00% (wiring 1: 75.00%
+    each). The internal correlation is gone.
+  - *Draws* (every lag 1 to 104): worst agreement 51.0% at lag 39 on the
+    trace seed's cycle, 51.2% at lag 104 on the longest (wiring 1: 74.8%
+    at lag 8 on both). Sampling noise is ~0.01 to 0.02 points, so this
+    residual is real: about twenty times smaller, not zero.
+  - *Not done:* a new trace, regression tests, other cycles, lags past
+    104, and any statistical test suite.
+  Moving the observation to a single other cell does not work: every
+  cell returns under a head periodically, so observing B moves the 74.8%
+  to lag 13, and A's parity moves it to lag 1. All figures:
+  `docs/comparisons/experiments/tape_statistics.c`.
 - Whether one gate suffices in practice or the core grows a ring of gates.
 - How programs are encoded onto the loops, and how the surface language
   (natural, Quorum-like syntax) compiles down to initial tape states.
