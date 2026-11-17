@@ -67,7 +67,7 @@ what the plan assumes.
 |---|---|---|---|
 | G1 | moop's role after the merge | **Decided:** moop stays a separate language — the study of the tape as the machine — and is the tape's reference model | Phase 0 |
 | G2 | Freeze the wiring that is merged | **Decided:** frozen as "wiring 1", pinned by the shared trace. The wiring may still iterate, but as a new numbered wiring with a new trace, which Selvage must rule on — not a silent drift | Phase 0 |
-| G3 | What defines `draw` | Recommended: the tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 CCNOTs per bit on gates, draws are rare, and both backends must give the same values | Phase 3 |
+| G3 | What defines `draw` | Recommended: the tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 CCNOTs per bit on gates, draws are rare, and both backends must give the same values. The description must call a draw a deterministic observation, never random: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`) | Phase 3 |
 | G4 | Prelude text: inline head arithmetic, or two helper functions | Recommended: inline. 6 reserved names and 26 lines at ~3.5 ns per tick. The helper version is ~1.9 ns per tick but reserves 8 names; the tape is not on a hot path | Phase 3 |
 | G5 | How a program gets a tape | Recommended: explicitly. it makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
 | G6 | Names | Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it | Phase 3 |
@@ -213,6 +213,20 @@ fixed statically.
 answer, and test that `ask measure()` is refused at Root with status 70.
 *Done later:* a quantum profile installs the answer.
 
+Two limits the profile must state, because the classical language does
+not carry them over:
+
+- **The journal cannot keep a qubit.** Keeping a copy of a discarded or
+  measured qubit would be cloning it. Rewinding past a measurement is
+  impossible in principle; replay reproduces the recorded outcome, not
+  the state before it (VII.4). Selvage's `discard`, which journals what
+  it drops, does not apply to qubits.
+- **Births do not generalize.** A birth copies classical bits; no-cloning
+  rules out the same for unknown quantum states.
+
+No quantum types (qubits, unitaries, circuits) before a backend exists;
+until then the `Measure` group is the whole of it.
+
 ## Budgets
 
 **Performance.** After every Selvage phase, run `bench/run.py`. The
@@ -240,6 +254,7 @@ randomness stays a library rule of the Feistel kind.
 | `draw` and `birth` collide with a program's own request names | Checked against Selvage's programs so far; re-check against any external code before ratifying G6 |
 | More aliasing defects where instances hold arrays | Phase 1 fixes the known one first; Phase 3's generated tests copy and message instances |
 | The tape drifts onto a hot path | The performance budget above; the description says where it belongs |
+| `draw` is read as randomness | The description calls it a deterministic observation and cites the lag-`len_a` correlation; simulations use a certified rule of the Feistel kind |
 
 ## What happens in this repository
 

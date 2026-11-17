@@ -111,6 +111,36 @@ the Feistel kind, which costs the language nothing. The tape passes the
 deletion test only in this role; as a general generator it is covered
 by an ordinary certified rule.
 
+### What the tape is not for
+
+Recorded because an outside review (2026-11-17) proposed several of
+these as the tape's advantages:
+
+- **Simulation and Monte Carlo.** Disqualified on three counts, all
+  measured (`docs/model.md`, "Wiring 1's draws, measured"): draws agree
+  with the draw `len_a` places back 74.8% of the time; periods on the
+  interpreter's bodies are at most 52.7 million draws; and it is about
+  100× slower per bit than a certified Feistel rule. `draw` is a
+  deterministic observation and must not be documented as random.
+- **Reversible debugging and provenance.** These are Selvage's
+  properties — `undo`, rewind, the journal, and rows that mark world
+  input — and hold with or without the tape. A draw is a computed value,
+  in provenance terms like any function's result.
+- **"The classical reversible domain."** That domain is the reversible
+  realization profile, which lowers *every* certified rule to gates. The
+  tape is one program in it — the natural first one, because its circuit
+  is its own definition.
+- **Quantum compilation, yet.** A finite certified *permutation* becomes
+  a unitary. The checker reports `tape_tick` only as one-to-one: array
+  indices may refuse and the minimum length is a run-time check. The
+  plan's Phases 5 and 6 (a stated domain; a fixed-length epoch form) are
+  what would qualify it.
+
+What remains is narrow: on gates the tape is 2 Toffolis per bit;
+`birth` is a certified, undoable generation that no other construct in
+either language provides; and the Selvage tape is pinned to moop's bit
+for bit.
+
 ## 5. The merge
 
 **Kernel: Selvage's, unchanged.** Form, Rule, Request; checking rules

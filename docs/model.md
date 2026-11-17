@@ -202,8 +202,40 @@ So the full object ladder is: actor (non-hereditary) → system root proto
 (delegation root, generative factory) → user root protos (roots of user
 delegation trees) → protos all the way down.
 
+## Wiring 1's draws, measured
+
+Measured on the interpreter's 8/13-cell bodies with
+`docs/comparisons/experiments/tape_statistics.c` (exhaustive over all
+2²¹ tape contents; one epoch, 104 ticks, returns both heads to 0, so the
+epoch map is a permutation and every period is a multiple of 104):
+
+- **Periods.** 8,938 cycles. 0.44% of states repeat within 416 draws;
+  90% have periods of 6.8 to 54 million draws; the longest is 52,670,488
+  draws (a quarter of the 218 million states counting head positions).
+  The short cycles include the obvious degenerate families: with B all
+  zeros the gate never fires and draws replay A; with A all zeros every
+  draw is 0.
+- **Correlation at lag `len_a`.** A draw agrees with the draw 8 places
+  back 74.8% of the time (0.5 would be none). The cause is structural: a
+  draw reads the A cell under the head, that cell returns under the head
+  every `len_a` ticks, and in between it flips only when both controls
+  were set, about a quarter of the time. Single-draw bias (50.2% ones)
+  and adjacent pairs look unbiased, so a casual check misses it.
+- **Births inherit it.** A child's A cells are draws 0–7 and its B cells
+  draws 8–20, so over all parent states its B[k] equals its A[k] in
+  exactly 75% of cases (k < 8), as does B[k+8] with B[k].
+
+So MAYBE is a deterministic observation, not a source of randomness, and
+should never be described as one. This does not touch reversibility or
+homoiconicity; it bounds what draws may be used for.
+
 ## Open questions
 
+- Whether a later wiring should decorrelate draws (for instance by
+  observing a cell that is not revisited every `len_a` ticks), or whether
+  correlated births are acceptable as the price of the simplest wiring.
+  Any change is a new numbered wiring (see "Pinned, with a second
+  implementation").
 - Whether one gate suffices in practice or the core grows a ring of gates.
 - How programs are encoded onto the loops, and how the surface language
   (natural, Quorum-like syntax) compiles down to initial tape states.
