@@ -113,7 +113,7 @@ All runs on x86_64 Linux, 4 cores, Python 3.13, Clang 18.1.3.
 | Full suite | 174 / 174 pass | 178 / 178 pass (205 s) | 177 / 177 pass (204 s) |
 | Description check (`tools/check_description.py`: every code block in SPEC.md) | — | Pass | Pass |
 | Mutation check (`tools/mutation_check.py`) | Running; not yet recorded | Running; not yet recorded | Running; not yet recorded |
-| Examples and test programs: interpreter output against 0.4.9 | — | All 11 examples and 9 programs identical | Running |
+| Examples and test programs: interpreter output against 0.4.9 | — | All 11 examples and 9 programs identical | All 11 examples and 9 programs identical |
 | Benchmarks: compiled output against the published numbers | — | Identical | Identical (collatz 2298025, sieve 3001134) |
 
 **Benchmarks**, interleaved: each round times every binary once, in a
