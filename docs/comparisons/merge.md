@@ -185,3 +185,7 @@ Two honest readings:
 
 These are not exclusive: moop can remain the small substrate study
 while the tape, as specified here, becomes Selvage's `CcnotTape`.
+
+**Decided (2026-11-17):** both. moop stays a separate language and is
+the reference model for Selvage's `CcnotTape`; its wiring is frozen as
+wiring 1 and pinned by `tests/tape_vectors.txt` (see `merge-plan.md`).

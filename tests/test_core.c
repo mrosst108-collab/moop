@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include "actor.h"
@@ -333,6 +334,105 @@ static void test_proto_generation(void)
           "generating costs the generator nothing irreversible");
 }
 
+/* Wiring 1, pinned. tests/tape_vectors.txt is a trace of the tape that a
+ * second implementation (Selvage's CcnotTape, see docs/model.md) must
+ * reproduce byte for byte, so it is written in that implementation's
+ * output format. A deliberate wiring change regenerates it: the trace
+ * this run produced is left in build/tape_vectors.txt on a mismatch. */
+static char trace[8192];
+static size_t trace_len;
+
+static void trace_line(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(trace + trace_len, sizeof trace - trace_len, fmt, ap);
+    va_end(ap);
+    if (n > 0)
+        trace_len += (size_t)n;
+    if (trace_len >= sizeof trace)
+        trace_len = sizeof trace - 1;
+}
+
+static void trace_tape(const MoopCore *core)
+{
+    trace_line("CcnotTape from Tapes([");
+    for (size_t k = 0; k < core->a.len; k++)
+        trace_line("%s%d", k ? ", " : "", core->a.cells[k]);
+    trace_line("], [");
+    for (size_t k = 0; k < core->b.len; k++)
+        trace_line("%s%d", k ? ", " : "", core->b.cells[k]);
+    trace_line("], %zu, %zu)\n", core->a.head, core->b.head);
+}
+
+static void test_wiring_1_trace(void)
+{
+    /* 8- and 13-cell tapes, the interpreter's body size */
+    bool a[8], b[13], ma[8], mb[13];
+    for (int k = 0; k < 8; k++)
+        a[k] = (k * k + 1) % 2;
+    for (int k = 0; k < 13; k++)
+        b[k] = ((k * 5) / 3 + 1) % 2;
+    bool a0[8], b0[13];
+    memcpy(a0, a, sizeof a0);
+    memcpy(b0, b, sizeof b0);
+
+    MoopProto parent = { .parent = NULL, .facing = MOOP_FACING_USER };
+    moop_core_init(&parent.core, a, ma, 8, b, mb, 13);
+    trace_len = 0;
+    trace_tape(&parent.core);
+
+    /* 40 draws */
+    for (int k = 0; k < 40; k++)
+        trace_line("%d\n", moop_maybe(&parent.core));
+    trace_tape(&parent.core);
+
+    /* a birth, through the real generation path */
+    bool ca[8], cb[13], mca[8], mcb[13];
+    MoopProtoMessage table[1];
+    MoopProto child;
+    size_t a_head = parent.core.a.head, b_head = parent.core.b.head;
+    memcpy(a0, a, sizeof a0);
+    memcpy(b0, b, sizeof b0);
+    moop_proto_generate(&parent, &child, ca, mca, 8, cb, mcb, 13, table, 1);
+    trace_tape(&parent.core);
+    trace_tape(&child.core);
+
+    /* 20 draws from the child */
+    for (int k = 0; k < 20; k++)
+        trace_line("%d\n", moop_maybe(&child.core));
+    trace_tape(&child.core);
+
+    /* the birth undone: the parent steps back one tick per seeded cell */
+    for (int k = 0; k < 8 + 13; k++)
+        moop_core_step_back(&parent.core);
+    trace_tape(&parent.core);
+    check(memcmp(a, a0, sizeof a0) == 0 && memcmp(b, b0, sizeof b0) == 0 &&
+          parent.core.a.head == a_head && parent.core.b.head == b_head,
+          "wiring 1: undoing a birth restores the parent");
+
+    static char expected[sizeof trace];
+    FILE *f = fopen("tests/tape_vectors.txt", "rb");
+    if (f == NULL) {
+        check(false, "wiring 1: tests/tape_vectors.txt opens "
+                     "(run from the repository root)");
+        return;
+    }
+    size_t n = fread(expected, 1, sizeof expected, f);
+    fclose(f);
+    bool same = n == trace_len && memcmp(expected, trace, n) == 0;
+    check(same, "wiring 1: the tape reproduces tests/tape_vectors.txt "
+                "(the trace a second implementation must match)");
+    if (!same) {
+        FILE *out = fopen("build/tape_vectors.txt", "wb");
+        if (out != NULL) {
+            fwrite(trace, 1, trace_len, out);
+            fclose(out);
+            printf("     this run's trace is in build/tape_vectors.txt\n");
+        }
+    }
+}
+
 static void test_lexer(void)
 {
     MoopLexer lx;
@@ -461,5 +561,6 @@ int main(void)
     test_encoding();
     test_actor();
     test_proto_generation();
+    test_wiring_1_trace();
     return failures;
 }

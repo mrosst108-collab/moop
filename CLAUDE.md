@@ -28,7 +28,7 @@ Any change to the core (wiring, gate placement, tape encoding) must preserve bot
 
 **Causal pruning is the one sanctioned exception.** Cells are marked into the causal web when they participate in an actual firing; `moop_core_prune()` zeroes unmarked (causally inert) cells — whose values are provably independent of the rest of the state — and `moop_core_run()` auto-prunes at each epoch boundary (`lcm(len_a, len_b)` ticks). Pruning is explicit, irreversible, and resets the causal epoch: the round-trip guarantee holds *between* prunes, never across them. Marks/ticks are heuristic metadata, not reversible state. Don't add any other information-losing path to the core.
 
-The gate wiring is an initial design and expected to iterate — keep wiring decisions confined to `src/tapeloop.c` and update `docs/model.md` when they change.
+The current gate wiring is **wiring 1**, frozen and pinned by `tests/tape_vectors.txt` (checked by `test_wiring_1_trace`), because Selvage's `CcnotTape` reimplements it and moop is that answer's reference model (`docs/model.md`, `docs/comparisons/merge-plan.md`). The wiring may still iterate, but only as a new numbered wiring: keep wiring decisions confined to `src/tapeloop.c`, update `docs/model.md`, and regenerate the trace deliberately — never edit the trace to make a failing test pass. The trace also pins MAYBE's observation point and the seeding order of births.
 
 ## Two memories, two logics (segregation)
 
@@ -64,7 +64,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 ## Toolchain notes
 
 - The Makefile probes the compiler and uses `-std=c23` when supported, falling back to `-std=c2x` (GCC 13, the compiler in this environment, only knows `c2x`). Both mean C23; write C23 code.
-- Tests come in two layers, both run by `make test`: `tests/test_core.c` (C unit tests linked against everything in `src/` except `main.c`, built to `build/test_core`) and `tests/run_tests.sh` (POSIX-sh smoke tests against the binaries, using the `check` expected-vs-actual helper). Add C tests for core semantics, `check` lines for CLI behavior.
+- Tests come in two layers, both run by `make test`: `tests/test_core.c` (C unit tests linked against everything in `src/` except `main.c`, built to `build/test_core`) and `tests/run_tests.sh` (POSIX-sh smoke tests against the binaries, using the `check` expected-vs-actual helper). Add C tests for core semantics, `check` lines for CLI behavior. `test_core` reads `tests/tape_vectors.txt` by relative path, so it runs from the repository root (as `make test` does).
 
 ## Structure and state
 
@@ -72,8 +72,8 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
-- `docs/comparisons/` — comparisons with sibling languages, each import put through the deletion test (`selvage.md`: Selvage 0.4.9; `merge.md`: system-facing reversibility and a moop/Selvage merge, an exploration with its Selvage test programs in `experiments/`; `merge-plan.md`: the phased plan, in which moop's only part is pinning its tape to a shared trace — none of these changes a moop decision).
-- `tests/` — see the test layers above.
+- `docs/comparisons/` — comparisons with sibling languages, each import put through the deletion test (`selvage.md`: Selvage 0.4.9; `merge.md`: system-facing reversibility and a moop/Selvage merge, an exploration with its Selvage test programs in `experiments/`; `merge-plan.md`: the phased plan — decided: moop stays a separate language and is the reference model for Selvage's `CcnotTape`; moop's part, pinning wiring 1 to a shared trace, is done).
+- `tests/` — see the test layers above; `tests/tape_vectors.txt` is the shared wiring-1 trace.
 
 ## Surface syntax and the interpreter pipeline
 

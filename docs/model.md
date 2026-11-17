@@ -11,7 +11,7 @@ Because every tick is a reversible gate followed by a permutation, the whole
 machine is reversible: the core can run backward, exactly. This is the
 load-bearing invariant of the runtime.
 
-## Wiring (initial design, expected to iterate)
+## Wiring 1 (frozen; a new wiring gets a new number)
 
 Implemented in `src/tapeloop.{h,c}`:
 
@@ -29,6 +29,29 @@ Implemented in `src/tapeloop.{h,c}`:
 Counter-rotation means the pair of aligned cells shifts by (+1, −1) each
 tick: with coprime loop lengths, every cell of A meets every cell of B once
 per `lcm(len_a, len_b)` ticks.
+
+### Pinned, with a second implementation
+
+The wiring above is **wiring 1**, frozen when the tape gained a second
+implementation: Selvage's `CcnotTape`, a certified answer whose
+candidate prelude text is `docs/comparisons/experiments/ccnot_tape.selv`
+(see `docs/comparisons/merge-plan.md`). moop stays a separate language
+and is that answer's **reference model**.
+
+- `tests/tape_vectors.txt` is a trace of wiring 1 on the interpreter's
+  8/13-cell bodies: 40 draws, a birth through `moop_proto_generate`, 20
+  draws from the child, and the birth undone. `test_wiring_1_trace` in
+  `tests/test_core.c` checks that moop reproduces it byte for byte, and
+  Selvage's interpreter reproduces the same file. It is written in
+  Selvage's output format so both sides compare against one file.
+- It pins more than the gate: MAYBE's observation point (loop A's head,
+  after the tick) and the seeding order of a birth (A's cells, then B's).
+  Changing either fails the trace and no other test.
+- Iterating the wiring is still allowed, but as a **new wiring, not an
+  edit**: give it the next number, update this section, and regenerate
+  the trace (on a mismatch the test leaves this run's trace in
+  `build/tape_vectors.txt`). The second implementation then no longer
+  matches, and says so, until Selvage rules on the new wiring.
 
 ## Reversible + homoiconic: causal closure
 

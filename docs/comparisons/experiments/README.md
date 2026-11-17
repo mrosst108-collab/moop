@@ -10,20 +10,16 @@ repository) and Clang 18 to build.
 |---|---|
 | `ccnot_tape.selv` | Candidate prelude text: `Tapes`, `tape_tick`, the `Draw` requests and the `CcnotTape` answer, with bounded heads as in `src/tapeloop.c` |
 | `conform.selv` | The conformance scenario in Selvage: 40 draws, a birth, 20 draws from the child, and the birth undone |
-| `moop_trace.c` | The same scenario against moop's C tape (`src/tapeloop.c`, `src/gates.c`, `src/logic.c`), printed in Selvage's output format |
-| `tape_vectors.txt` | The 66-line trace both produce, byte for byte |
 | `instance_copy_defect.selv` | Selvage defect found on the way: a copy of an answer instance shares its array with the original |
 
-To regenerate the moop side from the repository root:
+The trace both implementations must reproduce, byte for byte, is
+`tests/tape_vectors.txt`. moop checks it in `make test`
+(`test_wiring_1_trace` in `tests/test_core.c`). The Selvage side, from
+the repository root with the 0.4.9 toolchain:
 
 ```sh
-gcc -std=c2x -Isrc docs/comparisons/experiments/moop_trace.c \
-    src/tapeloop.c src/gates.c src/logic.c -o /tmp/moop_trace
-/tmp/moop_trace | diff - docs/comparisons/experiments/tape_vectors.txt
+selvage run docs/comparisons/experiments/conform.selv | diff - tests/tape_vectors.txt
 ```
-
-The Selvage side is `selvage run conform.selv`, compared with the same
-file.
 
 ## Earlier — superseded by the files above
 

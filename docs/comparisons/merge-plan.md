@@ -24,7 +24,7 @@ refuses until hardware is present.
 | Where | What exists |
 |---|---|
 | Selvage prelude | `type Tapes`, `rule tape_tick`, `request Draw` (`draw`, `birth`), `answer CcnotTape` — 26 lines |
-| Shared | One trace file (`tape_vectors.txt`) that both implementations must reproduce |
+| Shared | One trace file (`tests/tape_vectors.txt`) that both implementations must reproduce |
 | moop | The language unchanged, plus a test that pins its tape to the shared trace; moop is the tape's reference model |
 
 Use, once merged:
@@ -40,7 +40,7 @@ child is tape -> birth()
 | Claim | Result | Where |
 |---|---|---|
 | The prelude text certifies | Passes the 0.4.9 checker as written, `birth` included | `experiments/ccnot_tape.selv` |
-| It is moop's tape | A 66-line trace is identical between moop's C tape and the Selvage interpreter: 40 draws, a birth, 20 draws from the child, and the birth undone (which equals moop's `step_back`) | `conform.selv`, `moop_trace.c`, `tape_vectors.txt` |
+| It is moop's tape | A 66-line trace (`tests/tape_vectors.txt`) is identical between moop's C tape and the Selvage interpreter: 40 draws, a birth, 20 draws from the child, and the birth undone (which equals moop's `step_back`) | `conform.selv`; moop's side is `test_wiring_1_trace` |
 | It does not disturb existing programs | Appended to a copy of Selvage's prelude: all 12 examples and 7 benchmarks still pass the checker; the form census reports nothing escaping; a program uses `CcnotTape` with no declarations of its own | scratch copy of the toolchain |
 | It does not break the existing suite | All 174 tests pass under Clang 18.1.3, on the original toolchain (196 s) and on the copy with the tape in its prelude (240 s). The mutation check was not run | scratch copy |
 | The gate is realized, not cited | `selvage lineage --verify` links the tick's bit update to `ccnot [realized]`; its head arithmetic carries `theorem` links | lineage run on `ccnot_tape.selv` |
@@ -57,25 +57,26 @@ tape:
   Records copy correctly; instances do not. Six-line reproduction in
   `instance_copy_defect.selv`.
 
-## Decisions to make first
+## Decisions
 
-Each blocks the phase named. The recommendation is what the plan
-assumes.
+Each blocks the phase named. G1 and G2 are decided (2026-11-17, as
+recommended). G3 to G6 are Selvage's to rule on; the recommendation is
+what the plan assumes.
 
-| # | Decision | Recommendation | Blocks |
+| # | Decision | Status | Blocks |
 |---|---|---|---|
-| G1 | moop's role after the merge | moop stays a separate language — the study of the tape as the machine — and becomes the tape's reference model | Phase 0 |
-| G2 | Freeze the wiring that is merged | Yes, as "wiring 1", pinned by the shared trace. `CLAUDE.md` says the wiring is expected to iterate; a later change then means a new trace and a Selvage ruling, not a silent drift | Phase 0 |
-| G3 | What defines `draw` | The tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 CCNOTs per bit on gates, draws are rare, and both backends must give the same values | Phase 3 |
-| G4 | Prelude text: inline head arithmetic, or two helper functions | Inline: 6 reserved names and 26 lines at ~3.5 ns per tick. The helper version is ~1.9 ns per tick but reserves 8 names; the tape is not on a hot path | Phase 3 |
-| G5 | How a program gets a tape | Explicitly: it makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
-| G6 | Names | `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it | Phase 3 |
+| G1 | moop's role after the merge | **Decided:** moop stays a separate language — the study of the tape as the machine — and is the tape's reference model | Phase 0 |
+| G2 | Freeze the wiring that is merged | **Decided:** frozen as "wiring 1", pinned by the shared trace. The wiring may still iterate, but as a new numbered wiring with a new trace, which Selvage must rule on — not a silent drift | Phase 0 |
+| G3 | What defines `draw` | Recommended: the tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 CCNOTs per bit on gates, draws are rare, and both backends must give the same values | Phase 3 |
+| G4 | Prelude text: inline head arithmetic, or two helper functions | Recommended: inline. 6 reserved names and 26 lines at ~3.5 ns per tick. The helper version is ~1.9 ns per tick but reserves 8 names; the tape is not on a hot path | Phase 3 |
+| G5 | How a program gets a tape | Recommended: explicitly. it makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
+| G6 | Names | Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it | Phase 3 |
 
 ## Phases
 
 | Phase | Repository | Depends on | Outcome |
 |---|---|---|---|
-| 0. Pin the reference | moop | G1, G2 | moop's tape is tested against the shared trace |
+| 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | Both defects fixed; answers report an extent; suite green under Clang 18 |
 | 2. Build the audit rulings | Selvage | — | `repeat while` and `repeat N times` gone; 37 keywords |
 | 3. Admit the tape | Selvage | 0, 1, G3–G6 | The tape is in the prelude, interpreted, tested against the trace |
@@ -85,18 +86,24 @@ assumes.
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
 
 Phases 1 and 2 are independent of the tape and of each other, and can
-start now. Phase 0 can start as soon as G1 and G2 are settled.
+start now. Phase 0 is done.
 
-### Phase 0 — Pin the reference (moop)
+### Phase 0 — Pin the reference (moop) — done
 
-- Add a C test to `tests/test_core.c` that replays the scenario in
-  `moop_trace.c` and compares it with the trace, and move the trace to
-  `tests/`.
-- Record in `docs/model.md` that the tape has a second implementation
-  and that wiring 1 is the one it is pinned to.
+- `test_wiring_1_trace` in `tests/test_core.c` replays the scenario
+  through moop's real birth path (`moop_proto_generate`) and compares it
+  with `tests/tape_vectors.txt`, byte for byte. On a mismatch it leaves
+  that run's trace in `build/tape_vectors.txt`, which is how a
+  deliberate new wiring regenerates the file.
+- `docs/model.md` names the wiring "wiring 1" and records the second
+  implementation; `CLAUDE.md` says a change is a new numbered wiring.
 
 *Done when* `make test` passes with the new test, and the trace file is
-byte-identical to the output of `selvage run conform.selv`.
+byte-identical to the output of `selvage run conform.selv`. **Both
+hold.** Three deliberate breakages were checked against it: retargeting
+loop B's CCNOT (caught by older tests too), observing a draw before the
+tick, and seeding a child's B tape before its A tape. The last two are
+caught by this test and by no other.
 
 ### Phase 1 — Clear known defects (Selvage)
 
@@ -227,7 +234,7 @@ randomness stays a library rule of the Feistel kind.
 
 | Risk | Handling |
 |---|---|
-| moop's wiring changes after it is pinned | G2: versioned wiring; a change regenerates the trace and needs a Selvage ruling |
+| moop's wiring changes after it is pinned | G2: versioned wiring; the trace test fails until the trace is deliberately regenerated, and Selvage then rules on the new wiring |
 | The admission's synergy step is not accepted | The fallback in Phase 3: an example file, not prelude |
 | "Answers in C" grows into the whole of backlog item 5 | Phase 4 is scoped to static lowering of messages to named instances |
 | `draw` and `birth` collide with a program's own request names | Checked against Selvage's programs so far; re-check against any external code before ratifying G6 |
@@ -236,6 +243,7 @@ randomness stays a library rule of the Feistel kind.
 
 ## What happens in this repository
 
-Only Phase 0, and only after G1 and G2: one test, one moved file, and a
-paragraph in `docs/model.md`. moop's language, its two-layer rule and
-its open questions are untouched by this plan.
+Only Phase 0, now done: one test, one moved file, and a section in
+`docs/model.md`. moop's language, its two-layer rule and its open
+questions are untouched by this plan. Everything that remains happens in
+Selvage.
