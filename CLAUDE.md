@@ -72,6 +72,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
+- `docs/comparisons/` — comparisons with sibling languages, each import put through the deletion test (`selvage.md`: Selvage 0.4.9).
 - `tests/` — see the test layers above.
 
 ## Surface syntax and the interpreter pipeline
