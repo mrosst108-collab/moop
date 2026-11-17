@@ -42,7 +42,7 @@ child is tape -> birth()
 | The prelude text certifies | Passes the 0.4.9 checker as written, `birth` included | `experiments/ccnot_tape.selv` |
 | It is moop's tape | A 66-line trace is identical between moop's C tape and the Selvage interpreter: 40 draws, a birth, 20 draws from the child, and the birth undone (which equals moop's `step_back`) | `conform.selv`, `moop_trace.c`, `tape_vectors.txt` |
 | It does not disturb existing programs | Appended to a copy of Selvage's prelude: all 12 examples and 7 benchmarks still pass the checker; the form census reports nothing escaping; a program uses `CcnotTape` with no declarations of its own | scratch copy of the toolchain |
-| It does not break the existing suite | **Not yet known.** The 174-test suite was still running, on the original toolchain and on the copy with the tape added, when this was written | scratch copy |
+| It does not break the existing suite | All 174 tests pass under Clang 18.1.3, on the original toolchain (196 s) and on the copy with the tape in its prelude (240 s). The mutation check was not run | scratch copy |
 | The gate is realized, not cited | `selvage lineage --verify` links the tick's bit update to `ccnot [realized]`; its head arithmetic carries `theorem` links | lineage run on `ccnot_tape.selv` |
 | The cost is small and off the hot path | ~3.5 ns per tick compiled (one bit per tick); a 21-cell birth is ~75 ns | timing of `tape_tick` |
 
@@ -110,7 +110,8 @@ byte-identical to the output of `selvage run conform.selv`.
 
 *Done when* each defect has a regression test, in both backends where
 both apply, and the full suite and the mutation check pass under
-Clang 18. The instance-copy defect comes before Phase 3 because the tape
+Clang 18. (The unmodified 0.4.9 suite already passes there, all 174
+tests; the mutation check is unrun.) The instance-copy defect comes before Phase 3 because the tape
 is exactly its shape: an instance holding arrays.
 
 ### Phase 2 — Build the audit rulings (Selvage)
