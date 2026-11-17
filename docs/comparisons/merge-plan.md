@@ -77,8 +77,8 @@ what the plan assumes.
 | Phase | Repository | Depends on | Outcome |
 |---|---|---|---|
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
-| 1. Clear known defects | Selvage | — | Both defects fixed; answers report an extent; suite green under Clang 18 |
-| 2. Build the audit rulings | Selvage | — | `repeat while` and `repeat N times` gone; 37 keywords |
+| 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
+| 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 built separately** (`0002`) and held: it needs a re-ruling (`selvage-patches/README.md`) |
 | 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6; and wiring 2's trace, only if wiring 2 is adopted | The tape is in the prelude, interpreted, tested against the trace |
 | 4. Compile answers | Selvage | 3 | `tape -> draw()` runs in compiled code |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
