@@ -12,7 +12,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | File | What it is |
 |---|---|
 | `0001-phase1-and-a2.patch` | Phase 1 (two defects, answer-rule extents, the mutation count) and ruling A2 (`repeat n times` removed), with A3 in the description. Apply to the 0.4.9 archive |
-| `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). **Held for re-ruling, not adopted** (section 2). Apply on top of 0001 only if A1 is ruled again in its favour |
+| `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). **Not adopted:** A1 is decided in favour of keeping `repeat while` (section 2). Apply on top of 0001 only if a later decision reverses that |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -59,11 +59,16 @@ belong in `Array(U8)`), and a NUL in source is invisible — a mistake that
 would otherwise become an action. If `Text` should hold arbitrary bytes,
 the length-carrying change is the one to make instead.
 
-## 2. A1 — held for re-ruling
+## 2. A1 — decided: retain `repeat while`
 
-**Status: held by the maintainer (2026-11-17); 0002 is not adopted.** It
-is built and verified so that the ruling can be acted on either way, and
-it stays separate from 0001. A1 concerns conditional repetition only; it
+**Decision (maintainer, 2026-11-17): retain `repeat while` for now.**
+It supplies data-dependent iteration without copying mutable arrays
+through recursive calls or imposing a fixed iteration count; its
+advantage is large in the array workloads tested (2a), and the existing
+benchmarks do not establish its cost across the full C-competitiveness
+target. Removing it for grammar minimality alone would be premature.
+0002 stays unadopted, built and verified, pending an explicit decision
+that the grammar reduction outweighs the lost iteration capability. A1 concerns conditional repetition only; it
 makes and authorizes no change to the CCNOT tape or its pinned trace.
 
 Ruling A1 deleted `repeat while` on the ground that "a self tail call
@@ -100,9 +105,9 @@ interleaved runs.
 - Hence: iteration that both updates an array in place and stops on its
   contents has no replacement of the same complexity.
 
-### 2c. The specification decision (open)
+### 2c. The specification decision
 
-Considerations named for the re-ruling, without a recommendation:
+The considerations the decision weighed:
 
 - **C competitiveness** (soft constraint 11): removing `repeat while`
   changes the complexity of one class of in-place algorithms. The
@@ -115,7 +120,7 @@ Considerations named for the re-ruling, without a recommendation:
   refused in clause rules, where the count could not be reconstructed
   backward, and available only in expression rules.
 
-If A1 is ruled again in its favour, 0002 also rewrites the collatz
+Were A1 ever adopted, 0002 also rewrites the collatz
 benchmark as a recursive rule call and the sieve as counted repetition,
 and states the cost in V.3.
 
@@ -134,7 +139,7 @@ In 0001:
 - **XII.4:** a "Built after 0.4.9" list.
 - **XII.6:** three defect rows: the instance copy, NUL text, and answer extents.
 
-In 0002 (held; not adopted):
+In 0002 (not adopted):
 - 37 keywords; the grammar loses `repeat while`.
 - V.3's `repeat while` line replaced by the recursive-rule-call rule and its stated cost.
 - V.6's `repeat while` row removed; VI.4's decided-condition rule names `if` alone.
@@ -148,7 +153,7 @@ version number.
 
 All runs on x86_64 Linux, 4 cores, Python 3.13, Clang 18.1.3.
 
-| Check | 0.4.9 | 0001 | 0001 + 0002 (held) |
+| Check | 0.4.9 | 0001 | 0001 + 0002 (not adopted) |
 |---|---|---|---|
 | Full suite | 174 / 174 pass | 178 / 178 pass (205 s) | 177 / 177 pass (204 s) |
 | Description check (`tools/check_description.py`: every code block in SPEC.md) | — | Pass | Pass |

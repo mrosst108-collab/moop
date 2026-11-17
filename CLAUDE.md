@@ -42,7 +42,7 @@ The machine has two memory systems and two operator layers, and the boundary bet
 
 The object ladder (`src/proto.{h,c}`): the system-facing actor generates the system-facing root proto → which generates user-facing root protos → which generate protos, all the way down. Two relations, kept strictly apart:
 
-- **Generation** (who made you) is the only downward system→user path. It seeds the child's tapes via MAYBE draws from the generator's dynamics — deterministic, and reversible for the generator (tests assert the generator can step back to before the birth). Every generated body is a core on the substrate, so all protos inherit reversibility and homoiconicity *by construction*.
+- **Generation** (who made you) is the only downward system→user path. It seeds the child's tapes via MAYBE draws from the generator's dynamics — deterministic, and reversible for the generator (tests assert the generator can step back to before the birth). Birth promises valid reversible initialization and nothing more (decided): diversity of children is a separate design objective, never a correctness condition on wiring 1 (`docs/model.md`). Every generated body is a core on the substrate, so all protos inherit reversibility and homoiconicity *by construction*.
 - **Inheritance/delegation** (whom you defer to, `<-`) walks parent links among user-facing protos only; the original receiver stays the one addressed. It never crosses the layer boundary: user roots have no parent; nothing delegates into the system root or the actor.
 
 Preserve both rules when extending the object model: generation may cross the boundary (in that one shape); delegation never does.

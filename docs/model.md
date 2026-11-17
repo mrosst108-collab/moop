@@ -265,16 +265,18 @@ homoiconicity; it bounds what draws may be used for.
 - **Wiring 2: open, not scheduled.** Wiring 1 stays: the tape is not a
   random source, so its correlation is a defect only against an objective
   nobody has set, and changing it moves the pinned trace.
-  **Birth's current promise:** valid reversible initialization — a
-  child state the parent can step back from. Wiring 1 meets it.
-  **Open design requirement:** does birth promise only that, or also
-  broad reachability across possible child bodies? Three meanings, which reversibility does not choose between:
-  *state initialization* (a valid reversible child state — wiring 1
-  meets it); *body diversity* (birth reaches a broad part of the body
-  space — wiring 1 reaches 2.80%); *behavioural diversity* (distinct
-  children do not draw alike — measured below, and bounded by body size
-  more than by wiring: with 21-cell bodies, even uniform births make two
-  identical children likely within about 1,700 births). A wiring 2 needs
+  **Birth's promise (decided 2026-11-17): valid reversible
+  initialization** — a child state the parent can step back from. Wiring
+  1 meets it. Diversity is not part of the definition: the measurements
+  show that broader diversity is achievable at a small gate cost, not
+  that a valid birth requires it, and it is never a correctness condition
+  imposed retroactively on wiring 1. It stays a design objective, to be
+  evaluated separately, in two senses: *body diversity* (birth reaches a
+  broad part of the body space — wiring 1 reaches 2.80%) and
+  *behavioural diversity* (distinct children do not draw alike — measured
+  below, and bounded by body size more than by wiring: with 21-cell
+  bodies, even uniform births make two identical children likely within
+  about 1,700 births). A wiring 2 needs
   a positive objective first, and must then show that it keeps the
   gate cost (2 Toffolis per drawn bit), keeps births certified and
   undoable, improves the specific property targeted, keeps a fully

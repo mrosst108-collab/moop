@@ -69,7 +69,7 @@ what the plan assumes.
 | G2 | Freeze the wiring that is merged | **Decided:** frozen as "wiring 1", pinned by the shared trace. The wiring may still iterate, but as a new numbered wiring with a new trace, which Selvage must rule on — not a silent drift | Phase 0 |
 | G3 | What defines `draw` | Recommended: the tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 Toffolis and 1 CNOT per bit on gates (the Feistel's gate count, ~100, is an estimate), draws are rare, and both backends must give the same values. The description must call a draw a deterministic observation, never random: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`) | Phase 3 |
 | G4 | Prelude text: inline head arithmetic, or two helper functions | Recommended: inline. 6 reserved names and 26 lines at ~3.5 ns per tick. The helper version is ~1.9 ns per tick but reserves 8 names; the tape is not on a hot path | Phase 3 |
-| G5 | How a program gets a tape | Recommended: explicitly. it makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
+| G5 | How a program gets a tape | Recommended: explicitly — a program makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
 | G6 | Names | Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
 
 ## Phases
@@ -78,18 +78,19 @@ what the plan assumes.
 |---|---|---|---|
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
-| 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 held for re-ruling by the maintainer, not adopted**; built separately as `0002` (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
+| 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 decided: retain `repeat while`** (2026-11-17); `0002` stays unadopted pending an explicit decision that the grammar reduction outweighs the lost iteration capability (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
 | 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6; and wiring 2's trace, only if wiring 2 is adopted | The tape is in the prelude, interpreted, tested against the trace |
 | 4. Compile answers | Selvage | 3 | `tape -> draw()` runs in compiled code |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
 
-Phases 1 and 2 are independent of the tape, of each other and of the
-open birth-diversity requirement (`docs/model.md`), and can start now.
-Phase 0 is done. No tape changes are made until the birth requirement
-is decided; if it adopts wiring 2, that wiring's trace must exist before
-Phase 3.
+Phases 1 and 2 are independent of the tape and of each other, and are
+built (`selvage-patches/`). Phase 0 is done. Birth is decided
+(`docs/model.md`): it promises valid reversible initialization, not
+diversity, so wiring 1 stays and Phase 3 does not wait on a wiring 2.
+Diversity remains a separate design objective; if a wiring 2 is ever
+adopted for it, that wiring's trace must exist before Phase 3.
 
 ### Phase 0 — Pin the reference (moop) — done
 
