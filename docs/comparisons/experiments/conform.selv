@@ -1,40 +1,8 @@
-# Candidate prelude text for the CCNOT tape, with bounded heads as in moop's
-# src/tapeloop.c: head i of tape a moves forward, head j of tape b backward.
-
-type Tapes(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
-
-# One tick: two CCNOTs sharing their controls, then both heads move.
-rule tape_tick takes Tapes returns Tapes
-    Tapes(a, b, i, j) <-> Tapes(a, b, ni, nj) where
-        add a[i] * b[j] to a[(i + 1) mod length(a)]
-        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]
-        ni is (i + 1) mod length(a)
-        i was (ni + length(a) - 1) mod length(a)
-        nj is (j + length(b) - 1) mod length(b)
-        j was (nj + 1) mod length(b)
-
-request Draw
-    draw() returns Bit
-    birth() returns CcnotTape
-
-answer CcnotTape for Draw takes Tapes
-    (draw(), s) <-> (seen, s) where
-        s is tape_tick(s)
-        seen is s.a[s.i]
-    (birth(), s) <-> (child, s) where
-        ca is array(Bit, length(s.a))
-        cb is array(Bit, length(s.b))
-        repeat with k from 0 to length(ca) - 1
-            s is tape_tick(s)
-            add s.a[s.i] to ca[k]
-        repeat with k from 0 to length(cb) - 1
-            s is tape_tick(s)
-            add s.a[s.i] to cb[k]
-        child is CcnotTape from Tapes(ca, cb, 0, 0)
-
+# The conformance scenario of the CCNOT tape (VI.6): 40 draws, a birth, 20 draws from the child,
+# and a birth taken back.  Its output is ccnot_tape.trace, a trace of moop's own implementation.
 rule born takes CcnotTape returns (CcnotTape, CcnotTape)
     t <-> (child, t) where
-        child is t -> birth()
+        (child, t) is birth(t)
 
 rule main uses Output
     a is array(Bit, 8)
@@ -43,17 +11,19 @@ rule main uses Output
         set a[k] to Bit((k * k + 1) mod 2)
     repeat with k from 0 to 12
         set b[k] to Bit(((k * 5) / 3 + 1) mod 2)
-    tape is CcnotTape from Tapes(a, b, 0, 0)
+    tape is CcnotTape(a, b, 0, 0)
     output tape
     repeat with k from 1 to 40
-        d is tape -> draw()
+        (d, t2) is draw(tape)
+        set tape to t2
         output d
     output tape
     (child, parent) is born(tape)
     output parent
     output child
     repeat with k from 1 to 20
-        d is child -> draw()
+        (d, c2) is draw(child)
+        set child to c2
         output d
     output child
     a2 is array(Bit, 8)
@@ -62,8 +32,9 @@ rule main uses Output
         set a2[k] to Bit((k * k + 1) mod 2)
     repeat with k from 0 to 12
         set b2[k] to Bit(((k * 5) / 3 + 1) mod 2)
-    again is CcnotTape from Tapes(a2, b2, 0, 0)
+    again is CcnotTape(a2, b2, 0, 0)
     repeat with k from 1 to 40
-        d is again -> draw()
-    (c2, p2) is born(again)
-    output undo born((c2, p2))
+        (d, a3) is draw(again)
+        set again to a3
+    (c3, p3) is born(again)
+    output undo born((c3, p3))

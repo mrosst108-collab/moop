@@ -153,7 +153,7 @@ R1–R8; native execution; gate lineage as realization.
 
 | moop idea | Form in the merge | Adds |
 |---|---|---|
-| CCNOT tape | Prelude answer `CcnotTape for Draw` (requests `draw`, `birth`); rule `tick` | One type, one request group, one answer — about 20 lines of prelude |
+| CCNOT tape | As first proposed, a prelude answer `CcnotTape for Draw`; as admitted (G7), the record `CcnotTape` and the prelude rules `tape_tick`, `draw`, `birth` | One record and three rules: 23 lines of prelude code, four reserved names |
 | Bridge shape (reversible effect, observation outside) | Copy into an empty name: a certified embedding | Nothing: already V.4 |
 | Generation distinct from delegation | `birth` (who made you) is a message to a tape; delegation (whom you defer to) is to a state component | Nothing: two existing mechanisms, kept apart |
 | ≥ 2 cells per tape | R4 | Nothing |

@@ -8,8 +8,8 @@ repository) and Clang 18 to build.
 
 | File | What it is |
 |---|---|
-| `ccnot_tape.selv` | Candidate prelude text: `Tapes`, `tape_tick`, the `Draw` requests and the `CcnotTape` answer, with bounded heads as in `src/tapeloop.c` |
-| `conform.selv` | The conformance scenario in Selvage: 40 draws, a birth, 20 draws from the child, and the birth undone |
+| `ccnot_tape.selv` | The prelude text as admitted (patch 0003, ruling G7): the record `CcnotTape` and the rules `tape_tick`, `draw`, `birth`, with bounded heads as in `src/tapeloop.c`. The earlier answer version (`CcnotTape for Draw`) is in git history |
+| `conform.selv` | The conformance scenario in Selvage, with rule calls: 40 draws, a birth, 20 draws from the child, and a birth taken back. Prints `tests/tape_vectors.txt` byte for byte, in the interpreter and compiled |
 | `instance_copy_defect.selv` | Selvage defect found on the way: a copy of an answer instance shares its array with the original |
 | `tape_statistics.c` | moop's tape (wiring 1, 8/13 cells), exhaustively: the cycle structure of all 2²¹ states and the bias and correlation of draws. Build and run instructions are in its header; results are in `docs/model.md` |
 

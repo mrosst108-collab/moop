@@ -196,64 +196,83 @@ No change beyond noise. `fib`'s source is identical in all three trees, and its 
 
 ## 5. Phase 3 — the CCNOT tape (0003)
 
-Built against wiring 1 under the maintainer's rulings G3 to G5
-(`../merge-plan.md`), entered in Selvage's description as C1 to C3
-because Selvage's register already uses G1 to G11, and G6 as C4, all
-ruled on 2026-11-17: the names `CcnotTape`, `Tapes`, `tape_tick`,
-`Draw`, `draw` and `birth` as recommended. Wiring 1, its trace and birth's definition are unchanged;
-wiring 2 is not included.
+Built against wiring 1 under the maintainer's rulings G3 to G7
+(`../merge-plan.md`), entered in Selvage's description as C1 to C5,
+because Selvage's register already uses G1 to G11. All are ruled
+(2026-11-17).
+
+G7 replaced the first version of this patch. That version had a request
+group `Draw` and an answer `CcnotTape`, which any program could answer as
+well. Now `draw` and `birth` are prelude rules over the tape record.
+Wiring 1 and birth's definition are unchanged; wiring 2 is not included.
+The trace changed format only, as authorized under G7.
 
 ### 5a. Implementation
 
 | Change | Files |
 |---|---|
-| The tape in the prelude: `Tapes`, `tape_tick` (inline head arithmetic, C2), request group `Draw` (`draw`, `birth`), answer `CcnotTape`. 26 lines of code, the text pinned to moop since the merge exploration; certified, no lossy clause | `selvage/prelude.selv` |
-| Named tests: moop's trace byte for byte; draws and births taken back, and a draw the tape did not give refused; fewer than two cells refused; no ambient tape (C3); the tick realized by `ccnot`, and no extent claimed beyond one-to-one | `tests/test_selvage.py` (`TestCcnotTape`, 5 tests); `tests/programs/ccnot_tape.selv` and `ccnot_tape.trace` (a byte-for-byte copy of moop's `tests/tape_vectors.txt`) |
-| A generator against a model of wiring 1 that shares no code with the interpreter: random tapes of 2 to 16 cells, draws, births, child draws, every one taken back, and the tick against its derived inverse | `tests/generated_04.py` (`tape`); `TestGenerated04.test_the_ccnot_tape_agrees_with_a_model_of_wiring_1` |
+| The tape in the prelude: the record `CcnotTape` and the certified rules `tape_tick` (inline head arithmetic, C2), `draw` and `birth`; no request group, no answer (C5). 23 lines of code; no lossy clause | `selvage/prelude.selv` |
+| Named tests (`TestCcnotTape`, 6) | `tests/test_selvage.py`; `tests/programs/ccnot_tape.selv` and `ccnot_tape.trace`, the latter a byte-for-byte copy of moop's regenerated `tests/tape_vectors.txt` |
+| A generator against a model of wiring 1 that shares no code with the interpreter: random tapes of 2 to 16 cells, draws, births, child draws, every one taken back by its derived inverse, and the tick against its own | `tests/generated_04.py` (`tape`); `TestGenerated04.test_the_ccnot_tape_agrees_with_a_model_of_wiring_1` |
 | Five mutations the tape generator must notice: a CCNOT dropped, a CCNOT aimed two cells ahead, head `j` turned round, a draw observing before its tick, a child started with its head moved. 145 mutations | `tools/mutation_check.py` |
 
-Each new mutation was first run alone against the tape generator; each
-is noticed by a mismatch with the model (148 to 409 findings), not by a
+The six named tests check:
+- moop's trace, byte for byte, in the interpreter;
+- the same trace from compiled code;
+- draws and births taken back, and a draw the tape did not give refused;
+- that a tape of fewer than two cells is refused;
+- that `draw`, `birth` and `tape_tick` cannot be declared again and there is no request for the tape — and, pinning the reservation's stated limit, that a program's own request named `draw` is accepted as its own;
+- that the tick is realized by `ccnot`, and the extents are as established.
+
+Each new mutation was run alone against the rules version; each is
+noticed by a mismatch with the model (148 to 409 findings), not by a
 refused prelude.
+
+**Extents, reported as established:** the tick and the draw are
+one-to-one, with nothing more established. The birth is one-to-one and
+*not onto*, because every child starts with its heads at 0. None is a
+permutation, and the description says so. Not onto is consistent with
+birth's ruled promise, a valid reversible initialization, not surjectivity.
 
 ### 5b. Specification
 
 - **VI.6 The CCNOT tape**, a new section, which states:
-  - what the tape is, and that a draw is a deterministic observation, never a random bit, with no claim of independence (C1). It gives the 74.8% figure;
-  - that `Draw` is the tape's request, not a general generator interface, and that another generator is a rule of its own;
-  - that a birth promises valid reversible initialization only;
-  - that a program makes its own tape, none is ambient, and starting tapes are an explicit initialization, not entropy (C3);
-  - the domain, guarded at run time;
-  - moop's trace;
-  - the admission case under I.4, with its synergy step named as the weakest;
+  - the record and the three rules;
+  - that a draw is a deterministic observation, never a random bit, with no claim of independence (C1). It gives the 74.8% figure;
+  - that another generator is a rule of its own, never an implementation of the tape;
+  - that `draw` is the tape's (C5), stated precisely: the three are reserved as prelude rule names, not as identifiers in every namespace, so a program's own request may be named `draw`;
+  - that a birth is one-to-one and not onto and promises valid reversible initialization only;
+  - that a program makes its tape and passes it along, and starting tapes are an explicit initialization, not entropy (C3);
+  - the domain, guarded at run time in both backends;
+  - both backends, and moop's trace;
+  - the admission case under I.4. No request is needed, so no compiled answers; the synergy step is still named as the weakest;
   - a status table.
 
   Its code block is checked against the prelude by the description check.
-- **XI.2:** the tape generator's row (600 tapes, 0 findings) and the mutation count, 145.
-- **XI.4:** suite 184; `TestCcnotTape` and `TestGenerated04` counts.
+- **XI.2:** the tape generator's row and 145 mutations.
+- **XI.4:** suite 185; `TestCcnotTape` (6) and `TestGenerated04` counts.
 - **XII.4:** a Built entry.
-- **XII.6:** decisions C1 to C4, all ruled, with their alternatives.
+- **XII.6:** decisions C1 to C5 with their alternatives. C5 names the rejected answer-only seal and leaves the shared-namespace question separate.
 - **README:** the tape among the prelude's contents; 145 mutations.
 
-**Reserving `Draw` to the tape: decided, mechanism proposed (G7).**
-`Draw` is an ordinary request group, so under 0003 a program may declare
-its own answer for it (`answer Fake for Draw` is accepted) and draw its
-own values. C1 therefore holds in the prelude and the description, not
-by the checker. Sealing `Draw` would not fix this: a seal stops other
-code from sending a group's requests as well as from answering them. The
-maintainer has decided to reserve `Draw` to the tape. The recommended way
-is to make draws and births prelude rules with no request group; it is
-prototyped in `../experiments/ccnot_tape_rules.selv` and awaits approval.
-0003 as it stands keeps the answer.
+**The residual word, as ruled.** A program may still declare a request
+named `draw` in a group of its own. `m -> draw()` is then that program's
+message, a different form from the rule call `draw(t)`. A namespace
+shared by rules and requests would close it, but that is a broader
+language change and is left as a separate, optional question.
 
 ### 5c. Verification
 
-| Check | 0001 | 0001 + 0003 |
+| Check | 0001 | 0001 + 0003 (rules version) |
 |---|---|---|
-| Full suite | 178 / 178 pass | 184 / 184 pass (244 s) |
+| Full suite | 178 / 178 pass | Running; not yet recorded |
 | Description check | Pass | Pass; the VI.6 block is the prelude's text |
-| Moop's trace, printed by the interpreter | — | Byte for byte |
+| Moop's regenerated trace | — | Byte for byte, interpreter and compiled; Selvage's copy is moop's file |
 | Mutation check | 140 / 140 noticed | Running; not yet recorded |
-| Examples and test programs: output against 0001 | — | All 11 examples and 9 programs identical |
+| Examples and test programs: output against 0001 | — | Running |
 | Benchmarks against 0001 | — | Not yet run: after the mutation check, on an idle machine |
 | 0003 applied to a fresh archive after 0001 | — | Applies; reproduces the tested tree exactly |
+
+The first, answer version of 0003 passed its suite (184 / 184) and left
+all 20 programs' output unchanged. Its mutation check was stopped
+unfinished when G7 superseded it, and no result is claimed for it.

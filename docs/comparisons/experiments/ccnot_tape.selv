@@ -1,11 +1,15 @@
-# Candidate prelude text for the CCNOT tape.  Heads are bounded as in moop's
-# src/tapeloop.c: head i of tape a moves forward, head j of tape b backward.
+# The CCNOT tape as admitted into Selvage's prelude (patch 0003, ruling G7): the record
+# CcnotTape and the rules tape_tick, draw and birth, with no request group.  conform.selv runs it
+# against moop's trace, tests/tape_vectors.txt.
+# Two circular tapes of bits, a and b, under heads i and j.  One tick fires two CCNOTs that share
+# their controls, the cells under both heads, and target the next cell of each tape; then head i
+# moves forward and head j backward.  It is wiring 1 of moop's tape, and a trace of moop's own
+# implementation pins it bit for bit (VI.6).  Each tape needs at least two cells, or a target
+# would be a control: R4 refuses that when it runs.
+type CcnotTape(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
 
-type Tapes(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
-
-# One tick: two CCNOTs sharing their controls, then both heads move.
-rule tape_tick takes Tapes returns Tapes
-    Tapes(a, b, i, j) <-> Tapes(a, b, ni, nj) where
+rule tape_tick takes CcnotTape returns CcnotTape
+    CcnotTape(a, b, i, j) <-> CcnotTape(a, b, ni, nj) where
         add a[i] * b[j] to a[(i + 1) mod length(a)]
         add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]
         ni is (i + 1) mod length(a)
@@ -13,15 +17,18 @@ rule tape_tick takes Tapes returns Tapes
         nj is (j + length(b) - 1) mod length(b)
         j was (nj + 1) mod length(b)
 
-request Draw
-    draw() returns Bit
-    birth() returns CcnotTape
-
-answer CcnotTape for Draw takes Tapes
-    (draw(), s) <-> (seen, s) where
+# A draw ticks the tape and copies the cell then under head i: a deterministic observation of the
+# tape, not a random bit.  It is a rule, not a request, so nothing else can be the tape's draw.
+rule draw takes CcnotTape returns (Bit, CcnotTape)
+    s <-> (seen, s) where
         s is tape_tick(s)
         seen is s.a[s.i]
-    (birth(), s) <-> (child, s) where
+
+# A birth draws one cell for each cell of a child tape, a's first, and gives the child with the
+# parent.  The tape a program draws from is the one it makes and passes along; the tapes it
+# starts from are where it starts, not a source of entropy.
+rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+    s <-> (CcnotTape(ca, cb, 0, 0), s) where
         ca is array(Bit, length(s.a))
         cb is array(Bit, length(s.b))
         repeat with k from 0 to length(ca) - 1
@@ -30,14 +37,3 @@ answer CcnotTape for Draw takes Tapes
         repeat with k from 0 to length(cb) - 1
             s is tape_tick(s)
             add s.a[s.i] to cb[k]
-        child is CcnotTape from Tapes(ca, cb, 0, 0)
-
-rule main uses Output
-    a is array(Bit, 8)
-    b is array(Bit, 13)
-    repeat with k from 0 to 7
-        set a[k] to Bit((k * k + 1) mod 2)
-    repeat with k from 0 to 12
-        set b[k] to Bit(((k * 5) / 3 + 1) mod 2)
-    tape is CcnotTape from Tapes(a, b, 0, 0)
-    output tape

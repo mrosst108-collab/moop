@@ -23,16 +23,16 @@ refuses until hardware is present.
 
 | Where | What exists |
 |---|---|
-| Selvage prelude | `type Tapes`, `rule tape_tick`, `request Draw` (`draw`, `birth`), `answer CcnotTape` — 26 lines |
+| Selvage prelude | `type CcnotTape` and the rules `tape_tick`, `draw`, `birth` (G7) — 23 lines of code |
 | Shared | One trace file (`tests/tape_vectors.txt`) that both implementations must reproduce |
 | moop | The language unchanged, plus a test that pins its tape to the shared trace; moop is the tape's reference model |
 
 Use, once merged:
 
 ```selvage
-tape is CcnotTape from Tapes(a, b, 0, 0)
-bit is tape -> draw()
-child is tape -> birth()
+tape is CcnotTape(a, b, 0, 0)
+(bit, tape2) is draw(tape)
+(child, tape3) is birth(tape2)
 ```
 
 ## Evidence in hand
@@ -69,9 +69,9 @@ because Selvage's own register already uses G1 to G11.
 | G2 | Freeze the wiring that is merged | **Decided:** frozen as "wiring 1", pinned by the shared trace. The wiring may still iterate, but as a new numbered wiring with a new trace, which Selvage must rule on — not a silent drift | Phase 0 |
 | G3 | What defines `draw` | **Adopted (C1): the CCNOT tape defines `draw`.** A draw is the tape's deterministic observation; both backends must produce the same tape-defined values. The Feistel rule is a separate generator, never an interchangeable implementation of the tape: the CPU speed difference (~100× per bit) does not justify substituting it. The tape's case is its gate realization (2 Toffolis and 1 CNOT per bit) and its correspondence with moop, not randomness: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`), so the description must forbid treating `draw` as a random source or claiming independence. G3 says what `draw` means; it does not create a general generator abstraction | Phase 3 |
 | G4 | Prelude text: inline head arithmetic, or two helper functions | **Adopted (C2): inline.** 6 reserved names and 26 lines; the transition stays visible where it is defined. The helper version's ~1.9 ns against ~3.5 ns per tick is real but not decisive off the hot path, and does not justify two more names. The helper text is not kept | Phase 3 |
-| G5 | How a program gets a tape | **Adopted (C3): explicitly.** A program makes a tape from a seed and sends it messages, so it controls which tape, which seed, which requests receive it, and how its state flows. No ambient tape in `Object`: that would be a hidden dependency and need a ruling on seed provenance. A seed is an explicit initialization input, not entropy: seeding does not make the tape a random source | Phase 3 |
-| G6 | Names | **Adopted (C4), as recommended:** `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
-| G7 | Reserve `Draw` to the tape | **Decided: reserve** (2026-11-17). Under 0003 any program may answer `Draw` itself (`answer Fake for Draw` is accepted), so C1 held by description only. **How: proposed, awaiting approval.** Recommended: draws and births as prelude rules over the tape record, with no request group (`experiments/ccnot_tape_rules.selv`); the alternative is a new answer-only seal. See `selvage-patches/README.md`, section 5 | Phase 3 |
+| G5 | How a program gets a tape | **Adopted (C3): explicitly.** A program makes a tape from a seed and passes it to `draw` and `birth` (originally "sends it messages"; carried out as rule calls after G7), so it controls which tape, which seed, and how its state flows. No ambient tape in `Object`: that would be a hidden dependency and need a ruling on seed provenance. A seed is an explicit initialization input, not entropy: seeding does not make the tape a random source | Phase 3 |
+| G6 | Names | **Adopted (C4):** `CcnotTape`, `tape_tick`, `draw`, `birth`. As first ruled the list also had `Tapes` and `Draw`, which G7 removed. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
+| G7 | Reserve `draw` to the tape | **Adopted (C5), 2026-11-17: prelude rules.** Under the first 0003 any program could answer the `Draw` group itself. Now `draw` and `birth` are prelude rules over the `CcnotTape` record, with no request group and no answer: a prelude rule cannot be declared again, so no program can stand in for the tape's draw. Preferred to an answer-only seal, which would add a declaration form and a case of R5 and leave the tape interpreter-only. The trace was regenerated in the record format (format only; authorized). Residual, accepted as a separate namespace question: a program's own request may be named `draw` (`m -> draw()`, a different form from `draw(t)`) | Phase 3 |
 
 ## Phases
 
@@ -80,8 +80,8 @@ because Selvage's own register already uses G1 to G11.
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
 | 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 decided: retain `repeat while`** (2026-11-17); `0002` stays unadopted pending an explicit decision that the grammar reduction outweighs the lost iteration capability (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
-| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6 (decided); against wiring 1 | The tape is in the prelude, interpreted, tested against the trace. **Built as `selvage-patches/0003`** on top of 0001; verification in `selvage-patches/README.md` |
-| 4. Compile answers | Selvage | 3 | `tape -> draw()` runs in compiled code |
+| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | The tape is in the prelude, interpreted and compiled, tested against the trace. **Built as `selvage-patches/0003`** (rules version); validation in `selvage-patches/README.md` |
+| 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
@@ -169,7 +169,11 @@ trace equals moop's.
 `examples/ccnot_tape.selv`, tested against the trace, at no cost to the
 prelude. Everything after this phase still applies to it.
 
-### Phase 4 — Compile answers (Selvage)
+### Phase 4 — Compile answers (Selvage) — not needed for the tape
+
+After G7 the tape has no answer: `draw` and `birth` are clause rules,
+which the C backend already compiles, and compiled code prints moop's
+trace. What follows was the plan before G7, kept for the record.
 
 Backlog item 5 lists answers in C with much else (FFI, atomics,
 freestanding operation). The tape needs only one part: a message to a
@@ -255,7 +259,7 @@ randomness stays a library rule of the Feistel kind.
 |---|---|
 | moop's wiring changes after it is pinned | G2: versioned wiring; the trace test fails until the trace is deliberately regenerated, and Selvage then rules on the new wiring |
 | The admission's synergy step is not accepted | The fallback in Phase 3: an example file, not prelude |
-| "Answers in C" grows into the whole of backlog item 5 | Phase 4 is scoped to static lowering of messages to named instances |
+| "Answers in C" grows into the whole of backlog item 5 | Removed for the tape by G7: it compiles without answers |
 | `draw` and `birth` collide with a program's own request names | Checked against Selvage's programs so far; re-check against any external code before ratifying G6 |
 | More aliasing defects where instances hold arrays | Phase 1 fixes the known one first; Phase 3's generated tests copy and message instances |
 | The tape drifts onto a hot path | The performance budget above; the description says where it belongs |
