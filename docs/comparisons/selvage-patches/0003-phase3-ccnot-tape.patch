@@ -1,0 +1,559 @@
+diff --git a/README.md b/README.md
+index aed26b0..b46b27a 100644
+--- a/README.md
++++ b/README.md
+@@ -17,6 +17,7 @@ A minimal language in which every rule reads both ways, every loss is said aloud
+ - **Retention is sealed, disclosure is mediated.** `keep` is sealed to Root (`request System for Root`): a program can neither send nor answer it, nor make a Root. `history` is asked through `Witness`, and a host installs its own answer to decide what the code inside it reads. A host may give its copy back, but not while keeping what it read, and not through an answer that kept a record of it.
+ - **A stated proof.** The soundness theorem is proved for a model of the language (SPEC.md XI.3); the model is also written out as a second evaluator and compared with the interpreter on generated rules.
+ - **Defined depth.** A run that nests deeper than its bound (10,000 rule calls unless set with `--depth`) is refused with status 70, identically in the interpreter and in compiled code. A self tail call is a loop.
++- **The CCNOT tape.** `CcnotTape` in the prelude gives deterministic draws and certified births from moop's CCNOT tape, pinned to a trace of moop's implementation. A draw is an observation, not a random bit; a program makes its own tape (SPEC.md VI.6).
+ - **MAYBE.** `Trit` (`true | false | maybe`) carries Kleene logic; `decide` sends only the undecided cases to whoever answers `Decide` (a rule book, an LLM through `--decide command:…`, a person), and every decision is kept and replayable.
+ - **Live.** `selvage repl` checks each line before it runs.
+ - **Two backends.** Programs run in a reversible interpreter, or compile to C23 with no undefined behaviour. On seven benchmarks the C23 output runs within 12% of handwritten C23 and 6% of Rust in the geometric mean (`bench/results.md`), and about 580× faster than Io.
+@@ -42,7 +43,7 @@ python3 tests/roundtrip_gen.py 2000              # generated rules: undo is the
+ python3 tests/generated_04.py 500                # generated programs with oracles: arrows, delegation, rows, operators, Any, refusal,
+                                                  #   seal, witness, depth, structures, decisions, journal, names, accounting, extent, forms, and the model of the proof
+ python3 tests/reference_model.py 600             # the interpreter and invert against the model of SPEC.md XI.3
+-python3 tools/mutation_check.py                  # break the toolchain 140 ways; the generated tests must notice each
++python3 tools/mutation_check.py                  # break the toolchain 145 ways; the generated tests must notice each
+ python3 tools/check_description.py               # every code block of SPEC.md, checked with the toolchain
+ python3 bench/run.py                             # Selvage vs C23 vs Rust
+ ```
+@@ -75,7 +76,7 @@ rule main uses Output
+ | `selvage/interp.py` | One forward engine for rules and inverses; `undo`, rewind, decisions; the journal as Root's state |
+ | `selvage/deciders.py`, `repl.py` | World deciders for `decide`; the interactive prompt |
+ | `selvage/cgen.py`, `runtime/selvage_rt.h` | C23 backend and runtime |
+-| `selvage/prelude.selv` | `mirror`, the definition of inversion; `ccnot`; `cnot`, `toggle`, `ripple_add`, `exchange`, `fanout`; the Kleene circuits; `Journal`, `System` (sealed to Root), `Witness`, `Refusal`, `Root`, `Object` |
++| `selvage/prelude.selv` | `mirror`, the definition of inversion; `ccnot`; `cnot`, `toggle`, `ripple_add`, `exchange`, `fanout`; the Kleene circuits; `Journal`, `System` (sealed to Root), `Witness`, `Refusal`, `Root`, `Object`; the CCNOT tape (`CcnotTape`) |
+ | `examples/` | adder, gates (two tiers), orbit, arrays, shapes, messages, derivative, triage (MAYBE), prototypes, witness (hosts and history), inversion (the inverter as a certified rule), declarations (declarations and the program as data) |
+ | `tests/` | conformance suite; `roundtrip_gen.py` generates random certified rules and checks each for a round trip; `generated_04.py` generates programs with an oracle for each 0.4 change; `reference_model.py` is the model of the soundness proof, as an evaluator |
+ | `tools/` | `check_description.py`: the description check; `mutation_check.py`: the mutation check |
+diff --git a/SPEC.md b/SPEC.md
+index e13d2d4..00561ab 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+ - Part XII records binding rulings, deprecated forms, implementation work and open questions.
+ 
+-The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 178 tests.
++The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 184 tests.
+ 
+ What is proved, what is an open obligation, and what rests on tests:
+ 
+@@ -75,7 +75,7 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 178 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 184 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+@@ -930,6 +930,60 @@ answer Recorder for Refusal takes Log
+ | What runs inside an answer for `Refusal` computes `()` | Built | Ratified | The same generated test; the checker refuses any other type |
+ | Substituting a result for a refused operation | Absent | Open | — |
+ 
++### VI.6 The CCNOT tape
++
++The prelude holds one stateful source of values: a CCNOT tape. It is wiring 1 of moop's tape, a mechanism of another language, admitted as an answer built from what Selvage already has. It is not a new mechanism and not on the execution path.
++
++```selvage
++type Tapes(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
++
++rule tape_tick takes Tapes returns Tapes
++    Tapes(a, b, i, j) <-> Tapes(a, b, ni, nj) where
++        add a[i] * b[j] to a[(i + 1) mod length(a)]
++        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]
++        ni is (i + 1) mod length(a)
++        i was (ni + length(a) - 1) mod length(a)
++        nj is (j + length(b) - 1) mod length(b)
++        j was (nj + 1) mod length(b)
++
++request Draw
++    draw() returns Bit
++    birth() returns CcnotTape
++
++answer CcnotTape for Draw takes Tapes
++    (draw(), s) <-> (seen, s) where
++        s is tape_tick(s)
++        seen is s.a[s.i]
++    (birth(), s) <-> (child, s) where
++        ca is array(Bit, length(s.a))
++        cb is array(Bit, length(s.b))
++        repeat with k from 0 to length(ca) - 1
++            s is tape_tick(s)
++            add s.a[s.i] to ca[k]
++        repeat with k from 0 to length(cb) - 1
++            s is tape_tick(s)
++            add s.a[s.i] to cb[k]
++        child is CcnotTape from Tapes(ca, cb, 0, 0)
++```
++
++- **The tape.** Two circular tapes of bits, `a` and `b`, under heads `i` and `j`. One tick (`tape_tick`) fires two CCNOTs that share their controls, the cells under both heads, and target the next cell of each tape; then `i` moves forward and `j` backward. Each update is `add a[i] * b[j] to …`, which is `ccnot` (VII.6), so the tick's bit updates are realized gate for gate.
++- **A draw is a deterministic observation** (C1). `draw` ticks the tape and copies the cell then under `i`. The copy goes into an empty name, so the answer is an embedding: nothing is kept, and `undo` refuses a draw the tape did not give. A draw is not a random bit, and nothing here claims statistical independence: on tapes of 8 and 13 cells a draw agrees with the draw 8 places back 74.8% of the time. A program that needs random numbers does not use `draw`. `Draw` is the tape's request; it is not a general interface for generators. Another generator, such as a certified rule over words, is a rule of its own, never another implementation of the tape.
++- **A birth** draws one cell for each cell of a child tape, `a`'s cells first, and gives the child as a new tape. It is certified: the parent advances by ticks and the child is copies, so taking a birth back gives the parent back. A birth promises a valid reversible initialization and no more; how many different children a tape can bear is not part of it (on tapes of 8 and 13 cells, 2.80% of possible children).
++- **A program makes its tape** (C3). `CcnotTape from Tapes(a, b, 0, 0)` makes one from tapes the program fills; it chooses which tape it uses and where it goes. No tape is ambient: `ask draw()` with no tape installed is refused at Root. The tapes a program starts from are an explicit initialization, not a source of entropy, and seeding does not make the tape random.
++- **Domain.** Each tape needs at least two cells, or a target would be a control, and each head must be inside its tape. No type states that, so R4 and bounds checks guard it when the tape runs: an empty tape is refused by a division by zero, a one-cell tape by R4. `selvage check` reports the tick, the draw and the birth as one-to-one, with nothing more established (V.2).
++- **Moop's trace.** The tape is pinned to moop's own implementation: `tests/programs/ccnot_tape.selv` prints `tests/programs/ccnot_tape.trace` byte for byte, a trace moop's C implementation also prints. A change of wiring is a new wiring with a new trace, never an edit.
++- **Admission** (I.4). *Foundation:* an answer (Tier 4) over bit updates (Tier 1). *Synergy:* it gives Request generation, a certified birth that is taken back, and it gives the realization lineage an answer whose defining step is `ccnot` itself, a first program for the reversible profile (IX.4). It makes nothing unnecessary; of the four steps this is the weakest. *Interference:* six names are reserved; no example, test program or benchmark changes. *Uniformity:* only existing constructs, with the domain guarded by the existing checks. The decisions taken in admitting it are C1 to C4 (XII.6).
++
++| Item | Implementation | Design | Evidence |
++|---|---|---|---|
++| `Tapes`, `tape_tick`, `Draw` and `CcnotTape` in the prelude, certified | Built | Proposed | TestCcnotTape.test_the_tick_rests_on_ccnot_and_nothing_more_is_claimed |
++| Wiring 1, pinned to moop's trace | Built | Proposed | TestCcnotTape.test_the_trace_is_moop_s |
++| Draws and births against a model of wiring 1, and taken back | Built | Proposed | The tape generator (XI.2); TestCcnotTape.test_draws_and_births_are_taken_back |
++| A program makes its tape; none is ambient | Built | Proposed | TestCcnotTape.test_a_program_makes_its_tape |
++| A tape of fewer than two cells refused when it runs | Built | Proposed | TestCcnotTape.test_a_tape_needs_two_cells |
++| Draws and births in compiled code | Absent | Proposed | Answers stay in the interpreter (IX.2) |
++| The domain established by the checker, not guarded at run time | Absent | Open | — |
++
+ ---
+ 
+ ## VII. Reversibility and Information Accounting
+@@ -1693,9 +1747,10 @@ The 0.3.2 findings are all one defect, an index that reads what its step changes
+ | Extent | Certified rules over bits, from `ccnot`, `cnot`, NOT and exchange, with ancillas set to constants and wires given back against constants; and rules over words, with additions, multiplications by constants, halvings and divisions by a wire | Over bits, a gate simulator of its own, run on every input, gives the extent of the rule and of its inverse. Over words, what may be claimed from how the rule was put together, and every claim tried: a rule said to take every input is run on values chosen to make it refuse, and a rule said to be onto is run backward on outputs chosen at random | 600 rules: 400 over bits (144 permutations, 148 embeddings, 58 partial inverses, 50 partial), 200 over words (99 not established); 1,989 claims tried | 0 |
+ | Forms | Programs from five other generators: round-trip rules, structures, tables of clauses, gate and word rules, and procedures with rows. To each, rules written in Selvage that read `program()` and say of every declaration its kind, its name, how many parameters, clauses, constructors or requests it has, and its row or its groups | The same, read off the source as text with no parser. Also: every declaration written as a value and back is the same; the program as a value prints as the program; the census finds nothing escaping and every constructor taken apart and put together; every clause written out whole, mirrored and written back is the clause `invert` gives; a name given back against an expression that reads it is refused | 600 programs, 457 accepted: 1,787 declarations; 457 programs read alike by a rule and from the text; 1,204 clauses mirrored; 2,633 constructors taken apart over 269,969 nodes; 457 self-reading uncomputes refused | 0 |
+ | Model | Rules the round-trip and structures generators write, where the checker certifies them | The model of XI.3, written out as a second evaluator that shares no code with the interpreter: the forward run, refusals included; `invert` as the model's table; `undo` as the model's inverse; every proved uncompute holding when it is reached | 600 programs: 275 certified rules; 2,750 forward and 2,750 inverse runs; 704 proved uncomputes reached | 0 |
++| Tape | Tapes of 2 to 16 cells, random contents and heads; up to 40 draws, a birth in half of them, up to 10 draws from the child | A model of wiring 1 written from its description, sharing no code with the interpreter: every draw, the parent and the child after a birth, the child's draws; every draw and birth taken back restores the tape; a tick and its derived inverse | 600 tapes: 11,771 draws, 291 births, 12,062 taken back, 600 ticks undone | 0 |
+ | Declared types | At each of the sixteen sites where a value meets a declared type, a program that gives a `Trit` where a `Bool` is declared, under fresh names and beside a word, a `Bit` or a `Text`; and the same program with a `Bool` there. `set` to a literal on every word type and `F64`; a literal given as a rule's input and as its parameter; `set` on a `Trit` | That a `Bool` is a sub-shape of `Trit` and not the reverse: the program with a `Trit` refused with its reason and no failure of the toolchain, the program with a `Bool` accepted. A literal is of the declared type and is charged its width; `set` on a `Trit` is charged 2 bits whatever it replaces, and every run rewinds | 600 programs of each kind at all 16 sites: 600 refused, 600 accepted; 600 literals set, 1,130 literals given as words, 600 `Trit`s set; 2,400 rewinds | 0 |
+ 
+-**The mutation check.** Generated tests are only as good as their oracles, so `tools/mutation_check.py` breaks the toolchain one way at a time and runs the generator that should notice. Each of its 140 mutations undoes one piece of the behaviour above: an arrow accepted on the wrong class, an ambiguity resolved silently, `System` inferred from the word `decide`, a world reply not kept, an operator left unlabelled, a sealed request sent, `history` going straight to Root past its host, a copy given back through a kept record, a host keeping what it gives back, a run nesting past its bound or a bound off by one, a self tail call adding depth, answers for `Decide` consulted in the wrong order, an obligation of XI.3 removed, an uncompute proved in another pattern. Seven break inversion, five of them by changing a clause of the rule `mirror` in the prelude: an update or a discard read backward as itself, a counted loop keeping its direction, a loop body left unmirrored, a lossy clause mirrored as a certified one, which the checker itself refuses. Three break replay: a record for another question or another context taken as the answer, a record not used up. Five break the journal's identities: an entry taken back whatever code kept it, a clause chosen backward by its place, an entry kept under the rule's first clause, identities compared without the forms they name. Six break the identity of code: a call holding the name of the rule called, a rule's identity holding its own name, the members of a cycle told apart by name, a changed rule keeping its identity, exclusive clauses taken in the order written, rules sharing an identity unnoticed. Ten break what code refers to: a variable or a parameter identified by its name, a name bound again taken for the same variable, quoted code read as code, a message holding the name of its request, an instance or a type the name of its answer, a row the names of its groups, answers with the same code or requests with the same signature made one. Three break the scope rule: a name bound again where it is bound, a counter taking the name of a parameter or of the loop it is in, a counter taking a bound name in a body. Fourteen break accounting: a clause choice kept whatever the output shows, or counted among all the clauses, or taken back where none was kept; a variant charged for every constructor or sixteen bits; a `Trit` by the value it holds; a value still computable charged, or counted as computable after what it came from changed; a constructor ruled out wrongly, or not ruled out; compiled code charging a choice, a variant or a computable value the old way; a literal in a constructor keeping the type of a literal. Five break the extent report: a rule taken as onto because it takes every input, a refused input passed over, a division or a `was` against a constant taken as unable to refuse, fewer inputs than outputs not noticed. One cites Boolean logic as a theorem again. Nine break the forms: a constructor of `Code` missing from the prelude, a declaration losing its row or exchanging its types on the way to a value, a tuple left as the parser wrote it or its members reversed, `program()` giving the prelude as well, an answer's clauses reversed, a request group losing a request, a name given back against an expression that reads it. Sixteen break declared types: a `Trit` accepted where a `Bool` is declared, at each kind of site in turn and at all at once; a rule that reads backward into a `Bool` ending the check with a failure; `set` leaving a literal at a literal's width, or holding what it replaces in a `Trit` as a `Bool`; a literal keeping its width as a rule's input or parameter. Two break the charge for a `Text`, in each backend; one charges a decision by the answers asked; one gives a value taken back no type, so that compiled code cannot type what the two directions share. All 140 are noticed.
++**The mutation check.** Generated tests are only as good as their oracles, so `tools/mutation_check.py` breaks the toolchain one way at a time and runs the generator that should notice. Each of its 145 mutations undoes one piece of the behaviour above: an arrow accepted on the wrong class, an ambiguity resolved silently, `System` inferred from the word `decide`, a world reply not kept, an operator left unlabelled, a sealed request sent, `history` going straight to Root past its host, a copy given back through a kept record, a host keeping what it gives back, a run nesting past its bound or a bound off by one, a self tail call adding depth, answers for `Decide` consulted in the wrong order, an obligation of XI.3 removed, an uncompute proved in another pattern. Seven break inversion, five of them by changing a clause of the rule `mirror` in the prelude: an update or a discard read backward as itself, a counted loop keeping its direction, a loop body left unmirrored, a lossy clause mirrored as a certified one, which the checker itself refuses. Three break replay: a record for another question or another context taken as the answer, a record not used up. Five break the journal's identities: an entry taken back whatever code kept it, a clause chosen backward by its place, an entry kept under the rule's first clause, identities compared without the forms they name. Six break the identity of code: a call holding the name of the rule called, a rule's identity holding its own name, the members of a cycle told apart by name, a changed rule keeping its identity, exclusive clauses taken in the order written, rules sharing an identity unnoticed. Ten break what code refers to: a variable or a parameter identified by its name, a name bound again taken for the same variable, quoted code read as code, a message holding the name of its request, an instance or a type the name of its answer, a row the names of its groups, answers with the same code or requests with the same signature made one. Three break the scope rule: a name bound again where it is bound, a counter taking the name of a parameter or of the loop it is in, a counter taking a bound name in a body. Fourteen break accounting: a clause choice kept whatever the output shows, or counted among all the clauses, or taken back where none was kept; a variant charged for every constructor or sixteen bits; a `Trit` by the value it holds; a value still computable charged, or counted as computable after what it came from changed; a constructor ruled out wrongly, or not ruled out; compiled code charging a choice, a variant or a computable value the old way; a literal in a constructor keeping the type of a literal. Five break the extent report: a rule taken as onto because it takes every input, a refused input passed over, a division or a `was` against a constant taken as unable to refuse, fewer inputs than outputs not noticed. One cites Boolean logic as a theorem again. Nine break the forms: a constructor of `Code` missing from the prelude, a declaration losing its row or exchanging its types on the way to a value, a tuple left as the parser wrote it or its members reversed, `program()` giving the prelude as well, an answer's clauses reversed, a request group losing a request, a name given back against an expression that reads it. Sixteen break declared types: a `Trit` accepted where a `Bool` is declared, at each kind of site in turn and at all at once; a rule that reads backward into a `Bool` ending the check with a failure; `set` leaving a literal at a literal's width, or holding what it replaces in a `Trit` as a `Bool`; a literal keeping its width as a rule's input or parameter. Two break the charge for a `Text`, in each backend; one charges a decision by the answers asked; one gives a value taken back no type, so that compiled code cannot type what the two directions share. All 140 are noticed. Five of them break the CCNOT tape of VI.6: a CCNOT dropped, a CCNOT aimed two cells ahead, a head turned round, a draw observing before its tick, a child started with its head moved.
+ 
+ A generator counts a refused program as a refusal its oracle may have expected, so each first requires the toolchain to accept its own prelude.
+ 
+@@ -1846,7 +1901,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9, with the corrections listed under XII.4, passes 178 tests. Every test source is in the notation of this description.
++Toolchain 0.4.9, with the corrections listed under XII.4, passes 184 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -1870,9 +1925,10 @@ Toolchain 0.4.9, with the corrections listed under XII.4, passes 178 tests. Ever
+ | TestDeclarations | 8 | The form types as the prelude's own text, and a declaration not being `Code`; the example; every declaration held as a value and written back; `definition` for rules, answers, types and requests; the program as a form; all of the code written to be taken apart; holding a declaration granting nothing; a name not given back against an expression that reads it |
+ | TestCensus | 3 | Every form the parser writes taken apart and put together; nothing escaping in any example; a tag with no constructor reported |
+ | TestBuiltValues | 2 | A literal inside a constructor taking the type its field declares; a copied instance sharing nothing with the original |
++| TestCcnotTape | 5 | Moop's trace printed byte for byte; draws and births taken back, and a draw the tape did not give refused; fewer than two cells refused; no ambient tape; the tick realized by `ccnot`, and no extent claimed beyond one-to-one |
+ | TestSoundness | 10 | R4 for indices and parameters, under either arrow; sameness; instance unpacking; an uncompute proved only in the pattern that bound it; generated certified rules; the description check; a refused example checked for its reason; a generator requiring its prelude |
+ | TestSealAndWitness | 14 | The seal as a rule about places; `history` through `Witness`; Root's three groups kept apart; hosts deciding what inner code reads; an inquiry leaving the journal as it was; giving the copy back: what was transactional rewound, a kept record refusing it, a refused withdrawal leaving the answers further out as they stood, a host keeping nothing of it; a host in its installer's row; the one request passed outward; instance states typed; commit points in the row; layout as the only lineage exemption |
+-| TestGenerated04 | 20 | The nineteen generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
++| TestGenerated04 | 21 | The twenty generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
+ 
+ ### XI.5 What the suite does not yet cover
+ 
+@@ -2302,6 +2358,7 @@ Built after 0.4.9, as corrections and the audit rulings (the version number is t
+ - **The extent of each answer rule** (V.2), reported under the answer, and checked on every generated rule hosted by an answer.
+ - **`repeat n times` removed** (audit ruling A2): one keyword, one `Code` constructor and one clause of `mirror` fewer; `repeat with i from 1 to n` replaces it everywhere, examples and benchmarks included.
+ - **`Bit` described as the 1-bit unsigned word** (audit ruling A3); the toolchain already treated it so.
++- **The CCNOT tape in the prelude** (VI.6): `Tapes`, `tape_tick`, `Draw` and `CcnotTape`, pinned to a trace of moop's implementation, with the tape generator and five mutations.
+ 
+ Ratified and next:
+ - **Typed encode and decode** (K5): for each serializable form type, tests that decoding an encoding gives the value, that encoding a decoding gives the canonical encoding, that an invalid encoding is refused, that the distinctions of identity are kept, and that the interpreter and compiled code agree.
+@@ -2355,6 +2412,15 @@ Taken while building 0.4.8, for the declaration and program forms:
+ | M7 | The census counts a constructor as taken apart when a one-clause rule for it matches a node and binds its fields, and as put together when that clause rebuilds the node. Its nodes are every declaration as written and every derived inverse as it runs. The state of a run is listed as not being a form | VIII.1 | A census of declared types only, which would not show a form the parser writes and no type declares |
+ | M8 | `derivative`'s `Name` clause gives `Literal(d)` with `d` a counted `I64`, so its result is evaluated at an integer. A clause cannot choose between two right sides by a condition | VIII.2 | A way for a clause to bind one name in both branches of an `if`, which would let it give `Literal(1)` or `Literal(0)` as written |
+ 
++Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G6 between moop and Selvage, entered here as C1 to C4 because G1 to G11 are taken. The maintainer ruled C1 to C3 on 2026-11-17, and of C4 the name `tape_tick`; entering them in XII.1 is the maintainer's:
++
++| # | Decision | Where | The alternative |
++|---|---|---|---|
++| C1 | The CCNOT tape defines `draw`: a deterministic observation, the same in every backend, with no claim of randomness or independence. Another generator is a rule of its own, never an implementation of the tape | VI.6 | A faster generator for `draw` on the CPU (a certified rule over words is about 100 times faster per bit), giving the backends different values; or `Draw` as a general generator interface |
++| C2 | The tick's head arithmetic is written inline: six names reserved, the transition visible where it is defined | VI.6 | Two helper functions for the head moves: about twice as fast per tick, and two more reserved names |
++| C3 | A program makes its tape and sends it messages; no tape is ambient | VI.6 | A tape held by `Object`, so that `ask draw()` works anywhere, with a ruling on where its seed comes from (open question 10) |
++| C4 | The names `Tapes`, `tape_tick`, `Draw`, `draw`, `birth` and `CcnotTape`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names; `tape_tick` is ruled, the rest await confirmation |
++
+ Taken in entering T1 to T4, and while building 0.4.9. T5 and Q13 were recommended for ratification in review, T5 with the qualification that its proof show the entries of the runs sharing a result to be uniquely decodable:
+ 
+ | # | Decision | Where | The alternative |
+diff --git a/selvage/prelude.selv b/selvage/prelude.selv
+index 8845a49..5090a6b 100644
+--- a/selvage/prelude.selv
++++ b/selvage/prelude.selv
+@@ -255,3 +255,43 @@ answer Root for System, Witness, Refusal takes Journal
+ # reversibility is Root's.  Every run starts inside an Object: a request that no
+ # installed answer takes reaches it.
+ answer Object for System, Witness, Refusal takes Root
++
++# ---- the CCNOT tape -------------------------------------------------------------------------
++# Two circular tapes of bits, a and b, under heads i and j.  One tick fires two CCNOTs that share
++# their controls, the cells under both heads, and target the next cell of each tape; then head i
++# moves forward and head j backward.  It is wiring 1 of moop's tape, and a trace of moop's own
++# implementation pins it bit for bit (VI.6).  Each tape needs at least two cells, or a target
++# would be a control: R4 refuses that when it runs.
++type Tapes(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
++
++rule tape_tick takes Tapes returns Tapes
++    Tapes(a, b, i, j) <-> Tapes(a, b, ni, nj) where
++        add a[i] * b[j] to a[(i + 1) mod length(a)]
++        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]
++        ni is (i + 1) mod length(a)
++        i was (ni + length(a) - 1) mod length(a)
++        nj is (j + length(b) - 1) mod length(b)
++        j was (nj + 1) mod length(b)
++
++# A draw ticks the tape and copies the cell then under head i: a deterministic observation of the
++# tape, not a random bit.  A birth draws one cell for each cell of a child tape, a's first.  The
++# tape a program draws from is the one it makes, from a seed it chooses; a seed is where the tape
++# starts, not a source of entropy.
++request Draw
++    draw() returns Bit
++    birth() returns CcnotTape
++
++answer CcnotTape for Draw takes Tapes
++    (draw(), s) <-> (seen, s) where
++        s is tape_tick(s)
++        seen is s.a[s.i]
++    (birth(), s) <-> (child, s) where
++        ca is array(Bit, length(s.a))
++        cb is array(Bit, length(s.b))
++        repeat with k from 0 to length(ca) - 1
++            s is tape_tick(s)
++            add s.a[s.i] to ca[k]
++        repeat with k from 0 to length(cb) - 1
++            s is tape_tick(s)
++            add s.a[s.i] to cb[k]
++        child is CcnotTape from Tapes(ca, cb, 0, 0)
+diff --git a/tests/generated_04.py b/tests/generated_04.py
+index ffc8525..3007fa4 100644
+--- a/tests/generated_04.py
++++ b/tests/generated_04.py
+@@ -40,7 +40,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tests'))
+ from selvage import load, CheckError                     # noqa: E402
+ from selvage.checker import definition_of                # noqa: E402
+ from selvage.deciders import fixed, replay               # noqa: E402
+-from selvage.forms import Word, Inst, Form, Fault, MAYBE, identity   # noqa: E402
++from selvage.forms import Word, Arr, Inst, Form, Fault, MAYBE, identity   # noqa: E402
+ from selvage.interp import Interp, deep_copy             # noqa: E402
+ from selvage.invert import invert                        # noqa: E402
+ from selvage.lineage import links                        # noqa: E402
+@@ -3044,10 +3044,105 @@ def declared(programs=200, seed=1):
+     return stats, findings
+ 
+ 
++# ---- the CCNOT tape: the prelude's CcnotTape against a model of wiring 1 of its own ---------
++class TapeModel:
++    """Wiring 1, written from its description and sharing no code with the interpreter: two
++    CCNOTs share the cells under both heads as controls and target the next cell of each tape;
++    then head i moves forward and head j backward.  A draw ticks and reads the cell under i."""
++    def __init__(self, a, b, i, j):
++        self.a, self.b, self.i, self.j = list(a), list(b), i, j
++
++    def tick(self):
++        c = self.a[self.i] & self.b[self.j]
++        self.a[(self.i + 1) % len(self.a)] ^= c
++        self.b[(self.j - 1) % len(self.b)] ^= c
++        self.i, self.j = (self.i + 1) % len(self.a), (self.j - 1) % len(self.b)
++
++    def draw(self):
++        self.tick()
++        return self.a[self.i]
++
++    def birth(self):
++        ca = [self.draw() for _ in self.a]
++        cb = [self.draw() for _ in self.b]
++        return TapeModel(ca, cb, 0, 0)
++
++    def value(self):
++        return (self.a, self.b, self.i, self.j)
++
++
++def tape_state(a, b, i, j):
++    return Form('Tapes', (Arr('Bit', [Word(x, 'Bit') for x in a]), Arr('Bit', [Word(x, 'Bit') for x in b]),
++                          Word(i, 'I64'), Word(j, 'I64')))
++
++
++def tape_value(state):
++    a, b, i, j = state.kids
++    return ([w.v for w in a.data], [w.v for w in b.data], i.v, j.v)
++
++
++def tape(programs=200, seed=1):
++    """Draws and births of the prelude's CcnotTape against the model, on random tapes of 2 to 16
++    cells; every draw and birth taken back by `undo`; and the tick against its derived inverse."""
++    rng = random.Random(seed)
++    stats = {'tapes': 0, 'draws': 0, 'births': 0, 'taken back': 0, 'ticks undone': 0}
++    findings = []
++    m = load('')[0]
++    if 'CcnotTape' not in m.answers or 'tape_tick' not in m.rules:
++        return stats, [('the prelude has no CCNOT tape', '', '')]
++    tick = m.rules['tape_tick']
++    for _ in range(programs):
++        la, lb = rng.randint(2, 16), rng.randint(2, 16)
++        a, b = [rng.randint(0, 1) for _ in range(la)], [rng.randint(0, 1) for _ in range(lb)]
++        i, j = rng.randrange(la), rng.randrange(lb)
++        where = f'a={a} b={b} i={i} j={j}'
++        stats['tapes'] += 1
++        model, it = TapeModel(a, b, i, j), Interp(m)
++        inst, history = Inst('CcnotTape', (), tape_state(a, b, i, j)), []
++        try:
++            for _ in range(rng.randint(0, 40)):
++                before = deep_copy(inst)
++                reply, inst = it.send(inst, 'draw', ())
++                history.append((before, 'draw', reply))
++                stats['draws'] += 1
++                if reply.v != model.draw() or tape_value(inst.state) != model.value():
++                    findings.append(('a draw differs from the model', where, f'after {stats["draws"]} draws'))
++                    break
++            if rng.random() < 0.5:
++                before = deep_copy(inst)
++                child, inst = it.send(inst, 'birth', ())
++                history.append((before, 'birth', deep_copy(child)))    # the child as born; it draws below
++                stats['births'] += 1
++                kid = model.birth()
++                if tape_value(child.state) != kid.value() or tape_value(inst.state) != model.value():
++                    findings.append(('a birth differs from the model', where, tape_value(child.state)))
++                for _ in range(rng.randint(0, 10)):
++                    reply, child = it.send(child, 'draw', ())
++                    if reply.v != kid.draw():
++                        findings.append(('a child draws other than the model', where, ''))
++                        break
++            for before, op, reply in reversed(history):
++                _, inst = it.unsend_any(inst, op, reply)
++                stats['taken back'] += 1
++                if inst != before:
++                    findings.append((f'taking back a {op} did not restore the tape', where, ''))
++                    break
++            state = tape_state(a, b, i, j)
++            ticked = it.forward(tick, (), deep_copy(state))
++            ref = TapeModel(a, b, i, j)
++            ref.tick()
++            if tape_value(ticked) != ref.value() or it.undo(tick, (), ticked) != state:
++                findings.append(('a tick, or its derived inverse', where, ''))
++            stats['ticks undone'] += 1
++        except Fault as e:
++            findings.append(('a tape of two cells or more was refused', where, str(e)))
++    return stats, findings
++
++
+ PARTS = [('arrows', arrows), ('delegation', delegation), ('rows', rows), ('between runs', between_runs),
+          ('operators', operators), ('any', any_type), ('refusal', refusals), ('seal', seal), ('witness', witness), ('depth', depth), ('structures', structures), ('decisions', decisions),
+          ('journal', journal), ('names', names), ('accounting', accounting), ('extent', extents), ('forms', forms), ('model', model),
+-         ('declared', declared)]
++         ('declared', declared), ('tape', tape)]
+ 
+ 
+ def guarded(part):
+diff --git a/tests/programs/ccnot_tape.selv b/tests/programs/ccnot_tape.selv
+new file mode 100644
+index 0000000..b8372f4
+--- /dev/null
++++ b/tests/programs/ccnot_tape.selv
+@@ -0,0 +1,37 @@
++# The conformance scenario of the CCNOT tape (VI.6): 40 draws, a birth, 20 draws from the child,
++# and a birth taken back.  Its output is ccnot_tape.trace, a trace of moop's own implementation.
++rule born takes CcnotTape returns (CcnotTape, CcnotTape)
++    t <-> (child, t) where
++        child is t -> birth()
++
++rule main uses Output
++    a is array(Bit, 8)
++    b is array(Bit, 13)
++    repeat with k from 0 to 7
++        set a[k] to Bit((k * k + 1) mod 2)
++    repeat with k from 0 to 12
++        set b[k] to Bit(((k * 5) / 3 + 1) mod 2)
++    tape is CcnotTape from Tapes(a, b, 0, 0)
++    output tape
++    repeat with k from 1 to 40
++        d is tape -> draw()
++        output d
++    output tape
++    (child, parent) is born(tape)
++    output parent
++    output child
++    repeat with k from 1 to 20
++        d is child -> draw()
++        output d
++    output child
++    a2 is array(Bit, 8)
++    b2 is array(Bit, 13)
++    repeat with k from 0 to 7
++        set a2[k] to Bit((k * k + 1) mod 2)
++    repeat with k from 0 to 12
++        set b2[k] to Bit(((k * 5) / 3 + 1) mod 2)
++    again is CcnotTape from Tapes(a2, b2, 0, 0)
++    repeat with k from 1 to 40
++        d is again -> draw()
++    (c2, p2) is born(again)
++    output undo born((c2, p2))
+diff --git a/tests/programs/ccnot_tape.trace b/tests/programs/ccnot_tape.trace
+new file mode 100644
+index 0000000..703ca77
+--- /dev/null
++++ b/tests/programs/ccnot_tape.trace
+@@ -0,0 +1,66 @@
++CcnotTape from Tapes([1, 0, 1, 0, 1, 0, 1, 0], [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1], 0, 0)
++1
++1
++1
++1
++0
++1
++0
++1
++0
++1
++1
++1
++0
++1
++0
++1
++0
++1
++1
++1
++1
++1
++0
++1
++0
++1
++0
++1
++0
++1
++0
++1
++0
++1
++0
++1
++0
++1
++0
++1
++CcnotTape from Tapes([1, 0, 1, 0, 1, 0, 1, 0], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1], 0, 12)
++CcnotTape from Tapes([1, 1, 0, 1, 1, 0, 1, 1], [1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1], 5, 4)
++CcnotTape from Tapes([1, 1, 1, 0, 0, 1, 1, 0], [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0], 0, 0)
++0
++1
++1
++0
++1
++0
++0
++1
++1
++0
++1
++1
++1
++1
++0
++1
++1
++0
++1
++1
++CcnotTape from Tapes([1, 1, 0, 1, 1, 1, 1, 0], [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0], 4, 6)
++CcnotTape from Tapes([1, 0, 1, 0, 1, 0, 1, 0], [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1], 0, 12)
+diff --git a/tests/test_selvage.py b/tests/test_selvage.py
+index 1df2d9c..e515d54 100644
+--- a/tests/test_selvage.py
++++ b/tests/test_selvage.py
+@@ -2243,6 +2243,69 @@ class TestBuiltValues(unittest.TestCase):
+             '(Cell from [1, 0], (Cell from [0, 0], 0))'])
+ 
+ 
++class TestCcnotTape(unittest.TestCase):
++    """The CCNOT tape in the prelude (VI.6): wiring 1 of moop's tape, pinned to a trace of moop's
++    own implementation; a draw a deterministic observation; a birth certified and taken back."""
++    TAPE = ('rule two_draws takes CcnotTape returns (Bit, Bit, CcnotTape)\n    t <-> (x, y, t) where\n'
++            '        x is t -> draw()\n        y is t -> draw()\n'
++            'rule born takes CcnotTape returns (CcnotTape, CcnotTape)\n    t <-> (child, t) where\n'
++            '        child is t -> birth()\n')
++
++    @staticmethod
++    def make(la, lb, ones=True):
++        return (f'    a is array(Bit, {la})\n    b is array(Bit, {lb})\n'
++                + (f'    repeat with k from 0 to {la} - 1\n        set a[k] to 1\n'
++                   f'    repeat with k from 0 to {lb} - 1\n        set b[k] to 1\n' if ones else '')
++                + '    tape is CcnotTape from Tapes(a, b, 0, 0)\n')
++
++    def test_the_trace_is_moop_s(self):
++        # moop's C implementation printed ccnot_tape.trace; the interpreter must print it byte for byte
++        out, _ = run_interp(src('ccnot_tape.selv', PROGS))
++        with open(os.path.join(PROGS, 'ccnot_tape.trace')) as f:
++            self.assertEqual(out, f.read())
++
++    def test_draws_and_births_are_taken_back(self):
++        out, _ = run_interp(self.TAPE + 'rule main uses Output\n' + self.make(8, 13) +
++                            '    start is tape\n    (x, y, t) is two_draws(tape)\n'
++                            '    (child, p) is born(t)\n    t2 is undo born((child, p))\n'
++                            '    back is undo two_draws((x, y, t2))\n    output back = start\n')
++        self.assertEqual(out.strip(), 'true')
++        # a draw that the tape did not give is not taken back: the answer is an embedding
++        why = run_refused(self.TAPE + 'rule main uses Output\n' + self.make(8, 13) +
++                          '    (x, y, t) is two_draws(tape)\n    output undo two_draws((Bit(1) - x, y, t))\n')
++        self.assertIn('is not what it was computed from', why)
++
++    def test_a_tape_needs_two_cells(self):
++        # R4 guards the tick when it runs: an empty tape divides by zero, and a one-cell tape
++        # would make a target of a control
++        for la, lb, needle in ((0, 13, 'division by zero'), (1, 13, 'R4'), (8, 1, 'R4')):
++            why = run_refused('rule main uses Output\n' + self.make(la, lb, ones=False) + '    output tape -> draw()\n')
++            self.assertIn(needle, why, (la, lb))
++        out, _ = run_interp('rule main uses Output\n' + self.make(2, 2) + '    output tape -> draw()\n')
++        self.assertEqual(out.strip(), '0')
++
++    def test_a_program_makes_its_tape(self):
++        # no tape is ambient: a draw nobody installed is refused at Root (C3)
++        why = run_refused('rule main uses Draw, Output\n    d is ask draw()\n    output d\n')
++        self.assertIn('no answer for request draw', why)
++
++    def test_the_tick_rests_on_ccnot_and_nothing_more_is_claimed(self):
++        m = load('')[0]
++        self.assertTrue(all(r.cls == 'bijection' for r in m.answers['CcnotTape'].ops.values()))
++        # an index can refuse and an array's values are not counted, so how far the tick, a draw
++        # and a birth reach is not established, and is not claimed
++        unknown = ('one-to-one', 'defined on every input: not established; onto: not established')
++        self.assertEqual(extent(m, m.rules['tape_tick']), unknown)
++        for op in ('draw', 'birth'):
++            self.assertEqual(extent(m, m.answers['CcnotTape'].ops[op]), unknown, op)
++        path = os.path.join(tempfile.mkdtemp(), 'min.selv')
++        with open(path, 'w') as f:
++            f.write('rule main uses Output\n    output 1\n')
++        r = cli('lineage', path, 'tape_tick', '--verify')
++        self.assertIn('add a * b on Bit -> ccnot [realized]', r.stdout)
++        self.assertIn('add a * b on Bit = ccnot', r.stdout)
++
++
+ class TestSealAndWitness(unittest.TestCase):
+     """P3: retention is sealed to Root, disclosure goes through Witness, and a host mediates."""
+ 
+@@ -2518,6 +2581,9 @@ class TestGenerated04(unittest.TestCase):
+         self.part('forms', 120, accepted=80, declarations=250, read_alike_by_a_rule_and_from_the_text=80, clauses_mirrored=150,
+                   constructors_taken_apart=400, uncomputes_that_read_themselves_refused=80)
+ 
++    def test_the_ccnot_tape_agrees_with_a_model_of_wiring_1(self):
++        self.part('tape', 150, tapes=150, draws=2000, births=50, taken_back=2000, ticks_undone=150)
++
+     def test_how_far_a_certified_rule_reaches(self):
+         self.part('extent', 150, gate_rules=90, permutations=15, embeddings=15, partial_inverses=4, partial=6,
+                   word_rules=40, claims_tried=250, answers=130)
+diff --git a/tools/mutation_check.py b/tools/mutation_check.py
+index 7a2609e..9abb6aa 100644
+--- a/tools/mutation_check.py
++++ b/tools/mutation_check.py
+@@ -133,6 +133,17 @@ MUTATIONS = [
+  # the inverter is the prelude's rule `mirror`: these break the rule itself
+  ('mirror: a lossy clause is mirrored as a certified one', 'prelude.selv',
+   "    LossyClause(left, right, steps) <-> LossyClause(right, left, spets) where", "    LossyClause(left, right, steps) <-> Clause(right, left, spets) where", 'arrows'),
++ ('tape: one of the two CCNOTs is dropped', 'prelude.selv',
++  "        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]\n", "", 'tape'),
++ ('tape: the CCNOT on tape a targets two cells ahead', 'prelude.selv',
++  "        add a[i] * b[j] to a[(i + 1) mod length(a)]\n", "        add a[i] * b[j] to a[(i + 2) mod length(a)]\n", 'tape'),
++ ('tape: head j moves forward', 'prelude.selv',
++  "        nj is (j + length(b) - 1) mod length(b)\n        j was (nj + 1) mod length(b)\n",
++  "        nj is (j + 1) mod length(b)\n        j was (nj + length(b) - 1) mod length(b)\n", 'tape'),
++ ('tape: a draw observes before the tick', 'prelude.selv',
++  "        s is tape_tick(s)\n        seen is s.a[s.i]\n", "        seen is s.a[s.i]\n        s is tape_tick(s)\n", 'tape'),
++ ('tape: a child starts with head i moved', 'prelude.selv',
++  "        child is CcnotTape from Tapes(ca, cb, 0, 0)\n", "        child is CcnotTape from Tapes(ca, cb, 1, 0)\n", 'tape'),
+  ('mirror: an update is read backward as itself', 'prelude.selv',
+   "    AddTo(e, t) <-> SubtractFrom(e, t)\n    SubtractFrom(e, t) <-> AddTo(e, t)", "    AddTo(e, t) <-> AddTo(e, t)\n    SubtractFrom(e, t) <-> SubtractFrom(e, t)", 'model'),
+  ('mirror: a counted loop keeps its direction', 'prelude.selv',
