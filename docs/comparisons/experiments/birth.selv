@@ -1,0 +1,31 @@
+type Tapes(a: Array(Bit), b: Array(Bit), t: U64)
+
+# E2: a birth.  The parent ticks; each child cell is a copy of the cell under
+# the parent's A head.  The child is new: its cells start empty.
+rule birth takes Tapes returns (Tapes, Tapes)
+    Tapes(a, b, t) <-> (Tapes(a, b, t), Tapes(ca, cb, 0)) where
+        ca is array(Bit, 8)
+        cb is array(Bit, 4)
+        repeat with k from 0 to 7
+            add a[t mod 8] * b[(0 - t) mod 4] to a[(t + 1) mod 8]
+            add a[t mod 8] * b[(0 - t) mod 4] to b[(0 - t - 1) mod 4]
+            add 1 to t
+            add a[t mod 8] to ca[k]
+        repeat with k from 0 to 3
+            add a[t mod 8] * b[(0 - t) mod 4] to a[(t + 1) mod 8]
+            add a[t mod 8] * b[(0 - t) mod 4] to b[(0 - t - 1) mod 4]
+            add 1 to t
+            add a[t mod 8] to cb[k]
+
+rule main uses Output
+    a is array(Bit, 8)
+    b is array(Bit, 4)
+    repeat with i from 0 to 7
+        set a[i] to 1
+    repeat with i from 0 to 3
+        set b[i] to 1
+    parent is Tapes(a, b, 0)
+    (p, child) is birth(parent)
+    output p
+    output child
+    output undo birth((p, child))

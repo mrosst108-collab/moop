@@ -1,0 +1,19 @@
+type Tapes(a: Array(Bit), b: Array(Bit), t: U64)
+
+# E1: n ticks with literal tape lengths (64 and 32).
+rule spin(n: I64) takes Tapes returns Tapes
+    Tapes(a, b, t) <-> Tapes(a, b, t) where
+        repeat with k from 1 to n
+            add a[t mod 64] * b[(0 - t) mod 32] to a[(t + 1) mod 64]
+            add a[t mod 64] * b[(0 - t) mod 32] to b[(0 - t - 1) mod 32]
+            add 1 to t
+
+rule main uses Output
+    a is array(Bit, 64)
+    b is array(Bit, 32)
+    repeat with i from 0 to 63
+        set a[i] to Bit(i mod 2)
+    repeat with i from 0 to 31
+        set b[i] to Bit((i / 3) mod 2)
+    s is spin(100000000)(Tapes(a, b, 0))
+    output s.t

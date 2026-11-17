@@ -1,0 +1,11 @@
+# E3: the competitor for the draw role: a Feistel round, certified by R4 alone.
+rule feistel(n: I64) takes (U64, U64) returns (U64, U64)
+    (l, r) <-> (l, r) where
+        repeat with k from 1 to n
+            add r * r + U64(k) to l
+            swap l and r
+
+rule main uses Output
+    s is feistel(100000000)((U64(1), U64(2)))
+    output s
+    output undo feistel(100000000)(s)

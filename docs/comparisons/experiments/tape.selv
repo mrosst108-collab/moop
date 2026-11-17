@@ -1,0 +1,36 @@
+type Tapes(a: Array(Bit), b: Array(Bit), t: U64)
+
+# P: the state-only transition: two CCNOTs sharing controls, then rotate.
+rule tick takes Tapes returns Tapes
+    Tapes(a, b, t) <-> Tapes(a, b, t) where
+        add a[t mod U64(length(a))] * b[(0 - t) mod U64(length(b))] to a[(t + 1) mod U64(length(a))]
+        add a[t mod U64(length(a))] * b[(0 - t) mod U64(length(b))] to b[(0 - t - 1) mod U64(length(b))]
+        add 1 to t
+
+request Draw
+    draw() returns Bit
+
+# D: the complete Draw answer: P, then a copy of the cell under A's head.
+answer CcnotTape for Draw takes Tapes
+    (draw(), Tapes(a, b, t)) <-> (seen, Tapes(a, b, t)) where
+        add a[t mod U64(length(a))] * b[(0 - t) mod U64(length(b))] to a[(t + 1) mod U64(length(a))]
+        add a[t mod U64(length(a))] * b[(0 - t) mod U64(length(b))] to b[(0 - t - 1) mod U64(length(b))]
+        add 1 to t
+        seen is a[t mod U64(length(a))]
+
+rule main uses Output
+    a is array(Bit, 8)
+    b is array(Bit, 4)
+    set a[0] to 1
+    set a[1] to 1
+    set b[0] to 1
+    set b[3] to 1
+    s is Tapes(a, b, 0)
+    s1 is tick(s)
+    output s1
+    output undo tick(s1)
+    tape is CcnotTape from s1
+    d1 is tape -> draw()
+    d2 is tape -> draw()
+    output (d1, d2)
+    output tape
