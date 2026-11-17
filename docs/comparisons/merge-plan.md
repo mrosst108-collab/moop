@@ -59,18 +59,20 @@ tape:
 
 ## Decisions
 
-Each blocks the phase named. G1 and G2 are decided (2026-11-17, as
-recommended). G3 to G6 are Selvage's to rule on; the recommendation is
-what the plan assumes.
+Each blocks the phase named. G1 to G5 are decided by the maintainer
+(2026-11-17). Of G6, `tape_tick` is settled; the other names are used as
+recommended and await confirmation. G3 to G6 are entered in Selvage's
+description as C1 to C4, because Selvage's own register already uses
+G1 to G11.
 
 | # | Decision | Status | Blocks |
 |---|---|---|---|
 | G1 | moop's role after the merge | **Decided:** moop stays a separate language — the study of the tape as the machine — and is the tape's reference model | Phase 0 |
 | G2 | Freeze the wiring that is merged | **Decided:** frozen as "wiring 1", pinned by the shared trace. The wiring may still iterate, but as a new numbered wiring with a new trace, which Selvage must rule on — not a silent drift | Phase 0 |
-| G3 | What defines `draw` | Recommended: the tape. A Feistel rule is ~100× faster per bit on a CPU, but the tape is 2 Toffolis and 1 CNOT per bit on gates (the Feistel's gate count, ~100, is an estimate), draws are rare, and both backends must give the same values. The description must call a draw a deterministic observation, never random: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`) | Phase 3 |
-| G4 | Prelude text: inline head arithmetic, or two helper functions | Recommended: inline. 6 reserved names and 26 lines at ~3.5 ns per tick. The helper version is ~1.9 ns per tick but reserves 8 names; the tape is not on a hot path | Phase 3 |
-| G5 | How a program gets a tape | Recommended: explicitly — a program makes one from a seed and sends it messages. An ambient tape held by `Object`, so that `ask draw()` works anywhere, is Selvage's open question 10 and needs a ruling on where the seed comes from | Phase 3 |
-| G6 | Names | Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
+| G3 | What defines `draw` | **Adopted (C1): the CCNOT tape defines `draw`.** A draw is the tape's deterministic observation; both backends must produce the same tape-defined values. The Feistel rule is a separate generator, never an interchangeable implementation of the tape: the CPU speed difference (~100× per bit) does not justify substituting it. The tape's case is its gate realization (2 Toffolis and 1 CNOT per bit) and its correspondence with moop, not randomness: draws agree with the draw `len_a` back 74.8% of the time (`docs/model.md`), so the description must forbid treating `draw` as a random source or claiming independence. G3 says what `draw` means; it does not create a general generator abstraction | Phase 3 |
+| G4 | Prelude text: inline head arithmetic, or two helper functions | **Adopted (C2): inline.** 6 reserved names and 26 lines; the transition stays visible where it is defined. The helper version's ~1.9 ns against ~3.5 ns per tick is real but not decisive off the hot path, and does not justify two more names. The helper text is not kept | Phase 3 |
+| G5 | How a program gets a tape | **Adopted (C3): explicitly.** A program makes a tape from a seed and sends it messages, so it controls which tape, which seed, which requests receive it, and how its state flows. No ambient tape in `Object`: that would be a hidden dependency and need a ruling on seed provenance. A seed is an explicit initialization input, not entropy: seeding does not make the tape a random source | Phase 3 |
+| G6 | Names | Entered as C4. Recommended: `CcnotTape`, `Tapes`, `tape_tick`, `Draw`, `draw`, `birth`. `tick` is not available: `examples/declarations.selv` declares it. `tape_tick` kept over `tape_step` (2026-11-17): *step* is a Selvage clause statement; the naming convention is in `docs/model.md` | Phase 3 |
 
 ## Phases
 
@@ -79,7 +81,7 @@ what the plan assumes.
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
 | 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 decided: retain `repeat while`** (2026-11-17); `0002` stays unadopted pending an explicit decision that the grammar reduction outweighs the lost iteration capability (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
-| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6; and wiring 2's trace, only if wiring 2 is adopted | The tape is in the prelude, interpreted, tested against the trace |
+| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6 (decided); against wiring 1 | The tape is in the prelude, interpreted, tested against the trace. In progress (`selvage-patches/0003`) |
 | 4. Compile answers | Selvage | 3 | `tape -> draw()` runs in compiled code |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
