@@ -156,7 +156,7 @@ R1–R8; native execution; gate lineage as realization.
 | CCNOT tape | Prelude answer `CcnotTape for Draw` (requests `draw`, `birth`); rule `tick` | One type, one request group, one answer — about 20 lines of prelude |
 | Bridge shape (reversible effect, observation outside) | Copy into an empty name: a certified embedding | Nothing: already V.4 |
 | Generation distinct from delegation | `birth` (who made you) is a message to a tape; delegation (whom you defer to) is to a state component | Nothing: two existing mechanisms, kept apart |
-| ≥ 2 cells per loop | R4 | Nothing |
+| ≥ 2 cells per tape | R4 | Nothing |
 | `prune` | `commit` | Nothing |
 | Deletion test | Governance beside the admission test (applied in the audit: `repeat while`, `repeat N times` deleted) | Nothing in the language |
 

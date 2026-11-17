@@ -78,7 +78,7 @@ what the plan assumes.
 |---|---|---|---|
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
-| 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 built separately** (`0002`) and held: it needs a re-ruling (`selvage-patches/README.md`) |
+| 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 held for re-ruling by the maintainer, not adopted**; built separately as `0002` (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
 | 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G6; and wiring 2's trace, only if wiring 2 is adopted | The tape is in the prelude, interpreted, tested against the trace |
 | 4. Compile answers | Selvage | 3 | `tape -> draw()` runs in compiled code |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
@@ -104,7 +104,7 @@ Phase 3.
 *Done when* `make test` passes with the new test, and the trace file is
 byte-identical to the output of `selvage run conform.selv`. **Both
 hold.** Three deliberate breakages were checked against it: retargeting
-loop B's CCNOT (caught by older tests too), observing a draw before the
+tape B's CCNOT (caught by older tests too), observing a draw before the
 tick, and seeding a child's B tape before its A tape. The last two are
 caught by this test and by no other.
 
@@ -199,7 +199,7 @@ further established.
 Backlog item 9. The tape is the natural first program, with one
 adjustment: its heads are data, so its indices carry lineage links and
 are not free circuit layout. An *epoch* form — the ticks of one full
-alignment cycle, starting from heads (0, 0), indexed by a loop counter —
+alignment cycle, starting from heads (0, 0), with tape steps indexed by a counted-repetition counter —
 is pure layout.
 
 *Done when* the epoch of the 8- and 13-cell tapes lowers to exactly 208

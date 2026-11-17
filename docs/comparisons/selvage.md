@@ -16,7 +16,7 @@ Its claims are reported as its specification states them; none were run.
 
 Selvage is a large, certified systems language that uses CCNOT to
 *justify* reversibility (a realization lineage beside native execution).
-moop is a tiny language that *runs on* CCNOT (the tape loops are the
+moop is a tiny language that *runs on* CCNOT (the CCNOT tape is the
 machine).
 
 ## Scale
@@ -27,13 +27,13 @@ machine).
 | Design text | ~500 lines | 2.4k-line spec; every entry carries Implementation / Design / Evidence status |
 | Keywords | 6 (`is ask inherits mirrors a an`) | 39 |
 | Grammar | one rule, `chain ["is" [chain]]` | full grammar (`rule … takes … returns`, `add p to q`, `repeat with …`) |
-| Values | 0..255 on 8-cell loops | words, floats, text, arrays, records; C23 output within 12% of handwritten C |
+| Values | 0..255 on 8-cell tapes | words, floats, text, arrays, records; C23 output within 12% of handwritten C |
 
 ## Point by point
 
 | Topic | moop | Selvage |
 |---|---|---|
-| CCNOT | The machine: one gate between two counter-rotating loops, firing every tick | A four-clause prelude rule; the root of a *realization lineage*; not on the execution path |
+| CCNOT | The machine: one gate between two counter-rotating tapes, firing every tape step | A four-clause prelude rule; the root of a *realization lineage*; not on the execution path |
 | `<->` | An operator on values and bodies; only involutions (XOR deposit, exchange) | A clause arrow: the checker certifies a rule as a bijection, and the prelude rule `mirror` derives its inverse as code |
 | `<-` | Lineage predicate; parents fixed at birth | Field-only record derivation; behaviour is delegation to the one state component that answers |
 | MAYBE | Deterministic oracle draw: step the core, observe a cell (the primitive bridge) | Kleene `Trit` plus `decide`, which routes only undecided cases outward (rule book, person, model), recorded for replay |

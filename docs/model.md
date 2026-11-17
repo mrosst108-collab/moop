@@ -38,6 +38,14 @@ candidate prelude text is `docs/comparisons/experiments/ccnot_tape.selv`
 (see `docs/comparisons/merge-plan.md`). moop stays a separate language
 and is that answer's **reference model**.
 
+*Terms across the two languages.* In moop's own documents and code the
+two tapes are "loops" (loop A, loop B; `MoopLoop`). In the merge
+documents they are the **CCNOT tape** (tapes A and B), one tick is a
+**tape step**, and "loop" means only ordinary iteration — conditional or
+counted repetition — which the tape has nothing to do with. Selvage's
+ruling A1 on `repeat while`, for instance, concerns iteration and makes
+no change to the tape or its trace.
+
 - `tests/tape_vectors.txt` is a trace of wiring 1 on the interpreter's
   8/13-cell bodies: 40 draws, a birth through `moop_proto_generate`, 20
   draws from the child, and the birth undone. `test_wiring_1_trace` in

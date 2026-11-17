@@ -3,11 +3,17 @@
 Merge-plan Phases 1 and 2 (`../merge-plan.md`), built against the 0.4.9
 release archive. Nothing here touches the CCNOT tape or its pinned trace.
 
+**Terms.** *Iteration* (a loop, conditional or counted repetition, a
+recursive rule call) is ordinary control flow in the language. The *CCNOT
+tape* and its *tape step* are the reversible mechanism moop contributes to
+the merge. Every change here, A1 and A2 included, is about iteration;
+none concerns the CCNOT tape, its wiring or its tape step.
+
 | File | What it is |
 |---|---|
 | `0001-phase1-and-a2.patch` | Phase 1 (two defects, answer-rule extents, the mutation count) and ruling A2 (`repeat n times` removed), with A3 in the description. Apply to the 0.4.9 archive |
-| `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). Apply on top of 0001, **only if A1 is re-ruled** (see "A1 needs a re-ruling") |
-| `a1-evidence/` | The five programs behind the A1 measurements |
+| `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). **Held for re-ruling, not adopted** (section 2). Apply on top of 0001 only if A1 is ruled again in its favour |
+| `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
 cd selvage-0.4.9 && git apply 0001-phase1-and-a2.patch
@@ -38,7 +44,7 @@ the claims it exercises.
 | **`repeat n times` removed (A2).** Keyword `times`, the `RepeatTimes` constructor, `mirror`'s clause for it, and its paths in the checker, interpreter, C backend, inverter, printer, lineage and extent analysis. `repeat with i from 1 to n` replaces it in examples, benchmarks, tests and generators; the refusal names the replacement. 38 keywords | `parser.py`, `checker.py`, `interp.py`, `cgen.py`, `invert.py`, `printer.py`, `lineage.py`, `extent.py`, `prelude.selv`; `tests/reference_model.py` | `TestSemanticContracts.test_repeat_n_times_is_a_count` |
 
 Test infrastructure adjusted with A2: the two generators that wrote
-`repeat n times` now write a counted loop with a fresh counter; the census
+`repeat n times` now write counted repetition with a fresh counter; the census
 program and its expected counts (`Code`: 48 of 49 constructors met); one
 mutation retargeted from the deleted `mirror` clause to the `RepeatWith`
 clause ("a loop body is not mirrored"), and one re-anchored to re-indented
@@ -53,51 +59,84 @@ belong in `Array(U8)`), and a NUL in source is invisible — a mistake that
 would otherwise become an action. If `Text` should hold arbitrary bytes,
 the length-carrying change is the one to make instead.
 
-## 2. A1 needs a re-ruling
+## 2. A1 — held for re-ruling
+
+**Status: held by the maintainer (2026-11-17); 0002 is not adopted.** It
+is built and verified so that the ruling can be acted on either way, and
+it stays separate from 0001. A1 concerns conditional repetition only; it
+makes and authorizes no change to the CCNOT tape or its pinned trace.
 
 Ruling A1 deleted `repeat while` on the ground that "a self tail call
-covers it", with the condition that this be confirmed against
-compiled-code speed before building. It holds for some loops and not for
-others:
+covers it", on condition that this be confirmed against compiled-code
+speed before building. The three parts below keep apart what was
+measured, why the implementation behaves so, and what remains to decide.
 
-| Loop | `repeat while` | Rule that calls itself last | Counted loop |
+### 2a. Measured performance
+
+Compiled with Clang 18.1.3, wall time; each a single program at the size
+shown, except the two benchmark rows, which come from section 4's
+interleaved runs.
+
+| Program | Conditional repetition (`repeat while`) | Recursive rule call (self tail call) | Counted repetition (`repeat with`) |
 |---|---|---|---|
-| Collatz chain (stops on data, no array), limit 3,000,000 | 0.530 s | 0.531 s | — |
-| Sieve inner loop (array in place, count computable), n = 80,000 | 0.005 s | **7.7 s** | 0.005 s |
-| Sieve, the benchmark at n = 50,000,000 | 0.428 s | not run (quadratic) | 0.429 s |
-| Insertion sort, sorted input (array in place, stops on data), n = 40,000 | 0.005 s | worse than the counted loop (copies per call; not timed) | **0.29 s** |
+| Collatz chain (stops on data, no array), limit 3,000,000 — benchmark | 0.530 s | 0.531 s | — |
+| Sieve inner iteration (array updated in place, count computable), n = 80,000 | 0.005 s | **7.7 s** | 0.005 s |
+| Sieve, n = 50,000,000 — benchmark | 0.428 s | not run (quadratic) | 0.429 s |
+| Insertion sort, sorted input (array updated in place, stops on data), n = 40,000 | 0.005 s | not timed (copies on every call) | **0.29 s** |
 
-Why: a rule's parameters are read and never updated, so a rule that calls
-itself while changing an array takes a copy at each call. A counted loop
-works in place but cannot stop early. A loop that both changes an array in
-place and stops on what it finds there has no replacement of the same
-complexity. This passes moop's deletion test (no silence, no ambiguity),
-but it weakens soft constraint 11 (C competitiveness), which the
-admission test's "interference" step does not allow.
+### 2b. Implementation behaviour behind the numbers
 
-0002 is built and verified anyway, so the decision costs nothing to act
-on either way. If A1 is kept, 0002 also rewrites the collatz benchmark as
-a rule that calls itself last and the sieve as a counted loop, and states
-the cost in V.3.
+- **A recursive rule call that ends a rule runs as iteration.** It adds
+  nothing to the depth, in both backends (V.3); a test makes 200,000
+  such calls without reaching the depth bound. Where no array is updated
+  (collatz), it costs what `repeat while` costs.
+- **A rule's parameters are read and never updated.** A recursive rule
+  call that changes an array must therefore take a copy and pass it on,
+  so each call copies the whole array: the sieve's 7.7 s.
+- **Counted repetition updates in place but cannot stop early.** Where the
+  number of iterations can be computed beforehand (the sieve), it matches
+  `repeat while`; where iteration stops on what it finds (insertion sort
+  on sorted input), it runs every iteration: the 0.29 s.
+- Hence: iteration that both updates an array in place and stops on its
+  contents has no replacement of the same complexity.
+
+### 2c. The specification decision (open)
+
+Considerations named for the re-ruling, without a recommendation:
+
+- **C competitiveness** (soft constraint 11): removing `repeat while`
+  changes the complexity of one class of in-place algorithms. The
+  admission test's interference step asks whether a change weakens an
+  admitted element.
+- **Grammar minimality:** keeping it costs one keyword (38 rather than
+  37), one `Code` constructor and its paths in the toolchain.
+- **The semantics of iteration:** `repeat while` is the only form whose
+  number of iterations is decided by data as it runs. It is already
+  refused in clause rules, where the count could not be reconstructed
+  backward, and available only in expression rules.
+
+If A1 is ruled again in its favour, 0002 also rewrites the collatz
+benchmark as a recursive rule call and the sieve as counted repetition,
+and states the cost in V.3.
 
 ## 3. Specification changes
 
 In 0001:
 - **I.0, I.1, XI.4:** suite size 178; per-class counts for `TestBuiltValues`, `TestC23Backend`, `TestExtent` and `TestSemanticContracts`.
-- **I.2 (H2), IV:** 38 keywords; the grammar loses `repeat expr times`; a lexical rule saying a loop counts, and how to repeat n times.
+- **I.2 (H2), IV:** 38 keywords; the grammar loses `repeat expr times`; a lexical rule naming counted repetition, and how to repeat n times.
 - **III.1:** `Bit` described as the 1-bit unsigned word (A3); `Text` holds no NUL byte.
 - **IV:** a NUL in a text literal is refused, and why.
 - **V.2:** answers listed with each request rule's extent, plus a status row (Built, Proposed).
-- **V.2, V.6:** code blocks rewritten with counted loops; the `repeat n times` row of the inversion table removed.
+- **V.2, V.6:** code blocks rewritten with counted repetition; the `repeat n times` row of the inversion table removed.
 - **VIII.1, VIII.2:** census figures (48 of 49); `mirror`'s listing without the `RepeatTimes` clause.
-- **XI.3:** the `repeat n times` row of the step table and its case of the proof removed. The model keeps `repeat with`, so loops remain inside the proved model.
+- **XI.3:** the `repeat n times` row of the step table and its case of the proof removed. The model keeps `repeat with`, so counted repetition remains inside the proved model.
 - **XII.2:** `repeat n times` listed as replaced (A2).
 - **XII.4:** a "Built after 0.4.9" list.
 - **XII.6:** three defect rows: the instance copy, NUL text, and answer extents.
 
-In 0002:
+In 0002 (held; not adopted):
 - 37 keywords; the grammar loses `repeat while`.
-- V.3's `repeat while` line replaced by the self-tail-call rule and its stated cost.
+- V.3's `repeat while` line replaced by the recursive-rule-call rule and its stated cost.
 - V.6's `repeat while` row removed; VI.4's decided-condition rule names `if` alone.
 - Census 47 of 48; suite 177.
 - XII.2 and XII.4 entries.
@@ -109,7 +148,7 @@ version number.
 
 All runs on x86_64 Linux, 4 cores, Python 3.13, Clang 18.1.3.
 
-| Check | 0.4.9 | 0001 | 0001 + 0002 |
+| Check | 0.4.9 | 0001 | 0001 + 0002 (held) |
 |---|---|---|---|
 | Full suite | 174 / 174 pass | 178 / 178 pass (205 s) | 177 / 177 pass (204 s) |
 | Description check (`tools/check_description.py`: every code block in SPEC.md) | — | Pass | Pass |
@@ -123,7 +162,7 @@ is handwritten.
 
 Seven interleaved rounds, median seconds; every binary printed the same numbers.
 
-| Benchmark | 0.4.9 | main | main+A1 | C | 0.4.9 / C | main / C | main+A1 / C |
+| Benchmark | 0.4.9 | 0001 | 0001 + 0002 | C | 0.4.9 / C | 0001 / C | 0001 + 0002 / C |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fib | 0.145 | 0.135 | 0.137 | 0.118 | 1.23 | 1.14 | 1.16 |
 | collatz | 0.530 | 0.525 | 0.531 | 0.521 | 1.02 | 1.01 | 1.02 |
@@ -134,9 +173,10 @@ Seven interleaved rounds, median seconds; every binary printed the same numbers.
 | nbody | 0.593 | 0.592 | 0.598 | 0.592 | 1.00 | 1.00 | 1.01 |
 | **geometric mean** |  |  |  |  | **1.12** | **1.10** | **1.11** |
 
-No change beyond noise. `fib`'s source is identical in all three trees, and its 0.145 s against 0.135 s shows the noise is about 7%. The published 0.4.9 geometric mean was 1.12, reproduced here. Under 0002 the collatz benchmark is a rule that calls itself last, and the sieve a counted loop; both match their `repeat while` originals.
+No change beyond noise. `fib`'s source is identical in all three trees, and its 0.145 s against 0.135 s shows the noise is about 7%. The published 0.4.9 geometric mean was 1.12, reproduced here. Under 0002 the collatz benchmark is a recursive rule call and the sieve counted repetition; both match their `repeat while` originals. These benchmarks contain no iteration of the kind that has no replacement (section 2b), so they do not show its cost.
 
 **What the evidence does not show.**
 - The suite and the generators are tests of the cases they run.
 - The new answer extents rest on the same analysis as clause-rule extents, and are cross-checked against it on generated rules. They are not proved.
-- The A1 timings are single programs at one size each, chosen to show complexity, not a benchmark suite.
+- The A1 timings in 2a are single programs at one size each, chosen to show complexity, not a benchmark suite.
+- Measured performance does not settle A1. It is an input to a specification decision that also weighs grammar minimality and the semantics of iteration (2c).
