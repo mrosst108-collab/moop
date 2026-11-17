@@ -1,5 +1,6 @@
 /* Wiring 1 on the interpreter's 8/13-cell bodies: the cycle structure of
- * the tape and the statistics of its draws (MAYBE).
+ * the tape, the statistics of its draws (MAYBE), and how they change if a
+ * draw observed a different point of the same dynamics.
  *
  * One epoch, lcm(8, 13) = 104 ticks, returns both heads to cell 0, so the
  * epoch map is a permutation of the 2^21 tape contents; every state's full
@@ -119,6 +120,47 @@ static void draws(const char *name, uint32_t s0)
            lag[0], agree[0] / m, lag[1], agree[1] / m, lag[2], agree[2] / m);
 }
 
+/* The same dynamics observed four ways: does moving the observation point
+ * remove the lag correlation, or only move it? */
+typedef bool (*Observe)(const MoopCore *);
+static bool obs_a(const MoopCore *c) { return c->a.cells[c->a.head]; }
+static bool obs_b(const MoopCore *c) { return c->b.cells[c->b.head]; }
+static bool obs_a_xor_b(const MoopCore *c)
+{
+    return c->a.cells[c->a.head] ^ c->b.cells[c->b.head];
+}
+static bool obs_a_parity(const MoopCore *c)
+{
+    bool p = false;
+    for (size_t k = 0; k < c->a.len; k++)
+        p ^= c->a.cells[k];
+    return p;
+}
+
+static void observation(const char *name, Observe obs, uint32_t s0)
+{
+    enum { NL = 6 };
+    const int lag[NL] = {1, 2, LA, LB, LA + LB, EPOCH};
+    static uint8_t ring[EPOCH];
+    uint64_t n = 0, agree[NL] = {0};
+    load(s0);
+    for (;;) {
+        moop_core_step(&core);
+        bool d = obs(&core);
+        if (n >= EPOCH)
+            for (int i = 0; i < NL; i++)
+                agree[i] += d == ring[(n - lag[i]) % EPOCH];
+        ring[n % EPOCH] = d;
+        n++;
+        if (n % EPOCH == 0 && pack() == s0)
+            break;
+    }
+    printf("  %-32s", name);
+    for (int i = 0; i < NL; i++)
+        printf(" %3d:%.3f", lag[i], agree[i] / (double)(n - EPOCH));
+    printf("\n");
+}
+
 int main(void)
 {
     cycles();
@@ -129,5 +171,10 @@ int main(void)
         seed |= (uint32_t)(((k * 5) / 3 + 1) % 2) << (LA + k);
     draws("the trace's seed", seed);
     draws("one set cell on each tape (the longest cycle)", 1u | 1u << LA);
+    printf("the trace's seed, agreement by lag for four observation points:\n");
+    observation("A under its head (wiring 1)", obs_a, seed);
+    observation("B under its head", obs_b, seed);
+    observation("A xor B under the heads", obs_a_xor_b, seed);
+    observation("parity of all of A", obs_a_parity, seed);
     return 0;
 }

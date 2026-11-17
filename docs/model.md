@@ -231,11 +231,24 @@ homoiconicity; it bounds what draws may be used for.
 
 ## Open questions
 
-- Whether a later wiring should decorrelate draws (for instance by
-  observing a cell that is not revisited every `len_a` ticks), or whether
-  correlated births are acceptable as the price of the simplest wiring.
-  Any change is a new numbered wiring (see "Pinned, with a second
-  implementation").
+- **Wiring 2: open, not scheduled.** Wiring 1 stays: the tape is not a
+  random source, so its correlation is a defect only against an objective
+  nobody has set, and changing it moves the pinned trace. A wiring 2
+  needs a positive objective first, and must then show that it keeps the
+  gate cost (2 Toffolis per drawn bit), keeps births certified and
+  undoable, improves the specific property targeted, keeps a fully
+  specified state domain, keeps both loops writable (homoiconicity), and
+  is pinned by its own trace. Passing that would still not make it
+  "random"; that claim needs its own statistical evaluation.
+  The leading candidate, measured: observe **A xor B under the two
+  heads** instead of A alone. Same dynamics (periods and reversibility
+  unchanged), no extra Toffoli (the observation is two CNOTs into an
+  empty cell instead of one), and on the trace's seed no agreement above
+  50.3% at lags 1, 2, 8, 13, 21 or 104. Moving the observation to a
+  single other cell does not work: every cell returns under a head
+  periodically, so observing B moves the 74.8% to lag 13, and A's parity
+  moves it to lag 1. Six lags on one cycle is evidence about this
+  correlation, not a statistical test suite.
 - Whether one gate suffices in practice or the core grows a ring of gates.
 - How programs are encoded onto the loops, and how the surface language
   (natural, Quorum-like syntax) compiles down to initial tape states.

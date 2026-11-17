@@ -94,7 +94,7 @@ On classical hardware it does not win. On gates the ranking reverses:
 
 | | Classical cost per bit | Gate cost per bit |
 |---|---|---|
-| CCNOT tape | ~2.9 ns | 2 Toffolis (the tick *is* its own circuit) |
+| CCNOT tape | ~2.9 ns | 2 Toffolis and 1 CNOT: the tick *is* its own circuit, and the observation is a copy into an empty cell |
 | Feistel round | ~0.025 ns | On the order of 100 Toffolis — a 64-bit multiplier and adder per 64 bits (an estimate from schoolbook circuit sizes, not derived from Selvage's lineage tool) |
 
 Both backends must give the same values, so `draw` needs one
@@ -136,7 +136,10 @@ these as the tape's advantages:
   plan's Phases 5 and 6 (a stated domain; a fixed-length epoch form) are
   what would qualify it.
 
-What remains is narrow: on gates the tape is 2 Toffolis per bit;
+What remains is narrow: on gates the tape is 2 Toffolis (and 1 CNOT)
+per drawn bit, against an *estimated* ~100 for an arithmetic generator
+(the Feistel's 100× is measured CPU speed; its gate count is not
+measured);
 `birth` is a certified, undoable generation that no other construct in
 either language provides; and the Selvage tape is pinned to moop's bit
 for bit.
