@@ -68,12 +68,13 @@ advantage is large in the array workloads tested (2a), and the existing
 benchmarks do not establish its cost across the full C-competitiveness
 target. Removing it for grammar minimality alone would be premature.
 0002 stays unadopted, built and verified, pending an explicit decision
-that the grammar reduction outweighs the lost iteration capability. A1 concerns conditional repetition only; it
-makes and authorizes no change to the CCNOT tape or its pinned trace.
+that the grammar reduction outweighs the lost iteration capability.
+A1 concerns conditional repetition only; it makes and authorizes no
+change to the CCNOT tape or its pinned trace.
 
-Ruling A1 deleted `repeat while` on the ground that "a self tail call
-covers it", on condition that this be confirmed against compiled-code
-speed before building. The three parts below keep apart what was
+The audit's original ruling A1 would have deleted `repeat while` on the
+ground that "a self tail call covers it", on condition that this be
+confirmed against compiled-code speed before building. The three parts below keep apart what was
 measured, why the implementation behaves so, and what remains to decide.
 
 ### 2a. Measured performance
