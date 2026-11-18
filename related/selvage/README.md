@@ -87,3 +87,8 @@ rule main uses Output
 | `bench/` | benchmarks in Selvage, C23 and Rust (`results.md`); against Io in `bench/io` |
 
 Requires Python 3 (tested with 3.13) and clang 18 or later; Rust only for the benchmarks.
+
+## Licence
+
+MIT (`LICENSE`): use, change and share it freely, keeping the copyright
+and licence notice.

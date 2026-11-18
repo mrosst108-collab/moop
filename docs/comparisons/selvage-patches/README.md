@@ -22,6 +22,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0007-phase7-rulings.patch` | The rulings on N1 to N3 entered in Selvage's description; no code or tests (section 8f). Apply on top of 0006 |
 | `0008-ratify-c-and-n.patch` | C1 to C5 and N1 to N3 ratified: moved from XII.6 to XII.1; a status change, no code or tests (section 9). Apply on top of 0007 |
 | `0009-version-0.5.0.patch` | Selvage 0.5.0: the version, in the declarations that state the current one (section 11). Apply on top of 0008 |
+| `0010-licence.patch` | The MIT licence: `LICENSE`, and a licence section in the README; no code (section 11). Apply on top of 0009 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -54,6 +55,10 @@ git apply 0008-ratify-c-and-n.patch
 
 ```bash
 git apply 0009-version-0.5.0.patch
+```
+
+```bash
+git apply 0010-licence.patch
 ```
 
 0002 (not adopted) was written against 0001 alone and no longer applies
@@ -774,3 +779,15 @@ moop's `make test` gains one check: the two stored copies of the trace
 are the same file. That shows the two files are identical; it runs
 neither language. moop's runtime conformance is `test_wiring_1_trace`,
 and Selvage's is in Selvage's own suite.
+
+**Licence (2026-11-18).** The maintainer asked for an attribution-only
+licence, and **0010** adds the MIT licence to Selvage: a `LICENSE` file
+(copyright 2026, `mrosst108-collab`, the account that owns the
+repository) and a licence section in Selvage's README. moop gets the
+same licence at its root.
+- **No code changes.** No test, tool or toolchain module reads either
+  file, so the 0.5.0 validation above stands for the tree with 0010
+  applied.
+- **Reproducible.** The 0.4.9 archive with 0001 and 0003 to 0010
+  applied reproduces `related/selvage/` byte for byte (checked).
+- **The version stays 0.5.0.**

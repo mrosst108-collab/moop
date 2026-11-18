@@ -18,16 +18,18 @@ and a C23 backend. Its own README and its language description
 
 **Where this tree comes from.** It is the Selvage 0.4.9 release archive
 (sha256 `ef8b7e705be5a4d57a3b79c99b58d259ff626c65669843f3eaa23d3b890aa2e2`)
-with eight patches applied, in this order:
+with nine patches applied, in this order:
 
 ```
-0001 → 0003 → 0004 → 0005 → 0006 → 0007 → 0008 → 0009
+0001 → 0003 → 0004 → 0005 → 0006 → 0007 → 0008 → 0009 → 0010
 ```
 
 The patches are in `../docs/comparisons/selvage-patches/`, with the
 handoff report that records each one's changes and validation. Patch
 0002 is excluded: ruling A1 keeps `repeat while`. Applying the patches
 to a fresh copy of the archive reproduces this tree byte for byte.
+0009 sets the version to 0.5.0; 0010 adds the licence and changes no
+code.
 
 **What 0.5.0 adds to 0.4.9:**
 - two defects corrected;
@@ -66,5 +68,6 @@ python3 tools/check_description.py           # every code block of SPEC.md
   third check exists so that a change to either copy is noticed in this
   repository. It does not stand in for running Selvage's suite.
 - **Changing Selvage.** Changes are made against this tree and recorded
-  as Selvage changes, not mixed into moop's. The archive contains no
-  licence file.
+  as Selvage changes, not mixed into moop's.
+- **Licence.** MIT (`selvage/LICENSE`, added by 0010), the same terms as
+  moop's. The 0.4.9 archive itself contained no licence file.

@@ -129,3 +129,9 @@ involution — the same `<->` twice is the identity (5 XOR-deposited onto
 181 gives 176; deposited again, 181 returns). General invertible
 functions under `<->` are the next open problem, and the interpreter
 says so rather than pretending.
+
+## Licence
+
+MIT (`LICENSE`): anyone may use, change and share moop, keeping the
+copyright and licence notice. `related/selvage` carries its own
+`LICENSE`, with the same terms.
