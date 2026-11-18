@@ -16,6 +16,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0001-phase1-and-a2.patch` | Phase 1 (two defects, answer-rule extents, the mutation count) and ruling A2 (`repeat n times` removed), with A3 in the description. Apply to the 0.4.9 archive |
 | `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). **Not adopted:** A1 is decided in favour of keeping `repeat while` (section 2). Apply on top of 0001 only if a later decision reverses that |
 | `0003-phase3-ccnot-tape.patch` | Phase 3: the CCNOT tape in Selvage's prelude (section 5). Apply on top of 0001; it does not need 0002 |
+| `0004-phase5-tape-domain.patch` | Phase 5: the tape's domain, each rule's extent on it, and the refusals outside it (section 6). Apply on top of 0003 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -24,6 +25,10 @@ cd selvage-0.4.9 && git apply 0001-phase1-and-a2.patch
 
 ```bash
 git apply 0003-phase3-ccnot-tape.patch
+```
+
+```bash
+git apply 0004-phase5-tape-domain.patch
 ```
 
 0002 (not adopted) was written against 0001 alone and no longer applies
@@ -307,3 +312,58 @@ reconstructed tree itself.
 The first, answer version of 0003 passed its suite (184 / 184) and left
 all 20 programs' output unchanged. Its mutation check was stopped
 unfinished when G7 superseded it, and no result is claimed for it.
+
+## 6. Phase 5 — the tape's domain (0004)
+
+Phase 3 is complete (2026-11-18). 0004 changes only `SPEC.md` and
+`tests/test_selvage.py`; the toolchain, the prelude, the generators, the
+mutation tool and the benchmark sources are untouched.
+
+### 6a. What it states (VI.6)
+
+**The domain D:** every `CcnotTape(a, b, i, j)` with both lengths at
+least 2 and both heads inside their tapes. On D, for any lengths:
+
+| Rule | On D | Not onto, because |
+|---|---|---|
+| `tape_tick` | A permutation of D, keeping both lengths | — |
+| `draw` | An embedding of D into `Bit` × D | The bit is always the cell under head `i` of the tape given |
+| `birth` | An embedding of D into D × D | A child's heads are always 0 |
+
+**Proof:** the two CCNOTs neither write their controls nor share a
+target once each tape has two cells, so they undo themselves. The head
+move is a bijection, so the tick is a permutation of D. A draw and a
+birth carry the ticked tape whole, so they are one-to-one.
+
+**Outside D,** every input is refused when it runs, in both backends,
+with status 70:
+- a tape of no cells, by division by zero;
+- a tape of one cell, by R4;
+- a head outside its tape, negative or past the end, by the index check.
+
+No head is wrapped round. This was measured in both backends before it
+was written down.
+
+**Not as planned:** the plan asked for the extent report to show the draw
+as not onto. Without D in the types the checker cannot establish that,
+so the report still gives the tick and the draw as one-to-one with
+nothing more established, and the birth as not onto. The description says so.
+Putting D into the types remains the open, separately justified language
+feature it was.
+
+### 6b. Tests
+
+| Test | Checks |
+|---|---|
+| `TestCcnotTape.test_on_its_domain_the_tick_is_a_permutation` | Every state of D with 2 or 3 cells on each tape (1,024): the tick maps D onto D; a draw and a birth are one-to-one; a draw's bit is the cell under `i`; a child's heads are 0 |
+| `TestCcnotTape.test_outside_its_domain_every_input_is_refused` | Seven inputs outside D, each refused with status 70 and the stated reason, in the interpreter and compiled |
+
+### 6c. Verification
+
+| Check | 0001 + 0003 | 0001 + 0003 + 0004 |
+|---|---|---|
+| Full suite | 185 / 185 | Running; not yet recorded |
+| Description check | Pass | Pass |
+| Mutation check | 145 / 145 | Running; not yet recorded (inputs unchanged by 0004) |
+| Benchmarks | 1.11 against C | Not re-run: 0004 changes no code and no benchmark source, so the compiled programs are built by the same toolchain from the same sources |
+| 0004 applied to a fresh archive after 0001 and 0003 | — | Applies; reproduces the tested tree exactly |

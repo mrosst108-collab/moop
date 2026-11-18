@@ -1,0 +1,150 @@
+diff --git a/SPEC.md b/SPEC.md
+index 7c30e82..35d5d0c 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+ - Part XII records binding rulings, deprecated forms, implementation work and open questions.
+ 
+-The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 185 tests.
++The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 187 tests.
+ 
+ What is proved, what is an open obligation, and what rests on tests:
+ 
+@@ -75,7 +75,7 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 185 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 187 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+@@ -968,7 +968,25 @@ rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+ - **`draw` is the tape's** (C5). `draw`, `birth` and `tape_tick` are prelude rules, and a prelude name cannot be declared again, so no program can define its own `draw` rule or stand in for the tape's. There is no request group for the tape and so nothing to answer. The reservation is of the prelude rule names, not of the words in every namespace: a request a program declares in a group of its own may be called `draw`, and `m -> draw()` is then that program's message, a different form from the rule call `draw(t)`.
+ - **A birth** draws one cell for each cell of a child tape, `a`'s cells first, and gives the child, with both heads at 0, together with the parent. It is certified: the parent advances by ticks and the child is copies, so taking a birth back gives the parent back. A birth promises a valid reversible initialization and no more. It is one-to-one and not onto, since a child always starts with its heads at 0, and how many different children a tape can bear is not part of it (on tapes of 8 and 13 cells, 2.80% of possible children).
+ - **A program makes its tape and passes it** (C3). `CcnotTape(a, b, 0, 0)` makes one from tapes the program fills; each `draw` and `birth` takes the tape and gives it back, so the program holds its tape as it holds any value. No tape is ambient, and `ask draw()` is refused at check time: there is no request to ask. The tapes a program starts from are an explicit initialization, not a source of entropy, and seeding does not make the tape random.
+-- **Domain.** Each tape needs at least two cells, or a target would be a control, and each head must be inside its tape. No type states that, so R4 and bounds checks guard it when the tape runs, in both backends: an empty tape is refused by a division by zero, a one-cell tape by R4. `selvage check` reports the tick and the draw as one-to-one with nothing more established, and the birth as one-to-one and not onto (V.2).
++- **Domain.** The tapes the rules are for are the domain D: every `CcnotTape(a, b, i, j)` with `length(a) ≥ 2`, `length(b) ≥ 2`, `0 ≤ i < length(a)` and `0 ≤ j < length(b)`. On D, for any lengths:
++
++  | Rule | On D | Not onto, because |
++  |---|---|---|
++  | `tape_tick` | A permutation of D that keeps both lengths | — |
++  | `draw` | An embedding of D into `Bit` × D | The bit given is always the cell under head `i` of the tape given |
++  | `birth` | An embedding of D into D × D | A child's heads are always 0 |
++
++  *Proof.* Fix the lengths. A tick first applies two CCNOTs whose controls are `a[i]` and `b[j]` and whose targets are `a[(i + 1) mod length(a)]` and `b[(j - 1) mod length(b)]`. With two cells or more on each tape, neither target is its tape's control, and the targets are on different tapes; so the controls are not written, and applying the pair twice is the identity. It then moves the heads by (+1, −1), a bijection of the head positions. A composition of bijections of the finite set D is a permutation of it. A draw gives the tick's result whole, beside a copy of one of its cells, so the draw is one-to-one; and a pair whose bit differs from the cell under `i` is not given. A birth gives the parent after `length(a) + length(b)` ticks, so it is one-to-one; and a child with a head not at 0 is not given. ∎
++
++  Outside D, every input is refused when it runs, in both backends, with status 70; none is wrapped round:
++
++  | Input | Refused by |
++  |---|---|
++  | A tape of no cells | Division by zero |
++  | A tape of one cell | R4: the update reads its own target |
++  | A head outside its tape, negative or past the end | The index check: *index n is outside 0 to m* |
++
++  `selvage check` reports less than this, since no type states D: the tick and the draw as one-to-one with nothing more established, the birth as one-to-one and not onto (V.2). Stating D in types would be a language feature with its own admission case, and the tape does not justify it alone.
+ - **Both backends.** The three are clause rules, so compiled code runs them, `undo` included (IX.2).
+ - **Moop's trace.** The tape is pinned to moop's own implementation: `tests/programs/ccnot_tape.selv` prints `tests/programs/ccnot_tape.trace` byte for byte, in the interpreter and compiled, and moop's C implementation prints the same file. A change of wiring is a new wiring with a new trace, never an edit.
+ - **Admission** (I.4). *Foundation:* a record (Tier 2) and three clause rules over bit updates (Tier 1). *Synergy:* it gives Selvage generation, a certified birth that is taken back, and it gives the realization lineage rules whose defining step is `ccnot` itself, a first program for the reversible profile (IX.4). It needs no request and so no compiled answers. Of the four steps this is still the weakest: it makes no existing construct unnecessary. *Interference:* four names are reserved; no example, test program or benchmark changes. *Uniformity:* only existing constructs, with the domain guarded by the existing checks. The decisions taken in admitting it are C1 to C5 (XII.6).
+@@ -979,8 +997,9 @@ rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+ | Wiring 1, pinned to moop's trace, in the interpreter and compiled | Built | Proposed | TestCcnotTape.test_the_trace_is_moop_s, test_compiled_code_prints_moop_s_trace |
+ | Draws and births against a model of wiring 1, and taken back | Built | Proposed | The tape generator (XI.2); TestCcnotTape.test_draws_and_births_are_taken_back |
+ | `draw`, `birth` and `tape_tick` cannot be declared again; no request for the tape; a program's own request may share the word | Built | Proposed | TestCcnotTape.test_draw_is_the_tape_s |
+-| A tape of fewer than two cells refused when it runs | Built | Proposed | TestCcnotTape.test_a_tape_needs_two_cells |
+-| The domain established by the checker, not guarded at run time | Absent | Open | — |
++| The domain D stated, and each rule's extent on it: the tick a permutation, a draw and a birth embeddings | Built | Proposed | Proof (VI.6); TestCcnotTape.test_on_its_domain_the_tick_is_a_permutation, every state of D with 2 or 3 cells on each tape (1,024) |
++| Every input outside D refused when it runs, in both backends; no head wrapped round | Built | Proposed | TestCcnotTape.test_a_tape_needs_two_cells, test_outside_its_domain_every_input_is_refused |
++| D established by the checker, not guarded at run time | Absent | Open | — (a length invariant in types; not justified by the tape alone) |
+ 
+ ---
+ 
+@@ -1899,7 +1918,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9, with the corrections listed under XII.4, passes 185 tests. Every test source is in the notation of this description.
++Toolchain 0.4.9, with the corrections listed under XII.4, passes 187 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -1923,7 +1942,7 @@ Toolchain 0.4.9, with the corrections listed under XII.4, passes 185 tests. Ever
+ | TestDeclarations | 8 | The form types as the prelude's own text, and a declaration not being `Code`; the example; every declaration held as a value and written back; `definition` for rules, answers, types and requests; the program as a form; all of the code written to be taken apart; holding a declaration granting nothing; a name not given back against an expression that reads it |
+ | TestCensus | 3 | Every form the parser writes taken apart and put together; nothing escaping in any example; a tag with no constructor reported |
+ | TestBuiltValues | 2 | A literal inside a constructor taking the type its field declares; a copied instance sharing nothing with the original |
+-| TestCcnotTape | 6 | Moop's trace printed byte for byte, in the interpreter and compiled; draws and births taken back, and a draw the tape did not give refused; fewer than two cells refused; the three names not declared again, and no request for the tape; the tick realized by `ccnot`; extents as established, the birth not onto |
++| TestCcnotTape | 8 | Moop's trace printed byte for byte, in the interpreter and compiled; draws and births taken back, and a draw the tape did not give refused; fewer than two cells refused; the three names not declared again, and no request for the tape; the tick realized by `ccnot`; extents as established, the birth not onto; on its domain, the tick a permutation and a draw and a birth one-to-one and not onto, over every state with 2 or 3 cells on each tape; outside it, every input refused in both backends |
+ | TestSoundness | 10 | R4 for indices and parameters, under either arrow; sameness; instance unpacking; an uncompute proved only in the pattern that bound it; generated certified rules; the description check; a refused example checked for its reason; a generator requiring its prelude |
+ | TestSealAndWitness | 14 | The seal as a rule about places; `history` through `Witness`; Root's three groups kept apart; hosts deciding what inner code reads; an inquiry leaving the journal as it was; giving the copy back: what was transactional rewound, a kept record refusing it, a refused withdrawal leaving the answers further out as they stood, a host keeping nothing of it; a host in its installer's row; the one request passed outward; instance states typed; commit points in the row; layout as the only lineage exemption |
+ | TestGenerated04 | 21 | The twenty generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
+@@ -2357,6 +2376,7 @@ Built after 0.4.9, as corrections and the audit rulings (the version number is t
+ - **`repeat n times` removed** (audit ruling A2): one keyword, one `Code` constructor and one clause of `mirror` fewer; `repeat with i from 1 to n` replaces it everywhere, examples and benchmarks included.
+ - **`Bit` described as the 1-bit unsigned word** (audit ruling A3); the toolchain already treated it so.
+ - **The CCNOT tape in the prelude** (VI.6): the record `CcnotTape` and the rules `tape_tick`, `draw` and `birth`, pinned to a trace of moop's implementation in both backends, with the tape generator and five mutations.
++- **The CCNOT tape's domain stated** (VI.6): the domain D, each rule's extent on it with a proof, and every input outside it refused in both backends.
+ 
+ Ratified and next:
+ - **Typed encode and decode** (K5): for each serializable form type, tests that decoding an encoding gives the value, that encoding a decoding gives the canonical encoding, that an invalid encoding is refused, that the distinctions of identity are kept, and that the interpreter and compiled code agree.
+diff --git a/tests/test_selvage.py b/tests/test_selvage.py
+index f942bfb..46115f7 100644
+--- a/tests/test_selvage.py
++++ b/tests/test_selvage.py
+@@ -2295,6 +2295,58 @@ class TestCcnotTape(unittest.TestCase):
+         out, _ = run_interp('rule main uses Output\n' + self.make(2, 2) + '    (d, t) is draw(tape)\n    output d\n')
+         self.assertEqual(out.strip(), '0')
+ 
++    def test_on_its_domain_the_tick_is_a_permutation(self):
++        # every tape of the domain D with 2 or 3 cells on each side, every head position: the tick
++        # maps D onto D one to one; a draw and a birth are one to one, and not onto (VI.6)
++        from selvage.interp import deep_copy
++        m = load('')[0]
++        tick, draw, birth = m.rules['tape_tick'], m.rules['draw'], m.rules['birth']
++        it = Interp(m)
++        states = 0
++        for la, lb in itertools.product((2, 3), repeat=2):
++            domain = set()
++            ticked, drawn, born = set(), set(), set()
++            for bits in range(2 ** (la + lb)):
++                for i, j in itertools.product(range(la), range(lb)):
++                    a = Arr('Bit', [W((bits >> k) & 1, 'Bit') for k in range(la)])
++                    b = Arr('Bit', [W((bits >> (la + k)) & 1, 'Bit') for k in range(lb)])
++                    x = F_('CcnotTape', (a, b, W(i), W(j)))
++                    domain.add(identity(x))
++                    # a rule consumes its input and updates arrays in place: each run gets a copy
++                    ticked.add(identity(it.forward(tick, (), deep_copy(x))))
++                    bit, y = it.forward(draw, (), deep_copy(x))
++                    self.assertEqual(bit, y.kids[0].data[y.kids[2].v])      # the bit is the cell under i
++                    drawn.add(identity((bit, y)))
++                    child, parent = it.forward(birth, (), deep_copy(x))
++                    self.assertEqual((child.kids[2].v, child.kids[3].v), (0, 0))
++                    born.add(identity((child, parent)))
++            states += len(domain)
++            self.assertEqual(ticked, domain, (la, lb))                    # into D, and onto it
++            self.assertEqual(len(drawn), len(domain), (la, lb))           # one to one
++            self.assertEqual(len(born), len(domain), (la, lb))
++        self.assertEqual(states, 64 + 192 + 192 + 576)
++
++    def test_outside_its_domain_every_input_is_refused(self):
++        # a tape of fewer than two cells, or a head outside its tape, negative or not: refused
++        # when it runs, with status 70, in both backends; never wrapped round
++        tmp = tempfile.mkdtemp()
++        for la, lb, i, j, needle in ((0, 13, 0, 0, 'division by zero'), (1, 13, 0, 0, 'R4'),
++                                     (8, 1, 0, 0, 'R4'), (8, 13, 8, 0, 'index 8 is outside 0 to 7'),
++                                     (8, 13, 0, 13, 'index 13 is outside 0 to 12'),
++                                     (8, 13, -1, 0, 'index -1 is outside 0 to 7'),
++                                     (8, 13, 0, -1, 'index -1 is outside 0 to 12')):
++            path = os.path.join(tmp, 'outside.selv')
++            with open(path, 'w') as f:
++                f.write(f'rule main uses Output\n    a is array(Bit, {la})\n    b is array(Bit, {lb})\n'
++                        f'    (d, t) is draw(CcnotTape(a, b, {i}, {j}))\n    output d\n')
++            r = cli('run', path)
++            self.assertEqual(r.returncode, 70, (la, lb, i, j))
++            self.assertIn(needle, r.stderr, (la, lb, i, j))
++            if HAVE_CLANG:
++                c = build_and_run(path, tmp)
++                self.assertEqual(c.returncode, 70, (la, lb, i, j))
++                self.assertIn(needle, c.stderr, (la, lb, i, j))
++
+     def test_draw_is_the_tape_s(self):
+         # `draw`, `birth` and `tape_tick` are prelude rules: a program cannot declare its own (C5)
+         for name in ('draw', 'birth', 'tape_tick'):

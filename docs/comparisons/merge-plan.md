@@ -80,9 +80,9 @@ because Selvage's own register already uses G1 to G11.
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
 | 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 decided: retain `repeat while`** (2026-11-17); `0002` stays unadopted pending an explicit decision that the grammar reduction outweighs the lost iteration capability (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
-| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | **Built and validated as `selvage-patches/0003`** (rules version): suite 185/185, mutation check 145/145, 20 programs unchanged, moop's trace byte for byte in the interpreter and compiled, benchmarks unchanged (`selvage-patches/README.md`) |
+| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | **Complete** (2026-11-18): built and validated as `selvage-patches/0003` (rules version): suite 185/185, mutation check 145/145, 20 programs unchanged, moop's trace byte for byte in the interpreter and compiled, benchmarks unchanged (`selvage-patches/README.md`) |
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
-| 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
+| 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported. **Built as `selvage-patches/0004`**; validation running |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
 
@@ -196,6 +196,14 @@ further established.
 - Now: write the valid domain into the description (both lengths at
   least 2, both heads in range), and let the extent report from Phase 1
   show `draw` and `birth` as one-to-one and not onto.
+  *As built (0004):* the description states the domain D and each
+  rule's extent on it, with a proof: the tick is a permutation of D, and
+  a draw and a birth are embeddings, not onto. Every state with 2 or 3
+  cells per tape (1,024) is run to confirm it. Every input outside D is
+  refused in both backends, and a head is never wrapped round. One part
+  could not be done as planned. The extent report cannot show the draw
+  as not onto without D in the types, so it still says only what it
+  establishes, and the description says so.
 - Later, and only if another program needs it: a length invariant in
   types. That is a language feature with its own admission case; the
   tape does not justify it alone.
