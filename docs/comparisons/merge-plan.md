@@ -23,7 +23,7 @@ refuses until hardware is present.
 
 | Where | What exists |
 |---|---|
-| Selvage prelude | `type CcnotTape` and the rules `tape_tick`, `draw`, `birth` (G7) — 23 lines of code |
+| Selvage prelude | `type CcnotTape` and the rules `tape_tick`, `draw`, `birth` (G7) — 23 lines of code; the request group `Measure`, answered by nothing (Phase 7) — 2 lines |
 | Shared | One trace file (`tests/tape_vectors.txt`) that both implementations must reproduce |
 | moop | The language unchanged, plus a test that pins its tape to the shared trace; moop is the tape's reference model |
 
@@ -83,8 +83,8 @@ because Selvage's own register already uses G1 to G11.
 | 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | **Complete** (2026-11-18): built and validated as `selvage-patches/0003` (rules version): suite 185/185, mutation check 145/145, 20 programs unchanged, moop's trace byte for byte in the interpreter and compiled, benchmarks unchanged (`selvage-patches/README.md`) |
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported. **Complete** (2026-11-18): built and validated as `selvage-patches/0004`: suite 187/187, mutation check 145/145, the domain a model claim with a proof, refusals outside it in both backends |
-| 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates. **Built and validated as `selvage-patches/0005`** (the profile in part): suite 194/194, mutation check 150/150, the epoch 208 CCNOT against 104 interpreted ticks, benchmarks' emitted C unchanged |
-| 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
+| 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates. **Complete** (2026-11-18): built and validated as `selvage-patches/0005` (the profile in part): suite 194/194, mutation check 150/150, the epoch 208 CCNOT against 104 interpreted ticks, benchmarks' emitted C unchanged |
+| 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it. **Built as `selvage-patches/0006`**: the `Measure` group in the prelude, answered by nothing; validation running |
 
 Phases 1 and 2 are independent of the tape and of each other, and are
 built (`selvage-patches/`). Phase 0 is done. Birth is decided
@@ -253,6 +253,18 @@ not carry them over:
 No quantum types (qubits, unitaries, circuits) before a backend exists;
 until then the `Measure` group is the whole of it.
 
+*As built (0006):* the toolchain is unchanged. Selvage's existing rules
+already refuse a request nobody answers (status 70), make a clause rule
+that asks lossy, and put the group in the asker's row, so Q3 held for the
+asker before anything was added. 0006 declares the group in the prelude:
+Selvage has no library, and the prelude is its one shared place. It
+states the two limits in the description (IX.4) and tests all of it.
+Three choices are entered as proposed decisions N1 to N3: the group in
+the prelude; not sealed, so a program may install a stand-in, which
+cannot make an asking rule certified; `measure` takes no argument until
+qubits exist. Compiled code has no `ask`, so there the program is refused
+at build time (status 1), not at run time.
+
 ## Budgets
 
 **Performance.** After every Selvage phase, run `bench/run.py`. The
@@ -268,7 +280,7 @@ randomness stays a library rule of the Feistel kind.
 | Mechanisms | 3 | 3 | 3 |
 | Checking rules | 8 | 8 | 8 |
 | Arrows | 4 | 4 | 4 |
-| Prelude | — | — | + 26 lines, 6 reserved names |
+| Prelude | — | — | + 25 lines of code; 6 reserved names: 4 for the tape (after G7), 2 for `Measure` (Phase 7) |
 
 ## Risks
 

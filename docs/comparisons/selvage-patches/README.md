@@ -1,7 +1,7 @@
-# Selvage 0.4.9 — Phase 1 and 2 patches
+# Selvage 0.4.9 — merge-plan patches
 
-Merge-plan Phases 1, 2 and 3 (`../merge-plan.md`), built against the 0.4.9
-release archive. Phases 1 and 2 do not touch the CCNOT tape; Phase 3
+Merge-plan Phases 1, 2, 3, 5, 6 and 7 (`../merge-plan.md`), built against
+the 0.4.9 release archive. Phases 1 and 2 do not touch the CCNOT tape; Phase 3
 admits it into Selvage's prelude against wiring 1, and changes neither
 wiring 1 nor its trace.
 
@@ -18,6 +18,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0003-phase3-ccnot-tape.patch` | Phase 3: the CCNOT tape in Selvage's prelude (section 5). Apply on top of 0001; it does not need 0002 |
 | `0004-phase5-tape-domain.patch` | Phase 5: the tape's domain, each rule's extent on it, and the refusals outside it (section 6). Apply on top of 0003 |
 | `0005-phase6-reversible-profile.patch` | Phase 6: the reversible profile, in part (section 7). Apply on top of 0004 |
+| `0006-phase7-measure.patch` | Phase 7: the request group `Measure`, declared and answered by nothing (section 8). Apply on top of 0005 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -36,12 +37,17 @@ git apply 0004-phase5-tape-domain.patch
 git apply 0005-phase6-reversible-profile.patch
 ```
 
+```bash
+git apply 0006-phase7-measure.patch
+```
+
 0002 (not adopted) was written against 0001 alone and no longer applies
 on top of 0003, since both edit the description's suite counts; it would
 be regenerated if A1 were ever adopted.
 
-Both patches were checked to apply cleanly to a fresh extraction of the
-archive and to reproduce the trees that were tested, byte for byte. The
+Each patch was checked to apply cleanly to a fresh extraction of the
+archive, after the patches before it, and to reproduce the tree that was
+tested, byte for byte. The
 version number is left at 0.4.9 throughout; setting it is the
 maintainer's call.
 
@@ -491,3 +497,102 @@ above are certified rules.
 | Benchmarks | 1.11 against C | The C emitted for all seven benchmarks is byte-identical with and without 0005, and the runtime header is unchanged, so the compiled programs, and so the timings, are those of 0003 |
 | 0005 applied to a fresh archive after 0001, 0003 and 0004 | — | Applies; reproduces the tested tree exactly |
 | Tree identity | — | Work copy clean at `3a9ecf9` and byte-identical to the archive with 0001, 0003, 0004 and 0005 applied, before and after the runs |
+
+## 8. Phase 7 — the quantum interface, as far as it goes (0006)
+
+Phase 6 is complete (2026-11-18). The plan's Phase 7 asks, for now, for a
+`measure` request that refuses until a profile answers it, and for no
+quantum types. 0006 does that and nothing more: the toolchain is not
+changed. It declares one request group in the prelude, states two limits
+in the description, and adds the tests.
+
+### 8a. What already held, and what 0006 adds
+
+Probed on the 0005 tree before anything was written. A program that
+declared its own `Measure` group already behaved as the plan asks:
+- `ask measure()`, with nothing installed to answer it, was refused with
+  status 70: *no answer for request measure*;
+- a clause rule that asks was lossy and had to write `=>`, *it asks outside
+  itself, so its reply is world input*, and a rule that reached it needed
+  `Measure` in its row.
+
+These are Selvage's existing rules for any request: Q3 (measurement is a
+request, world input, `=>`) already held for whoever asks. So 0006 adds
+no mechanism and no special case. It adds the one shared declaration:
+
+```selvage
+request Measure
+    measure() returns Bit
+```
+
+| Change | Files |
+|---|---|
+| The group `Measure` in the prelude, with no answer anywhere: not in the prelude, not in the toolchain, not Root | `selvage/prelude.selv` (+8 lines with the comment) |
+| Named tests (`TestMeasure`, 4) | `tests/test_selvage.py` |
+| A generator (`measure`) with an oracle that knows nothing of the toolchain, and its `TestGenerated04` test | `tests/generated_04.py`, `tests/test_selvage.py` |
+| Three mutations the generator must notice. 153 mutations | `tools/mutation_check.py` |
+| The description: VII.4 (what is built), IX.4 (the two limits), XI.2, XI.4, XII.4 to XII.6 | `SPEC.md` |
+| The README | `README.md` |
+
+**"In a library."** The plan says to declare the group in a library.
+Selvage has none: a program is one file, and modules are open (XII.5,
+question 8). The prelude is the one shared place, so the group is
+declared there. That reserves two names, `Measure` and `measure`, since
+request names are shared by every group. A program's own *rule* may still
+be called `measure`, as for `draw` (tested).
+
+### 8b. Three decisions, entered as proposed (XII.6, N1 to N3)
+
+| # | Decision | The alternative |
+|---|---|---|
+| N1 | The group `Measure`, with the one request `measure() returns Bit`, in the prelude, answered by nothing | In an example: no names reserved, but no signature every program shares and a profile could answer. Or no declaration until a backend exists |
+| N2 | `Measure` is not sealed: a program may install its own answer, a stand-in, as for `Refusal` and `Witness` | Sealed to Root, which under R5 would also forbid programs to ask it. Or a seal that lets anyone ask and only the system answer: a new declaration and a new case of R5, the alternative C5 also declined |
+| N3 | `measure` takes no argument; what is measured is left to the quantum interface, and the signature may change with it | An argument naming a qubit, such as an index: a way of naming qubits before any qubit management |
+
+On N2, keep two things apart:
+- A stand-in can reply with anything, the tape's `draw` included. Inside
+  its `with`, `measure` is then not a measurement, and the description
+  says so (C1).
+- It cannot make an *asking* rule certified. A clause rule that asks is
+  lossy whatever is installed, so `draw` (certified) and `measure` (lossy)
+  stay apart statically, as the plan requires. That is tested.
+
+### 8c. The two limits (IX.4)
+
+- **The journal cannot keep a qubit.** Classical rewind rests on Root
+  keeping every loss. Keeping what a discarded qubit held, or a measured
+  qubit's state before measurement, would be cloning. So `discard` does not
+  apply to qubits, a measurement keeps only its classical outcome, and
+  rewinding past a measurement or a reset is impossible in principle.
+- **Births do not generalize.** The birth circuit (Phase 6: 2(m + n)
+  CCNOT, m + n CNOT) is a valid reversible oracle. On basis states the
+  child's cells are copies. On a parent in superposition the same CNOTs
+  entangle child and parent instead: no circuit copies an unknown
+  quantum state.
+
+### 8d. What is and is not established
+
+| Kind | Claim |
+|---|---|
+| Built, and tested | The group is declared and nothing answers it; `ask measure()` is refused at Root with status 70, after what the run output before; a rule that asks lists `Measure` and, as a clause rule, is lossy; a stand-in takes the request only inside its `with` |
+| Built, in one backend only | The run-time refusal is the interpreter's. Compiled code has no `ask` (IX.2, backlog item 5): a program that asks `measure` is not built, and is refused with status 1 before anything runs. That is the general limit of `ask` in C, not something special to `measure` |
+| Stated in the description, not enforced | The two limits: there are no qubits for the toolchain to enforce them on |
+| Absent | Any answer to `measure`, the outcome kept, measurement as a commit point, reset, qubits, every quantum type |
+
+No eligibility claim is new here: a rule the reversible profile lays out
+is eligible to be a reversible oracle (0005), and still no backend runs
+one.
+
+### 8e. Verification
+
+| Check | 0001 + 0003 + 0004 + 0005 | + 0006 |
+|---|---|---|
+| Focused tests | — | `TestMeasure` 4 / 4 and the generated `measure` test 1 / 1 pass |
+| Generator alone | — | 0 findings at 150 programs (seed 5) and 600 (seeds 1 and 7) |
+| Each new mutation, run alone | — | Noticed: Root answering `measure` (101 findings), a request nobody answers given 0 (101), an `ask` taken as no world input (92) |
+| Full suite (all tests) | 194 / 194 | Running; not yet recorded |
+| Mutation check | 150 / 150 | Running; not yet recorded |
+| Description check | Pass | Pass: 14 blocks check, 1 inverse, 6 prelude (the new `Measure` block among them), 1 refused |
+| Census | Nothing escaping | Nothing escaping |
+| Benchmarks | 1.11 against C | The C emitted for all seven benchmarks is byte-identical with and without 0006, and the runtime header is unchanged, so the timings are those of 0003 |
+| 0006 applied to a fresh archive after 0001, 0003, 0004 and 0005 | — | Applies; reproduces the work copy (`49ecb90`) byte for byte. The suite and mutation check run on that reconstructed tree |

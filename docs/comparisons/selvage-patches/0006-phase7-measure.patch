@@ -1,0 +1,490 @@
+diff --git a/README.md b/README.md
+index 695f721..9a656e4 100644
+--- a/README.md
++++ b/README.md
+@@ -21,6 +21,7 @@ A minimal language in which every rule reads both ways, every loss is said aloud
+ - **MAYBE.** `Trit` (`true | false | maybe`) carries Kleene logic; `decide` sends only the undecided cases to whoever answers `Decide` (a rule book, an LLM through `--decide command:…`, a person), and every decision is kept and replayable.
+ - **Live.** `selvage repl` checks each line before it runs.
+ - **Reversible profile, in part.** `selvage circuit` lays out a certified rule over bits as X, CNOT and CCNOT gates, its words fixed at layout, and checks the circuit against the interpreter by simulation. Nothing runs on reversible or quantum hardware (SPEC.md IX.4).
++- **Measurement, declared and unanswered.** The prelude declares the request `measure`, and nothing answers it: `ask measure()` is refused with status 70 until a quantum profile installs an answer. There are no quantum types (SPEC.md VII.4).
+ - **Two backends.** Programs run in a reversible interpreter, or compile to C23 with no undefined behaviour. On seven benchmarks the C23 output runs within 12% of handwritten C23 and 6% of Rust in the geometric mean (`bench/results.md`), and about 580× faster than Io.
+ 
+ The language description is [SPEC.md](SPEC.md), specification 0.4. This toolchain is 0.4.9 and reads its notation. Part XII of the description lists what is ratified and not yet built.
+@@ -45,7 +46,7 @@ python3 tests/roundtrip_gen.py 2000              # generated rules: undo is the
+ python3 tests/generated_04.py 500                # generated programs with oracles: arrows, delegation, rows, operators, Any, refusal,
+                                                  #   seal, witness, depth, structures, decisions, journal, names, accounting, extent, forms, and the model of the proof
+ python3 tests/reference_model.py 600             # the interpreter and invert against the model of SPEC.md XI.3
+-python3 tools/mutation_check.py                  # break the toolchain 150 ways; the generated tests must notice each
++python3 tools/mutation_check.py                  # break the toolchain 153 ways; the generated tests must notice each
+ python3 tools/check_description.py               # every code block of SPEC.md, checked with the toolchain
+ python3 bench/run.py                             # Selvage vs C23 vs Rust
+ ```
+@@ -79,7 +80,7 @@ rule main uses Output
+ | `selvage/interp.py` | One forward engine for rules and inverses; `undo`, rewind, decisions; the journal as Root's state |
+ | `selvage/deciders.py`, `repl.py` | World deciders for `decide`; the interactive prompt |
+ | `selvage/cgen.py`, `runtime/selvage_rt.h` | C23 backend and runtime |
+-| `selvage/prelude.selv` | `mirror`, the definition of inversion; `ccnot`; `cnot`, `toggle`, `ripple_add`, `exchange`, `fanout`; the Kleene circuits; `Journal`, `System` (sealed to Root), `Witness`, `Refusal`, `Root`, `Object`; the CCNOT tape (`CcnotTape`, `tape_tick`, `draw`, `birth`) |
++| `selvage/prelude.selv` | `mirror`, the definition of inversion; `ccnot`; `cnot`, `toggle`, `ripple_add`, `exchange`, `fanout`; the Kleene circuits; `Journal`, `System` (sealed to Root), `Witness`, `Refusal`, `Root`, `Object`; the CCNOT tape (`CcnotTape`, `tape_tick`, `draw`, `birth`); `Measure`, answered by nothing |
+ | `examples/` | adder, gates (two tiers), orbit, arrays, shapes, messages, derivative, triage (MAYBE), prototypes, witness (hosts and history), inversion (the inverter as a certified rule), declarations (declarations and the program as data) |
+ | `tests/` | conformance suite; `roundtrip_gen.py` generates random certified rules and checks each for a round trip; `generated_04.py` generates programs with an oracle for each 0.4 change; `reference_model.py` is the model of the soundness proof, as an evaluator |
+ | `tools/` | `check_description.py`: the description check; `mutation_check.py`: the mutation check |
+diff --git a/SPEC.md b/SPEC.md
+index d50fd57..be0ce82 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+ - Part XII records binding rulings, deprecated forms, implementation work and open questions.
+ 
+-The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is built in part, for certified rules over bits whose words are layout; the quantum profile is absent (IX.4). The suite has 194 tests.
++The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is built in part, for certified rules over bits whose words are layout; the quantum profile is absent, apart from the request group `Measure`, which nothing answers (VII.4, IX.4). The suite has 199 tests.
+ 
+ What is proved, what is an open obligation, and what rests on tests:
+ 
+@@ -75,7 +75,7 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 194 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 199 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+@@ -104,7 +104,7 @@ The toolchain is at 0.4.9 and reads the notation of this description. Its suite
+ 
+ | Objective | Implementation | Design | Evidence |
+ |---|---|---|---|
+-| Quantum readiness, as realization profiles outside the kernel | Partial (reversible profile); Absent (quantum profile) | Ratified | TestReversibleProfile; the circuits generator (XI.2) |
++| Quantum readiness, as realization profiles outside the kernel | Partial (reversible profile); Absent (quantum profile), apart from the `Measure` group, which nothing answers | Ratified | TestReversibleProfile; the circuits generator (XI.2); TestMeasure |
+ 
+ ### I.4 Admission
+ 
+@@ -1232,9 +1232,26 @@ The clause test certifies this, and nothing more. It does not claim a bijection
+ 
+ **Reset** is irreversible state preparation: a lossy transition, written `=>`, that discards the prior quantum state and prepares the specified initial state. An implementation may discard internally, but the semantics is the reset, not an alias for measurement or for `discard`.
+ 
++**What is built: the request, answered by nothing.** The prelude declares the group (N1):
++
++```selvage
++request Measure
++    measure() returns Bit
++```
++
++No answer for it exists, in the prelude or in the toolchain, and Root does not answer it. An `ask measure()` that no installed answer takes reaches Root unanswered and is refused (VI.5): the run ends with status 70, after whatever it output before. A quantum profile would install the answer. No quantum type exists (IX.4).
++- **What Q3 asks of the asker already holds,** by rules that were there before: a rule that asks `measure` lists `Measure` in its row (R6), and a clause rule that asks it is lossy and writes `=>`, because its reply is world input. Nothing is special to `measure`: the refusal is the one every request nobody answers meets, with the same reason.
++- **Not `draw`.** A draw is a certified rule over a tape the program holds, the same in every backend (VI.6). A rule that draws is certified, and one that asks `measure` is lossy whatever is installed: a rule's class is fixed statically, so the two cannot stand in for each other.
++- **A stand-in** (N2). `Measure` is not sealed, so a program may install an answer of its own for it, as it may for `Refusal` or `Witness`. Inside that `with`, `measure` is answered as the stand-in says, and what it replies is not a measurement; a stand-in that replies with the tape's `draw` does not make a draw random (C1). Outside every stand-in the request reaches Root and is refused.
++- **What is measured is not said** (N3). `measure` takes nothing: a qubit, and how one is named, are the quantum interface's to define (XII.5), and its signature may change when they are.
++- **Compiled code** has no `ask` (IX.2), so a program that asks `measure` is not built: it is refused, with status 1, before anything runs.
++
+ | Item | Implementation | Design | Evidence |
+ |---|---|---|---|
+-| Measurement as a Request: world input, kept, `=>`, a commit point | Absent | Ratified | — |
++| The group `Measure` in the prelude, answered by nothing; `ask measure()` refused at Root with status 70 | Built | Proposed (N1) | TestMeasure.test_the_prelude_declares_measure_and_nothing_answers_it, test_an_ask_of_measure_is_refused_at_root_with_status_70; the measure generator (XI.2) |
++| A rule that asks `measure`: `Measure` in its row, and lossy if it is a clause rule | Built | Ratified | TestMeasure.test_a_rule_that_measures_is_lossy_and_a_rule_that_draws_is_not; the same generator |
++| A program's own answer for `Measure`, a stand-in taking the request inside its `with` only | Built | Proposed (N2) | TestMeasure.test_a_stand_in_takes_the_request_inside_its_with_only; the same generator |
++| Measurement answered by a quantum backend: the outcome kept, a commit point | Absent | Ratified | — |
+ | Reset as lossy state preparation | Absent | Ratified | — |
+ 
+ ### VII.5 Three quantities
+@@ -1565,7 +1582,7 @@ Selvage's code is a tree, so a rule takes it apart one shape per clause; Io's co
+ | REPL | `selvage repl`: declarations, statements and expressions in one live scope, checked before they run | Built | Proposed | TestMaybe.test_repl |
+ | C23 backend | `selvage build`: clang `-std=c23 -O2`. Fixed-width integers, `Bit`, `Bool`, `Trit`, `F64`, text output, tuples, records, variants, arrays, both kinds of rule, `_inv` functions compiled forward from the derived inverse, the journal and `decide` | Partial | Proposed | TestC23Backend: output and ε identical to the interpreter |
+ | Tools | `selvage invert FILE NAME` prints a derived inverse; `selvage lineage FILE [NAME…] [--verify]` prints the chain to `ccnot` | Built | Proposed | TestInversion.test_lineage_reaches_ccnot_from_every_rule, test_inverse_passes_the_ordinary_checker_as_source |
+-| Reversible and quantum profiles | Certified rules on finite shapes lowered to gate circuits or reversible oracles (IX.4); `selvage circuit FILE RULE INPUT` lays one out | Partial (reversible); Absent (quantum) | Ratified | TestReversibleProfile; the circuits generator (XI.2) |
++| Reversible and quantum profiles | Certified rules on finite shapes lowered to gate circuits or reversible oracles (IX.4); `selvage circuit FILE RULE INPUT` lays one out | Partial (reversible); Absent (quantum), apart from the `Measure` group, which nothing answers (VII.4) | Ratified | TestReversibleProfile; the circuits generator (XI.2); TestMeasure |
+ 
+ ### IX.2 C23 coverage
+ 
+@@ -1603,7 +1620,7 @@ Selvage seeks to produce systems code competitive with C23 in speed, memory cont
+ |---|---|---|---|---|---|
+ | Classical | C23 on a CPU: native machine instructions | Not used; lineage only | Built | Ratified | TestC23Backend; benchmarks (IX.5) |
+ | Reversible | Certified finite-shape rules lowered to X, CNOT and CCNOT circuits, with explicit uncomputation | The primitive gate | Partial: rules over bits whose words are layout | Ratified | TestReversibleProfile; the circuits generator (XI.2); gate rules and realization checks in the prelude |
+-| Quantum | Certified finite-shape rules realized as reversible oracles; quantum-specific operations through a separate interface | A native or synthesized gate | Absent | Ratified | — |
++| Quantum | Certified finite-shape rules realized as reversible oracles; quantum-specific operations through a separate interface | A native or synthesized gate | Absent: only the request group `Measure`, which nothing answers (VII.4) | Ratified | TestMeasure; the measure generator (XI.2) |
+ 
+ **What is built of the reversible profile.** `selvage/circuit.py` lays out a certified clause rule as X, CNOT and CCNOT gates, and `selvage circuit FILE RULE INPUT` prints it.
+ - *Bits are wires; words are layout.* Every `Bit` of the input is a wire. Every word is known when the circuit is laid out, and the circuit holds for every input whose words have those values. It is a circuit for those words, not for the rule at every word. Index arithmetic and loop bounds are worked out at layout, with the interpreter's own arithmetic.
+@@ -1641,7 +1658,11 @@ Gate counts, counted from the laid-out circuits (they are not timings):
+ - A certified partial bijection extends to a permutation only when its domain and codomain are subsets of one finite ambient space whose complements have equal cardinality. A backend that needs this must specify the extension or the embedding it uses.
+ - "No garbage" is an obligation on the elaborated circuit: each explicit uncompute must actually return every scratch register to its initial state. It is a circuit-correctness obligation, not something a clause certificate guarantees by existing.
+ 
+-**Outside the kernel.** Superposition, phase operations, measurement and qubit management belong to a separately specified quantum realization interface. They are not part of Form, Rule or Request, and the three-mechanism kernel is unchanged. Measurement and reset are given their semantics in VII.4.
++**Outside the kernel.** Superposition, phase operations, measurement and qubit management belong to a separately specified quantum realization interface. They are not part of Form, Rule or Request, and the three-mechanism kernel is unchanged. Measurement and reset are given their semantics in VII.4. Of the interface, only the request group `Measure` is declared, and nothing answers it (VII.4).
++
++**Two limits a quantum profile must state,** because the classical language does not carry them over:
++- **The journal cannot keep a qubit.** Every loss in a classical run is kept by Root (VII.2), and that is what lets a lossy run be rewound. Keeping what a discard of a qubit drops, or the state a qubit had before it was measured, would be cloning an unknown quantum state, which no operation does. So `discard`, which journals what it drops, does not apply to qubits; a measurement keeps its classical outcome and nothing of the state before it; and rewinding past a measurement or a reset is impossible in principle. Replay reproduces the recorded outcome, not the amplitudes (VII.4).
++- **Births do not generalize.** A birth (VI.6) adds each bit the parent's tape shows into a fresh cell of the child, by a CNOT, and the reversible profile lays it out so. On basis states the child's cells are copies. On a parent in superposition the same gates entangle the child with the parent instead: no circuit gives an independent copy of an unknown quantum state. A birth is a valid reversible oracle; it is not a way to copy a quantum tape.
+ 
+ **Boundary.** A profile is a backend choice, not a dependency of every program. A classical backend never simulates a circuit because a transformation is reversible; it lowers the certified transformation to native instructions. The classical language remains classical unless a quantum realization is explicitly selected.
+ 
+@@ -1798,9 +1819,10 @@ The 0.3.2 findings are all one defect, an index that reads what its step changes
+ | Model | Rules the round-trip and structures generators write, where the checker certifies them | The model of XI.3, written out as a second evaluator that shares no code with the interpreter: the forward run, refusals included; `invert` as the model's table; `undo` as the model's inverse; every proved uncompute holding when it is reached | 600 programs: 275 certified rules; 2,750 forward and 2,750 inverse runs; 704 proved uncomputes reached | 0 |
+ | Tape | Tapes of 2 to 16 cells, random contents and heads; up to 40 draws, a birth in half of them, up to 10 draws from the child | A model of wiring 1 written from its description, sharing no code with the interpreter: every draw, the parent and the child after a birth, the child's draws; every draw and birth taken back restores the tape; a tick and its derived inverse | 600 tapes: 11,771 draws, 291 births, 12,062 taken back, 600 ticks undone | 0 |
+ | Circuits | Gate rules over bits from the extent generator; the prelude's `exchange`, `fanout` and `ripple_add` at widths 1 to 6; the CCNOT tape's three rules at 2 to 6 cells a tape and random heads | The interpreter, on every input of a gate rule and six random inputs of the others: a circuit gives what the interpreter gives and refuses where it refuses; run backward, it gives its input back; the derived inverse, laid out on its own, gives it back too | 600 of each: 10,816 runs, 14,311 gates laid out, 10,220 inverses laid out, 596 refused alike | 0 |
++| Measure | Procedures, one to four deep, that output, ask `measure`, call a clause rule that asks it, and call the next, some of it inside stand-in answers for `Measure` installed with `with`; each program also written with `<->` on the clause rule, and without `Measure` in the row of a rule that reaches it | An oracle that follows the calls: an ask the innermost stand-in takes gets that stand-in's reply, and one nothing takes ends the run at Root, after what was output before, with the reason a request nobody answers is given. The clause rule with `<->` is refused as world input, and a row without `Measure` is refused | 600 programs: 345 asks taken by stand-ins, 456 runs refused at Root and 144 completed; 361 wrong arrows and 544 missing rows refused | 0 |
+ | Declared types | At each of the sixteen sites where a value meets a declared type, a program that gives a `Trit` where a `Bool` is declared, under fresh names and beside a word, a `Bit` or a `Text`; and the same program with a `Bool` there. `set` to a literal on every word type and `F64`; a literal given as a rule's input and as its parameter; `set` on a `Trit` | That a `Bool` is a sub-shape of `Trit` and not the reverse: the program with a `Trit` refused with its reason and no failure of the toolchain, the program with a `Bool` accepted. A literal is of the declared type and is charged its width; `set` on a `Trit` is charged 2 bits whatever it replaces, and every run rewinds | 600 programs of each kind at all 16 sites: 600 refused, 600 accepted; 600 literals set, 1,130 literals given as words, 600 `Trit`s set; 2,400 rewinds | 0 |
+ 
+-**The mutation check.** Generated tests are only as good as their oracles, so `tools/mutation_check.py` breaks the toolchain one way at a time and runs the generator that should notice. Each of its 150 mutations undoes one piece of the behaviour above: an arrow accepted on the wrong class, an ambiguity resolved silently, `System` inferred from the word `decide`, a world reply not kept, an operator left unlabelled, a sealed request sent, `history` going straight to Root past its host, a copy given back through a kept record, a host keeping what it gives back, a run nesting past its bound or a bound off by one, a self tail call adding depth, answers for `Decide` consulted in the wrong order, an obligation of XI.3 removed, an uncompute proved in another pattern. Seven break inversion, five of them by changing a clause of the rule `mirror` in the prelude: an update or a discard read backward as itself, a counted loop keeping its direction, a loop body left unmirrored, a lossy clause mirrored as a certified one, which the checker itself refuses. Three break replay: a record for another question or another context taken as the answer, a record not used up. Five break the journal's identities: an entry taken back whatever code kept it, a clause chosen backward by its place, an entry kept under the rule's first clause, identities compared without the forms they name. Six break the identity of code: a call holding the name of the rule called, a rule's identity holding its own name, the members of a cycle told apart by name, a changed rule keeping its identity, exclusive clauses taken in the order written, rules sharing an identity unnoticed. Ten break what code refers to: a variable or a parameter identified by its name, a name bound again taken for the same variable, quoted code read as code, a message holding the name of its request, an instance or a type the name of its answer, a row the names of its groups, answers with the same code or requests with the same signature made one. Three break the scope rule: a name bound again where it is bound, a counter taking the name of a parameter or of the loop it is in, a counter taking a bound name in a body. Fourteen break accounting: a clause choice kept whatever the output shows, or counted among all the clauses, or taken back where none was kept; a variant charged for every constructor or sixteen bits; a `Trit` by the value it holds; a value still computable charged, or counted as computable after what it came from changed; a constructor ruled out wrongly, or not ruled out; compiled code charging a choice, a variant or a computable value the old way; a literal in a constructor keeping the type of a literal. Five break the extent report: a rule taken as onto because it takes every input, a refused input passed over, a division or a `was` against a constant taken as unable to refuse, fewer inputs than outputs not noticed. One cites Boolean logic as a theorem again. Nine break the forms: a constructor of `Code` missing from the prelude, a declaration losing its row or exchanging its types on the way to a value, a tuple left as the parser wrote it or its members reversed, `program()` giving the prelude as well, an answer's clauses reversed, a request group losing a request, a name given back against an expression that reads it. Sixteen break declared types: a `Trit` accepted where a `Bool` is declared, at each kind of site in turn and at all at once; a rule that reads backward into a `Bool` ending the check with a failure; `set` leaving a literal at a literal's width, or holding what it replaces in a `Trit` as a `Bool`; a literal keeping its width as a rule's input or parameter. Two break the charge for a `Text`, in each backend; one charges a decision by the answers asked; one gives a value taken back no type, so that compiled code cannot type what the two directions share. All 140 are noticed. Five of them break the CCNOT tape of VI.6: a CCNOT dropped, a CCNOT aimed two cells ahead, a head turned round, a draw observing before its tick, a child started with its head moved. Five break the reversible profile (IX.4): a CNOT laid out with its control and target exchanged, a copy sharing its wire, an uncompute laying out no gate, a constant 0 counted as 1, a loop laid out one pass short.
++**The mutation check.** Generated tests are only as good as their oracles, so `tools/mutation_check.py` breaks the toolchain one way at a time and runs the generator that should notice. Each of its 153 mutations undoes one piece of the behaviour above: an arrow accepted on the wrong class, an ambiguity resolved silently, `System` inferred from the word `decide`, a world reply not kept, an operator left unlabelled, a sealed request sent, `history` going straight to Root past its host, a copy given back through a kept record, a host keeping what it gives back, a run nesting past its bound or a bound off by one, a self tail call adding depth, answers for `Decide` consulted in the wrong order, an obligation of XI.3 removed, an uncompute proved in another pattern. Seven break inversion, five of them by changing a clause of the rule `mirror` in the prelude: an update or a discard read backward as itself, a counted loop keeping its direction, a loop body left unmirrored, a lossy clause mirrored as a certified one, which the checker itself refuses. Three break replay: a record for another question or another context taken as the answer, a record not used up. Five break the journal's identities: an entry taken back whatever code kept it, a clause chosen backward by its place, an entry kept under the rule's first clause, identities compared without the forms they name. Six break the identity of code: a call holding the name of the rule called, a rule's identity holding its own name, the members of a cycle told apart by name, a changed rule keeping its identity, exclusive clauses taken in the order written, rules sharing an identity unnoticed. Ten break what code refers to: a variable or a parameter identified by its name, a name bound again taken for the same variable, quoted code read as code, a message holding the name of its request, an instance or a type the name of its answer, a row the names of its groups, answers with the same code or requests with the same signature made one. Three break the scope rule: a name bound again where it is bound, a counter taking the name of a parameter or of the loop it is in, a counter taking a bound name in a body. Fourteen break accounting: a clause choice kept whatever the output shows, or counted among all the clauses, or taken back where none was kept; a variant charged for every constructor or sixteen bits; a `Trit` by the value it holds; a value still computable charged, or counted as computable after what it came from changed; a constructor ruled out wrongly, or not ruled out; compiled code charging a choice, a variant or a computable value the old way; a literal in a constructor keeping the type of a literal. Five break the extent report: a rule taken as onto because it takes every input, a refused input passed over, a division or a `was` against a constant taken as unable to refuse, fewer inputs than outputs not noticed. One cites Boolean logic as a theorem again. Nine break the forms: a constructor of `Code` missing from the prelude, a declaration losing its row or exchanging its types on the way to a value, a tuple left as the parser wrote it or its members reversed, `program()` giving the prelude as well, an answer's clauses reversed, a request group losing a request, a name given back against an expression that reads it. Sixteen break declared types: a `Trit` accepted where a `Bool` is declared, at each kind of site in turn and at all at once; a rule that reads backward into a `Bool` ending the check with a failure; `set` leaving a literal at a literal's width, or holding what it replaces in a `Trit` as a `Bool`; a literal keeping its width as a rule's input or parameter. Two break the charge for a `Text`, in each backend; one charges a decision by the answers asked; one gives a value taken back no type, so that compiled code cannot type what the two directions share. All 140 are noticed. Five of them break the CCNOT tape of VI.6: a CCNOT dropped, a CCNOT aimed two cells ahead, a head turned round, a draw observing before its tick, a child started with its head moved. Five break the reversible profile (IX.4): a CNOT laid out with its control and target exchanged, a copy sharing its wire, an uncompute laying out no gate, a constant 0 counted as 1, a loop laid out one pass short. Three break the `Measure` group of VII.4: Root answering it, a request nobody answers given 0, an `ask` in a clause rule taken as no world input.
+ 
+ A generator counts a refused program as a refusal its oracle may have expected, so each first requires the toolchain to accept its own prelude.
+ 
+@@ -1951,7 +1973,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9, with the corrections listed under XII.4, passes 194 tests. Every test source is in the notation of this description.
++Toolchain 0.4.9, with the corrections listed under XII.4, passes 199 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -1977,9 +1999,10 @@ Toolchain 0.4.9, with the corrections listed under XII.4, passes 194 tests. Ever
+ | TestBuiltValues | 2 | A literal inside a constructor taking the type its field declares; a copied instance sharing nothing with the original |
+ | TestCcnotTape | 8 | Moop's trace printed byte for byte, in the interpreter and compiled; draws and births taken back, and a draw the tape did not give refused; fewer than two cells refused; the three names not declared again, and no request for the tape; the tick realized by `ccnot`; extents as established, the birth not onto; on its domain, the tick a permutation and a draw and a birth one-to-one and not onto, over every state with 2 or 3 cells on each tape; outside it, every input refused in both backends |
+ | TestReversibleProfile | 6 | The tape's three rules laid out and their gate counts; one alignment of 8 and 13 cells as 208 CCNOTs, against 104 interpreted ticks; an ancilla given back at 0, and an embedding refusing what it does not give; rules that are not the tape (`ripple_add` on all 512 inputs at width 4, the gates of `examples/gates.selv`, a swap as a relabelling); what the profile refuses, with its reasons; `selvage circuit` |
++| TestMeasure | 4 | The group `Measure` in the prelude, answered by nothing, and its two names not declared again; `ask measure()` refused at Root with status 70, and not built in compiled code; a rule that asks lossy and one that draws certified; a program's stand-in taking the request inside its `with` only |
+ | TestSoundness | 10 | R4 for indices and parameters, under either arrow; sameness; instance unpacking; an uncompute proved only in the pattern that bound it; generated certified rules; the description check; a refused example checked for its reason; a generator requiring its prelude |
+ | TestSealAndWitness | 14 | The seal as a rule about places; `history` through `Witness`; Root's three groups kept apart; hosts deciding what inner code reads; an inquiry leaving the journal as it was; giving the copy back: what was transactional rewound, a kept record refusing it, a refused withdrawal leaving the answers further out as they stood, a host keeping nothing of it; a host in its installer's row; the one request passed outward; instance states typed; commit points in the row; layout as the only lineage exemption |
+-| TestGenerated04 | 22 | The twenty-one generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
++| TestGenerated04 | 23 | The twenty-two generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
+ 
+ ### XI.5 What the suite does not yet cover
+ 
+@@ -2412,6 +2435,7 @@ Built after 0.4.9, as corrections and the audit rulings (the version number is t
+ - **The CCNOT tape in the prelude** (VI.6): the record `CcnotTape` and the rules `tape_tick`, `draw` and `birth`, pinned to a trace of moop's implementation in both backends, with the tape generator and five mutations.
+ - **The CCNOT tape's domain stated** (VI.6): the domain D, each rule's extent on it with a proof, and every input outside it refused in both backends.
+ - **The reversible profile, in part** (IX.4): certified rules over bits, their words laid out, lowered to X, CNOT and CCNOT and checked by simulation; `selvage circuit`; the circuits generator and five mutations. The CCNOT tape is its first program.
++- **The request group `Measure`** (VII.4): declared in the prelude and answered by nothing, so an `ask measure()` is refused at Root with status 70; the two limits a quantum profile must state (IX.4); the measure generator and three mutations.
+ 
+ Ratified and next:
+ - **Typed encode and decode** (K5): for each serializable form type, tests that decoding an encoding gives the value, that encoding a decoding gives the canonical encoding, that an invalid encoding is refused, that the distinctions of identity are kept, and that the interpreter and compiled code agree.
+@@ -2429,7 +2453,7 @@ After these:
+ 7. **The RME-7 prelude** and its conformance suite; seals for roles and units; evidence binding (G5).
+ 8. **Concurrency,** after its scheduling, message-ordering and replay semantics are specified.
+ 9. **The reversible profile:** lowering certified finite-shape rules to X, CNOT and CCNOT circuits, with a check that every uncompute restores its scratch registers; the partial-bijection embedding. Built in part (IX.4): rules over bits whose words are layout, with that check. What remains: conditions and clause choices on bits (controlled blocks), word arithmetic as adder circuits, the extension of a partial bijection to a permutation (IX.4), and a backend that runs the circuits.
+-10. **The quantum realization interface:** qubit management, superposition and phase operations, a measurement backend, reset.
++10. **The quantum realization interface:** qubit management, superposition and phase operations, a measurement backend, reset. The request group `Measure` is declared, and nothing answers it (VII.4).
+ 11. **Notation and the derived printer.**
+ 
+ ### XII.5 Open questions
+@@ -2440,7 +2464,7 @@ After these:
+ 4. **κ admission for `install`:** who holds a slot's policy, and what it may inspect.
+ 5. **Concurrency without a foundational scheduler.** Actors can be built from Request, but deterministic replay of a concurrent run needs a precise account of scheduling, message ordering and external input; actor composition does not by itself make concurrency reversible.
+ 6. **Unsafe operations.** How an explicit unsafe boundary interacts with certification and the journal.
+-7. **The quantum realization interface.** Qubit management, phase operations, superposition, the measurement backend and the reset implementation are Absent, and their interface is Open.
++7. **The quantum realization interface.** Qubit management, phase operations, superposition, the measurement backend and the reset implementation are Absent, and their interface is Open. Only the request group `Measure` is declared, answered by nothing; what `measure` measures is part of the open interface (N3).
+ 8. **Modules.** A program is one file. A seal other than Root's needs a place that holds it, which is a module. Type parameters are set aside until the boundaries of the existing language are settled (P7).
+ 9. **What an answer that takes `refuse` may reply.** Recording a refusal is built: what ran inside is aborted, and it must compute `()`. Substituting a result, so that the refused computation goes on, needs a rule for when the class of the rule that refused is unchanged.
+ 10. **Whether `Object` should own a request.** As ruled it has no clause and delegates everything to Root.
+@@ -2475,6 +2499,14 @@ Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G7 bet
+ | C4 | The names `CcnotTape`, `tape_tick`, `draw` and `birth`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names; before C5, also a request group `Draw` and a record `Tapes` |
+ | C5 | `draw` and `birth` are prelude rules over the tape, with no request group, so that no program can stand in for the tape's draw: a prelude rule's name cannot be declared again. The reservation is of the rule names only; a program's own request may share the word | VI.6 | An answer `CcnotTape` for a request group `Draw`, which any program could answer as well; or that answer with a new kind of seal letting anyone send the group's requests and only the prelude answer them: a new declaration and a new case of R5, and draws left to the interpreter until answers compile. A namespace shared by rules and requests, to close the residual word, is a separate question |
+ 
++Taken in declaring the request group `Measure` (VII.4), the merge plan's Phase 7 between moop and Selvage. It carries out Q3 as far as it can go with no quantum backend:
++
++| # | Decision | Where | The alternative |
++|---|---|---|---|
++| N1 | The group `Measure`, with the one request `measure() returns Bit`, is declared in the prelude, and nothing answers it: an `ask` reaches Root and is refused. Its two names are the prelude's | VII.4 | The group in an example, reserving no names but giving no signature that every program shares and a profile could answer; or no declaration until a backend exists |
++| N2 | `Measure` is not sealed: a program may install an answer of its own, a stand-in, as it may for `Refusal` and `Witness` | VII.4 | Sealed to Root, which under R5 would forbid programs to ask it as well; or a new kind of seal that lets anyone ask and only the system answer: a new declaration and a new case of R5, the alternative C5 also declined |
++| N3 | `measure` takes no argument. What is measured is left to the quantum interface, and the signature may change with it | VII.4, XII.5 | An argument naming a qubit, such as an index: a way of naming qubits before there is any qubit management |
++
+ Taken in entering T1 to T4, and while building 0.4.9. T5 and Q13 were recommended for ratification in review, T5 with the qualification that its proof show the entries of the runs sharing a result to be uniquely decodable:
+ 
+ | # | Decision | Where | The alternative |
+diff --git a/selvage/prelude.selv b/selvage/prelude.selv
+index 8678a48..64138b7 100644
+--- a/selvage/prelude.selv
++++ b/selvage/prelude.selv
+@@ -293,3 +293,11 @@ rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+         repeat with k from 0 to length(cb) - 1
+             s is tape_tick(s)
+             add s.a[s.i] to cb[k]
++
++# ---- measurement --------------------------------------------------------------------------------
++# A request to the quantum world for the outcome of a measurement (VII.4).  No backend answers it,
++# and neither does Root, so `ask measure()` is refused, ending the run with status 70; a quantum
++# profile would install the answer.  It is not `draw`: a draw is a certified rule over a tape the
++# program holds, and a measurement's outcome is world input.
++request Measure
++    measure() returns Bit
+diff --git a/tests/generated_04.py b/tests/generated_04.py
+index f680890..32809fc 100644
+--- a/tests/generated_04.py
++++ b/tests/generated_04.py
+@@ -3230,10 +3230,167 @@ def circuits(programs=200, seed=1):
+     return stats, findings
+ 
+ 
++# ---- the Measure group: declared in the prelude, answered by nothing ---------------------------
++class MeasureProgram:
++    """Procedures main = p0, p1, ... that output markers, ask `measure`, call a lossy clause rule
++    that asks it, and call the next procedure, some of it inside a stand-in answer installed with
++    `with`.  The oracle knows nothing of the toolchain: an ask the innermost stand-in takes gets that
++    stand-in's reply; one nothing takes reaches Root and ends the run."""
++
++    def __init__(self, rng):
++        self.r = rng
++        self.stand = [(rng.randint(0, 3), rng.randint(0, 1)) for _ in range(rng.randint(0, 2))]
++        self.look = rng.random() < 0.6
++        self.levels = rng.randint(1, 4)
++        self.body = [self.steps(i) for i in range(self.levels)]
++
++    def steps(self, i):
++        kinds = ['ask', 'out'] + (['look'] if self.look else [])
++        if self.stand and self.look:
++            kinds.append('lookwith')
++        out = [('out', 100 + i)]
++        for _ in range(self.r.randint(1, 4)):
++            k = self.r.choice(kinds + (['call', 'call'] if i + 1 < self.levels else []))
++            if k == 'out':
++                out.append(('out', self.r.randint(2, 99)))
++            elif k in ('call', 'lookwith'):
++                within = (self.r.randrange(len(self.stand)), self.r.randint(0, 5)) if self.stand and (
++                    k == 'lookwith' or self.r.random() < 0.5) else None
++                out.append((k, within))
++            else:
++                out.append((k,))
++        return out
++
++    def rows(self):
++        """Measure where an ask leaves the rule; System where a lossy rule is called."""
++        need = [None] * self.levels
++        for i in reversed(range(self.levels)):
++            m = s = False
++            for st in self.body[i]:
++                if st[0] in ('ask', 'look'):
++                    m = True
++                if st[0] in ('look', 'lookwith'):
++                    s = True
++                if st[0] == 'call':
++                    m = m or (need[i + 1][0] and st[1] is None)
++                    s = s or need[i + 1][1]
++            need[i] = (m, s)
++        return need
++
++    def text(self, drop=None, arrow='=>'):
++        lines = []
++        for x, (c, d) in enumerate(self.stand):
++            lines += [f'answer S{x} for Measure takes I64', '    (measure(), n) <-> (b, n) where',
++                      f'        b is Bit(({c} * n + {d}) mod 2)', '        add 1 to n', '']
++        if self.look:
++            lines += ['rule look takes I64 returns (I64, Bit) uses Measure', f'    x {arrow} (x, b) where',
++                      '        b is ask measure()', '']
++        need = self.rows()
++        for i in range(self.levels):
++            row = ['Output'] + (['Measure'] if need[i][0] and drop != i else []) + (['System'] if need[i][1] else [])
++            lines.append(f'rule {"main" if i == 0 else f"p{i}"} uses {", ".join(row)}')
++            for u, st in enumerate(self.body[i]):
++                if st[0] == 'out':
++                    lines.append(f'    output {st[1]}')
++                elif st[0] == 'ask':
++                    lines += [f'    x{u} is ask measure()', f'    output x{u}']
++                elif st[0] == 'look':
++                    lines += [f'    (y{u}, b{u}) is look({u})', f'    output b{u}']
++                elif st[0] == 'lookwith':
++                    x, n = st[1]
++                    lines += [f'    ((y{u}, b{u}), s{u}) is look({u}) with S{x} from {n}', f'    output b{u}', f'    output s{u}']
++                elif st[1] is None:
++                    lines.append(f'    p{i + 1}()')
++                else:
++                    x, n = st[1]
++                    lines += [f'    (v{u}, s{u}) is p{i + 1}() with S{x} from {n}', f'    output s{u}']
++            lines.append('')
++        return '\n'.join(lines)
++
++    def run(self, i, stack, out):
++        def reply():
++            if not stack:
++                raise Stop('root')
++            x, n = stack[-1]
++            c, d = self.stand[x]
++            stack[-1] = (x, n + 1)
++            return (c * n + d) % 2
++        for st in self.body[i]:
++            if st[0] == 'out':
++                out.append(str(st[1]))
++            elif st[0] in ('ask', 'look'):
++                out.append(str(reply()))
++            elif st[0] == 'lookwith' or st[1] is not None:
++                stack.append(st[1])
++                if st[0] == 'lookwith':
++                    out.append(str(reply()))
++                else:
++                    self.run(i + 1, stack, out)
++                x, n = stack.pop()
++                out.append(f'S{x} from {n}')
++            else:
++                self.run(i + 1, stack, out)
++
++
++def measure(programs=200, seed=1):
++    """`ask measure()` through procedures, a lossy clause rule and stand-in answers.  The run must
++    print what the oracle prints and end where it ends: an ask nothing installed takes is refused at
++    Root, with the reason the interpreter gives for a request nobody answers.  A clause rule that
++    asks is lossy, so `<->` on it is refused; a rule whose ask leaves it without `Measure` in its
++    row is refused."""
++    rng = random.Random(seed)
++    stats = {'programs run': 0, 'asks taken': 0, 'refused at the root': 0, 'completed': 0,
++             'wrong arrows refused': 0, 'missing rows refused': 0}
++    findings = []
++    for _ in range(programs):
++        p = MeasureProgram(rng)
++        src = p.text()
++        stats['programs run'] += 1
++        why = refusal(src)
++        if why is not None:
++            findings.append(('a program that asks measure was refused by the checker', src, why))
++            continue
++        if p.look:
++            why = refusal(p.text(arrow='<->'))
++            if why is None or 'it asks outside itself, so its reply is world input' not in why:
++                findings.append(('a clause rule that asks measure accepted as certified', src, why))
++            else:
++                stats['wrong arrows refused'] += 1
++        need = p.rows()
++        asking = [i for i in range(p.levels) if need[i][0]]
++        if asking:
++            i = rng.choice(asking)
++            why = refusal(p.text(drop=i))
++            if why is None or 'Measure' not in why:
++                findings.append(('a rule that reaches measure accepted without Measure in its row', src, why))
++            else:
++                stats['missing rows refused'] += 1
++        want, ended = [], None
++        try:
++            p.run(0, [], want)
++        except Stop:
++            ended = 'root'
++        text = io.StringIO()
++        it = Interp(load(src)[0], text)
++        fault = None
++        try:
++            it.run_main()
++        except Fault as e:
++            fault = str(e)
++        got = text.getvalue().splitlines()
++        stats['refused at the root' if ended else 'completed'] += 1
++        stats['asks taken'] += sum(1 for w in want if w in ('0', '1'))
++        if (fault is None) != (ended is None) or (ended and 'no answer for request measure' not in fault):
++            findings.append(('how a run that asks measure ended', src, f'oracle {ended}, run {fault}'))
++        elif got != want:
++            findings.append(('what a run that asks measure prints', src, f'{got}\noracle {want}'))
++    return stats, findings
++
++
+ PARTS = [('arrows', arrows), ('delegation', delegation), ('rows', rows), ('between runs', between_runs),
+          ('operators', operators), ('any', any_type), ('refusal', refusals), ('seal', seal), ('witness', witness), ('depth', depth), ('structures', structures), ('decisions', decisions),
+          ('journal', journal), ('names', names), ('accounting', accounting), ('extent', extents), ('forms', forms), ('model', model),
+-         ('declared', declared), ('tape', tape), ('circuits', circuits)]
++         ('declared', declared), ('tape', tape), ('circuits', circuits), ('measure', measure)]
+ 
+ 
+ def guarded(part):
+diff --git a/tests/test_selvage.py b/tests/test_selvage.py
+index 8521be1..877f4a2 100644
+--- a/tests/test_selvage.py
++++ b/tests/test_selvage.py
+@@ -2490,6 +2490,73 @@ class TestReversibleProfile(unittest.TestCase):
+         self.assertIn('not lowered: orbit has no bit on a wire', r.stdout)
+ 
+ 
++class TestMeasure(unittest.TestCase):
++    """The quantum interface as far as it goes (VII.4): the request group `Measure`, declared in the
++    prelude and answered by nothing.  An `ask measure()` is refused at Root, status 70, until a
++    quantum profile installs the answer.  No quantum type exists."""
++    ASK = 'rule probe returns Bit uses Measure\n    ask measure()\n'
++    STAND = ('answer Stand for Measure takes I64\n    (measure(), n) <-> (b, n) where\n'
++             '        b is Bit(n mod 2)\n        add 1 to n\n')
++
++    @staticmethod
++    def refusal(text):
++        try:
++            load(text)
++            return None
++        except CheckError as e:
++            return str(e)
++
++    def test_the_prelude_declares_measure_and_nothing_answers_it(self):
++        m = load('')[0]
++        self.assertEqual(list(m.requests['Measure']), ['measure'])
++        self.assertEqual([n for n, a in m.answers.items() if 'Measure' in a.groups], [])
++        self.assertNotIn('measure', m.answers['Root'].native)
++        # both names are the prelude's; a program's own rule may still be called measure, as for draw
++        self.assertIn('request group Measure is declared twice', self.refusal('request Measure\n    look() returns Bit\n'))
++        self.assertIn('request measure is declared twice',
++                      self.refusal('request Gauge\n    measure(x: I64) returns I64\n'))
++        out, _ = run_interp('rule measure(x: I64) returns I64\n    x + 1\nrule main uses Output\n    output measure(2)\n')
++        self.assertEqual(out.strip(), '3')
++
++    def test_an_ask_of_measure_is_refused_at_root_with_status_70(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            path = os.path.join(tmp, 'measure.selv')
++            with open(path, 'w') as f:
++                f.write(self.ASK + 'rule main uses Output, Measure\n    output 1\n    output probe()\n    output 2\n')
++            self.assertEqual(cli('check', path).returncode, 0)    # the program is valid; it is refused when it runs
++            r = cli('run', path)
++            self.assertEqual(r.returncode, 70, r.stderr)
++            self.assertEqual(r.stdout, '1\n')
++            self.assertIn('no answer for request measure', r.stderr)
++            # compiled code has no `ask` (IX.2): the program is not built, so nothing runs
++            r = cli('emit-c', path)
++            self.assertEqual(r.returncode, 1)
++            self.assertIn('stays in the interpreter', r.stderr)
++
++    def test_a_rule_that_measures_is_lossy_and_a_rule_that_draws_is_not(self):
++        # a rule's class is fixed statically: an ask's reply is world input, a draw is a certified rule
++        asks = 'rule look takes I64 returns (I64, Bit) uses Measure\n    x {} (x, b) where\n        b is ask measure()\n'
++        self.assertIn('it asks outside itself, so its reply is world input', self.refusal(asks.format('<->')))
++        self.assertIsNone(self.refusal(asks.format('=>')))
++        self.assertEqual(load(asks.format('=>'))[0].rules['look'].cls, 'lossy')
++        draws = 'rule look takes CcnotTape returns (Bit, CcnotTape)\n    t {} (b, t) where\n        (b, t) is draw(t)\n'
++        self.assertIsNone(self.refusal(draws.format('<->')))
++        self.assertIn('a certified rule writes `<->`', self.refusal(draws.format('=>')))
++        # the row says where a rule reaches measure
++        self.assertIn('declare `uses Measure`', self.refusal('rule probe returns Bit\n    ask measure()\n'))
++
++    def test_a_stand_in_takes_the_request_inside_its_with_only(self):
++        # an answer a program installs is its own stand-in, not a measurement; outside it, Root refuses
++        prog = (self.STAND + self.ASK + 'rule main uses Output, Measure\n'
++                '    (b, s) is probe() with Stand from 3\n    output b\n    output s\n    output probe()\n')
++        m = load(prog)[0]
++        out = io.StringIO()
++        with self.assertRaises(Fault) as e:
++            Interp(m, out).run_main()
++        self.assertEqual(out.getvalue(), '1\nStand from 4\n')
++        self.assertIn('no answer for request measure', str(e.exception))
++
++
+ class TestSealAndWitness(unittest.TestCase):
+     """P3: retention is sealed to Root, disclosure goes through Witness, and a host mediates."""
+ 
+@@ -2772,6 +2839,10 @@ class TestGenerated04(unittest.TestCase):
+     def test_the_ccnot_tape_agrees_with_a_model_of_wiring_1(self):
+         self.part('tape', 150, tapes=150, draws=2000, births=50, taken_back=2000, ticks_undone=150)
+ 
++    def test_an_ask_of_measure_is_taken_by_a_stand_in_or_refused_at_root(self):
++        self.part('measure', 150, programs_run=150, asks_taken=60, refused_at_the_root=60, completed=20,
++                  wrong_arrows_refused=60, missing_rows_refused=100)
++
+     def test_how_far_a_certified_rule_reaches(self):
+         self.part('extent', 150, gate_rules=90, permutations=15, embeddings=15, partial_inverses=4, partial=6,
+                   word_rules=40, claims_tried=250, answers=130)
+diff --git a/tools/mutation_check.py b/tools/mutation_check.py
+index 320ff33..dd749c0 100644
+--- a/tools/mutation_check.py
++++ b/tools/mutation_check.py
+@@ -144,6 +144,13 @@ MUTATIONS = [
+  ('circuit: a loop laid out one pass short', 'circuit.py',
+   "            seq = range(a.v, b.v + 1) if tag == 'RepeatWith' else range(a.v, b.v - 1, -1)",
+   "            seq = range(a.v, b.v) if tag == 'RepeatWith' else range(a.v, b.v - 1, -1)", 'circuits'),
++ ('measure: Root answers measure', 'prelude.selv',
++  "answer Root for System, Witness, Refusal takes Journal\n    (keep(e), j) <-> ((), Kept(e, j))\n    (history(), j) <-> (h, j) where\n        h is j\n\n# The user-facing root.  It holds a Root and delegates every request to it, so its\n# reversibility is Root's.  Every run starts inside an Object: a request that no\n# installed answer takes reaches it.\nanswer Object for System, Witness, Refusal takes Root",
++  "answer Root for System, Witness, Refusal, Measure takes Journal\n    (measure(), j) <-> (0, j)\n    (keep(e), j) <-> ((), Kept(e, j))\n    (history(), j) <-> (h, j) where\n        h is j\n\n# The user-facing root.  It holds a Root and delegates every request to it, so its\n# reversibility is Root's.  Every run starts inside an Object: a request that no\n# installed answer takes reaches it.\nanswer Object for System, Witness, Refusal, Measure takes Root", 'measure'),
++ ('measure: a request nobody answers is given 0', 'interp.py',
++  "        raise Fault(f'line {line}: no answer for request {op}')", "        return Word(0, 'Bit')", 'measure'),
++ ('measure: an ask is not world input', 'checker.py',
++  "                    reasons.append('it asks outside itself, so its reply is world input')", "                    pass", 'measure'),
+  ('tape: one of the two CCNOTs is dropped', 'prelude.selv',
+   "        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]\n", "", 'tape'),
+  ('tape: the CCNOT on tape a targets two cells ahead', 'prelude.selv',
