@@ -694,7 +694,7 @@ Not touched:
 |---|---|
 | 0008 applied to a fresh archive after 0001, 0003, 0004, 0005, 0006 and 0007 | Applies; reproduces the work copy (`c0eed29`) byte for byte; differs from the 0007 tree in `SPEC.md` alone |
 | Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused (unchanged) |
-| Full suite on that tree | Running; not yet recorded |
+| Full suite on that tree | 199 / 199 pass (284 s); after the run the tree is still byte-identical to the work copy (clean at `c0eed29`) |
 | Mutation check | Not re-run. Neither the mutation tool nor any generator reads `SPEC.md`, so 0006's result (153 / 153) stands |
 
 ## 10. The record
@@ -706,6 +706,7 @@ Not touched:
 | A1 | `repeat while` retained; `0002` not adopted |
 | Phases 0, 3, 5 and 6 | Complete |
 | Phase 7 | Complete. `0007`, a description-only follow-up, validated: 199 / 199 |
+| `0008` | The ratification, description only, validated: 199 / 199 |
 | Phase 4 | Not needed for the tape (G7) |
 | Phases 1 and 2 | Built as `0001`; A1 as above |
 | Further quantum work | Gated by actual quantum-state and backend support, not by the `Measure` request |
