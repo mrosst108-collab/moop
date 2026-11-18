@@ -51,8 +51,10 @@ bool moop_eval(const MoopAst *ast, MoopValue *out, bool *quiet,
  * inline body (root IS node with right == -1); `bodies` are the block's
  * lines, one parsed chain each. Takes ownership of `bodies` in every
  * outcome. Teaching designators store the sequence; name designators
- * evaluate it now and bind the last value. Definitions are quiet. */
+ * evaluate it now and bind the last value. Definitions are quiet.
+ * On failure *at is the index of the body line that failed, or nbodies
+ * when the failure is the head's (at may be NULL). */
 bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
-                     char *err, size_t errlen);
+                     size_t *at, char *err, size_t errlen);
 
 #endif

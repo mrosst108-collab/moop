@@ -410,10 +410,12 @@ bool moop_eval(const MoopAst *ast, MoopValue *out, bool *quiet,
 }
 
 bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
-                     char *err, size_t errlen)
+                     size_t *at, char *err, size_t errlen)
 {
     const MoopNode *root = &head->nodes[head->root];
     const MoopNode *lhs = &head->nodes[root->left];
+    if (at != NULL)
+        *at = nbodies; /* the head's, unless a body line fails below */
 
     if (lhs->kind == MOOP_NODE_SEND) {
         MoopValue recv;
@@ -434,6 +436,8 @@ bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
     MoopValue value = { .kind = MOOP_VAL_BOOL, .truth = false };
     for (size_t i = 0; i < nbodies; i++) {
         if (!eval_node(bodies[i], bodies[i]->root, &value, err, errlen)) {
+            if (at != NULL)
+                *at = i;
             free_bodies(bodies, nbodies);
             return false;
         }

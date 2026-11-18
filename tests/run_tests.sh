@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.6.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.7.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -71,5 +71,50 @@ check "oversized values are refused, not truncated" "error: an 8-cell loop carri
 check "number-number bijection is honestly absent" "error: a bijection relates a value and a body, or two bodies" "$(printf '1 <-> 2\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unknown names are reported" "error: unknown name 'ghost'" "$(printf 'ghost\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unhosted messages are reported" "error: nothing in the lineage hosts \"dance\"" "$(printf 'world -> dance\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+
+# running files: a file is a session without the banner and the prompts
+P=tests/programs
+check "a file prints the value of each statement that is not a definition" "$(cat $P/lineage.out)" "$("$BIN" $P/lineage.moop 2>&1)"
+check "a file that runs exits 0" "0" "$("$BIN" $P/lineage.moop >/dev/null 2>&1; echo $?)"
+repl=$({ cat $P/pets.moop; echo quit; } | "$BIN" 2>&1 | sed -e '1,2d' -e 's/moop> //g' -e 's/\.\.\.\.> //g' -e '/^$/d')
+check "the same lines give the same values in a file and in the repl" "$repl" "$("$BIN" $P/pets.moop 2>&1)"
+check "a file run twice gives the same values" "$("$BIN" $P/pets.moop 2>&1)" "$("$BIN" $P/pets.moop 2>&1)"
+check "a file prints no banner and no prompt" "0" "$("$BIN" $P/pets.moop 2>&1 | grep -c -e 'moop' -e '> ')"
+
+# a file stops at its first error, names the line, and exits 1
+check "an error names the file and the line" "$P/stops.moop:3: error: unknown name 'ghost'" "$("$BIN" $P/stops.moop 2>&1 >/dev/null)"
+check "nothing runs after the first error" "1" "$("$BIN" $P/stops.moop 2>/dev/null)"
+check "a file with an error exits 1" "1" "$("$BIN" $P/stops.moop >/dev/null 2>&1 && echo 0 || echo $?)"
+check "an error inside a block names the body line" "$P/block_error.moop:4: error: unknown name 'ghost'" "$("$BIN" $P/block_error.moop 2>&1)"
+check "an indented line under no open block is refused" "$P/gap.moop:5: error: an indented line belongs to a block, and none is open" "$("$BIN" $P/gap.moop 2>&1)"
+check "the repl refuses it too" "error: an indented line belongs to a block, and none is open" "$(printf '  world\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+
+# files made here, for bytes a text file should not be asked to hold
+T=build/files
+rm -rf $T && mkdir -p $T
+printf '' > $T/empty.moop
+check "an empty file runs and prints nothing" "0:" "$("$BIN" $T/empty.moop 2>&1; echo "$?:")"
+printf 'treasure is\n    a world\n    7' > $T/open.moop
+printf 'treasure is\n    a world\n    7\n\ntreasure' > $T/noeol.moop
+check "the end of the file closes a block" "0" "$("$BIN" $T/open.moop >/dev/null 2>&1; echo $?)"
+check "a last line needs no newline" "7" "$("$BIN" $T/noeol.moop 2>&1)"
+printf 'x is 5\r\nx\r\n' > $T/crlf.moop
+check "CRLF line endings are line endings" "5" "$("$BIN" $T/crlf.moop 2>&1)"
+printf 'x is 5\nx\rx\n' > $T/cr.moop
+check "a carriage return inside a line is not" "$T/cr.moop:2: error: unexpected byte 0x0D" "$("$BIN" $T/cr.moop 2>&1)"
+printf 'x is 5\nx\000ghost\nx\n' > $T/nul.moop
+check "a line holding a NUL byte is refused whole" "$T/nul.moop:2: error: a NUL byte in the line" "$("$BIN" $T/nul.moop 2>&1)"
+printf 'x is 5\nx%01100d\nx\n' 0 > $T/long.moop
+check "a line too long is refused, never split" "$T/long.moop:2: error: line too long" "$("$BIN" $T/long.moop 2>&1)"
+check "the repl refuses it too, and goes on" "5" "$({ cat $T/long.moop; echo quit; } | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
+printf 'quit\n' > $T/quit.moop
+check "quit is the repl's command, not a word of the language" "$T/quit.moop:1: error: unknown name 'quit'" "$("$BIN" $T/quit.moop 2>&1)"
+check "a missing file is reported" "1" "$("$BIN" $T/none.moop 2>&1 | grep -c "^error: cannot open $T/none.moop: ")"
+check "a missing file exits 1" "1" "$("$BIN" $T/none.moop >/dev/null 2>&1 && echo 0 || echo $?)"
+check "a directory is not run as an empty file" "1" "$("$BIN" $T 2>&1 | grep -c "^error: cannot read $T: ")"
+check "a directory exits 1" "1" "$("$BIN" $T >/dev/null 2>&1 && echo 0 || echo $?)"
+check "moop runs one file" "error: moop runs one file" "$("$BIN" $P/lineage.moop $P/lineage.moop 2>&1)"
+check "an unknown option is reported" "error: unknown option --help" "$("$BIN" --help 2>&1)"
+check "bytes that do not print are named by code" "error: unexpected byte 0xC3" "$(printf 'x \303\251\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
 exit $fail

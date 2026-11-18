@@ -56,6 +56,7 @@ make          # build the interpreter to build/moop
 make test     # build, then run tests/run_tests.sh against build/moop
 make clean    # remove build/
 ./build/moop            # start the REPL ("quit" exits)
+./build/moop FILE       # run a file: a session without banner or prompts; stops at the first error (exit 1)
 ./build/moop --version  # print version
 ```
 
@@ -64,7 +65,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 ## Toolchain notes
 
 - The Makefile probes the compiler and uses `-std=c23` when supported, falling back to `-std=c2x` (GCC 13, the compiler in this environment, only knows `c2x`). Both mean C23; write C23 code.
-- Tests come in two layers, both run by `make test`: `tests/test_core.c` (C unit tests linked against everything in `src/` except `main.c`, built to `build/test_core`) and `tests/run_tests.sh` (POSIX-sh smoke tests against the binaries, using the `check` expected-vs-actual helper). Add C tests for core semantics, `check` lines for CLI behavior. `test_core` reads `tests/tape_vectors.txt` by relative path, so it runs from the repository root (as `make test` does).
+- Tests come in two layers, both run by `make test`: `tests/test_core.c` (C unit tests linked against everything in `src/` except `main.c`, built to `build/test_core`) and `tests/run_tests.sh` (POSIX-sh smoke tests against the binaries, using the `check` expected-vs-actual helper). Add C tests for core semantics, `check` lines for CLI behavior, and programs under `tests/programs/` (run as files; `NAME.out` holds the expected output where it does not depend on the wiring) for behavior best shown by a whole program. `test_core` reads `tests/tape_vectors.txt` by relative path, so it runs from the repository root (as `make test` does).
 
 ## Structure and state
 
@@ -73,11 +74,11 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
 - `docs/comparisons/` — comparisons with sibling languages, each import put through the deletion test (`selvage.md`: Selvage 0.4.9; `merge.md`: system-facing reversibility and a moop/Selvage merge, an exploration with its Selvage test programs in `experiments/`; `merge-plan.md`: the phased plan — decided: moop stays a separate language and is the reference model for Selvage's `CcnotTape`; moop's part, pinning wiring 1 to a shared trace, is done).
-- `tests/` — see the test layers above; `tests/tape_vectors.txt` is the shared wiring-1 trace.
+- `tests/` — see the test layers above; `tests/tape_vectors.txt` is the shared wiring-1 trace; `tests/programs/` holds moop programs run as files.
 
 ## Surface syntax and the interpreter pipeline
 
-The pipeline is lex (`src/lexer.{h,c}`) → parse (`src/parser.{h,c}`) → eval (`src/eval.{h,c}`), driven line-by-line by the REPL in `src/main.c`. One grammar rule: `statement := chain ["is" [chain]]`, `chain := [term] (op term)*`, `term := ("a"|"an") term | WORD | NUMBER`, left-associative — `p ask q ask r` is a pipeline. A trailing `is` opens an indented block (pythonic whitespace): one chain per line, blank line closes, the body is a sequence whose last value answers; indentation is handled by the reader, never the parser.
+The pipeline is lex (`src/lexer.{h,c}`) → parse (`src/parser.{h,c}`) → eval (`src/eval.{h,c}`), driven line-by-line by the reader in `src/main.c`, which serves the REPL and a file alike (a file is a session without the banner and the prompts; it stops at its first error, named `FILE:LINE`, with exit status 1; `quit` is the REPL's command, not a word of the language). One grammar rule: `statement := chain ["is" [chain]]`, `chain := [term] (op term)*`, `term := ("a"|"an") term | WORD | NUMBER`, left-associative — `p ask q ask r` is a pipeline. A trailing `is` opens an indented block (pythonic whitespace): one chain per line, blank line closes, the body is a sequence whose last value answers; indentation is handled by the reader, never the parser. The reader refuses rather than guesses: an indented line under no open block, a line too long, a NUL byte and unreadable input are errors, never run as something else.
 
 Four relational operators. **Words are canonical** (Quorum-like vocabulary; naturalism), arrows are exact lexer-level aliases of the same tokens: `ask` = `->`, `inherits` = `<-`, `mirrors` = `<->`; the words are reserved. The arrow shapes mirror the two-layer model — one-way arrows are irreversible (user layer), the two-way arrow is information-preserving and compiles to the gate layer. Each has exactly one job:
 
@@ -93,6 +94,6 @@ Four relational operators. **Words are canonical** (Quorum-like vocabulary; natu
 
 At startup the evaluator builds the world as the model prescribes: static actor → system root → user-facing root proto, bound to the name `world`. Values are numbers, booleans, and proto references. `<->` lexes before `<-` (longest match); stray characters are lex errors, never guessed at.
 
-Current state: core, gates, logic, RAM, actors, protos, encoding, lexer, parser, and an evaluator with user-defined messages (single-line and indented-block bodies) and gate-backed bijections are implemented and tested — moop is a working prototype-based OOP language (article births, teaching, delegation, override, implicit receiver, late binding, word vocabulary, whitespace blocks) whose `mirrors` compiles to real gates. Interpreter bodies use 8/13-cell loops (values 0..255). Not implemented (and honestly erroring): number↔number bijections (definable invertible functions), running files, reflection (reading taught chains back as values), nested definitions inside blocks. The REPL deliberately reports what it cannot do rather than pretending — keep that honesty: never stub behavior in a way that silently looks functional.
+Current state: core, gates, logic, RAM, actors, protos, encoding, lexer, parser, and an evaluator with user-defined messages (single-line and indented-block bodies) and gate-backed bijections are implemented and tested — moop is a working prototype-based OOP language (article births, teaching, delegation, override, implicit receiver, late binding, word vocabulary, whitespace blocks) whose `mirrors` compiles to real gates. Interpreter bodies use 8/13-cell loops (values 0..255). Not implemented (and honestly erroring): number↔number bijections (definable invertible functions), reflection (reading taught chains back as values), nested definitions inside blocks, comments, messages with arguments. The REPL deliberately reports what it cannot do rather than pretending — keep that honesty: never stub behavior in a way that silently looks functional.
 
 Update this file as the interpreter grows (e.g., when the lexer/parser/evaluator land, document the pipeline and where each stage lives).

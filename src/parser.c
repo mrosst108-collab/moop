@@ -147,8 +147,13 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
     for (;;) {
         MoopToken t = moop_lexer_next(&lx);
         if (t.kind == MOOP_TOK_ERROR) {
-            snprintf(err, errlen, "unexpected character '%.*s'",
-                     (int)t.len, t.start);
+            /* a byte that does not print is named by its code, so the
+             * message itself stays readable */
+            unsigned char c = (unsigned char)t.start[0];
+            if (c >= 0x20 && c < 0x7f)
+                snprintf(err, errlen, "unexpected character '%c'", c);
+            else
+                snprintf(err, errlen, "unexpected byte 0x%02X", c);
             return false;
         }
         if (p.n == MAX_TOKENS) {

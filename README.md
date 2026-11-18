@@ -42,6 +42,15 @@ make test   # runs the smoke tests
 make clean
 ```
 
+```sh
+./build/moop                           # the REPL
+./build/moop tests/programs/pets.moop  # run a file
+```
+
+A file is a session without the banner and the prompts: each statement
+that is not a definition prints its value. A file stops at its first
+error, named by file and line, and exits with status 1.
+
 Requires a C compiler with C23 support (`-std=c23`, or `-std=c2x` on older
 compilers such as GCC 13 — the Makefile detects which one to use).
 

@@ -65,8 +65,8 @@ in their shape — the two-layer model surfacing in the syntax:
   - `receiver -> message is chain` — teaching. The right side is NOT
     evaluated; it is stored as a chain and evaluated at each send,
     addressed to the receiver (so delegated sends answer from the
-    receiver's own body). Re-teaching replaces the chain. `generate` and
-    `maybe` are innate and cannot be redefined — the interpreter says so.
+    receiver's own body). Re-teaching replaces the chain. `maybe` and
+    `value` are innate and cannot be redefined — the interpreter says so.
 
 ## Birth: the indefinite article (decided: no creation word)
 
@@ -102,9 +102,10 @@ animal ask mood is
 
 Inside a taught body the receiver is the object that was asked (even
 when the message was found on an ancestor). At the top level the
-receiver is the world: the REPL session is itself a body whose receiver
-is `world`, so `ask generate` at the prompt births a proto from the
-world. English drops the subject of imperatives; moop does the same.
+receiver is the world: a session, at the REPL or in a file, is itself a
+body whose receiver is `world`, so `ask maybe` at the prompt observes
+the world's body. English drops the subject of imperatives; moop does
+the same.
 
 Known, accepted losses (revisit when messages take arguments): the
 receiver cannot appear as the right operand of `inherits`, and a body
@@ -135,7 +136,7 @@ animal ask mood is
     ask maybe
 
 treasure is
-    world ask generate
+    a world
     42
 ```
 
@@ -145,6 +146,48 @@ bound at each send); name designators evaluate it now and bind the last
 value. Unindented body lines, empty bodies, and nested definitions are
 refused with plain errors. The parser stays line-shaped — indentation
 is handled entirely by the reader.
+
+Indentation says a line belongs to a block, so **an indented line under
+no open block is refused**: *an indented line belongs to a block, and
+none is open*. It is not run as if it were flush left. A body therefore
+cannot hold a blank line: the blank line closes it, and an indented line
+after it is refused, not run as a statement of its own. (Built with
+running files; awaiting a ruling — see Open questions.)
+
+## Running a file
+
+`./build/moop FILE` runs a file. **A file is a session without the
+banner and the prompts**: one reader (`src/main.c`) serves the REPL and
+a file, the same lines mean the same thing in both, and a statement that
+is not a definition prints its value. Nothing was added to the language
+for it — there is no output word. The end of the file closes an open
+block, as a blank line does.
+
+They differ in two places only:
+
+| | REPL | File |
+|---|---|---|
+| An error | Reported; the session goes on | Reported as `FILE:LINE: error: …`; the run stops there, and the exit status is 1 |
+| `quit` | The REPL's command: it ends the session | Not a word of the language: a name like any other, unknown unless bound |
+
+An error found when a block is evaluated names the body line that
+failed. A message that fails while a taught chain runs is reported at
+the statement that sent it, not where the chain was taught.
+
+What the reader refuses, in both, so that a mistake never runs as
+something else:
+
+- a line longer than 1,023 bytes (*line too long*): it is refused whole,
+  never split into two statements;
+- a line holding a NUL byte;
+- an indented line under no open block (above);
+- input that cannot be read, such as a directory: it is an error, not
+  an empty file.
+
+LF and CRLF both end a line. A carriage return anywhere else is a stray
+byte, and a byte that does not print is named by its code (*unexpected
+byte 0xC3*), so the message stays readable. Source is ASCII: no word or
+number is written with any other byte.
 
 ## Lexical rules
 
@@ -174,8 +217,8 @@ A-loops: values 0..255.
 
 Not implemented, and honestly erroring: number↔number bijections
 (general invertible functions — `celsius <-> fahrenheit` — remain the
-open design work), running files, reflection (reading a taught chain
-back as a value).
+open design work), reflection (reading a taught chain back as a value),
+comments (a file cannot carry one).
 
 ## Decisions
 
@@ -204,3 +247,21 @@ back as a value).
   teaching programmatically). The data is there; the mirror is missing.
 - String and boolean literal forms; whether the logic operator words
   (and, or, nand, nor, xor) are keywords or ordinary messages.
+- **The reader rule that came with files** (built in 0.7.0, awaiting a
+  ruling): an indented line under no open block is refused, at the REPL
+  as in a file. What forces it: the REPL's prompt shows whether a block
+  is open (`....>` against `moop>`), and a file has no prompt, so in a
+  file a blank line inside a body would silently end it and the rest of
+  the body would run as top-level statements addressed to the world — a
+  mistake becoming an action. The alternative is what the REPL did
+  before: ignore the indentation and run the line. A reader for files
+  only would be two readers.
+- **Comments.** A file cannot carry one, so a program cannot explain
+  itself. Not built: a comment is a lexical construct and needs its
+  derivation like any other (what forces it is that files are read by
+  people; the open part is its form, and whether anything already
+  present can carry the job).
+- Whether a body may hold blank lines (a block closed by the first line
+  that is not indented, as in Python). Decided otherwise for now — a
+  blank line closes — and files make the cost visible: a long body
+  cannot be spaced out.

@@ -1,0 +1,30 @@
+animal is a world
+animal ask legs is 4
+animal ask mood is
+    ask maybe
+
+cat is an animal
+bird is an animal
+bird ask legs is 2
+cat ask legs
+bird ask legs
+cat inherits animal
+bird inherits cat
+cat ask mood
+cat ask mood
+bird ask mood
+box is a world
+box ask value
+5 mirrors box
+box ask value
+5 mirrors box
+box ask value
+tin is a world
+box mirrors tin
+tin ask value
+treasure is
+    a world
+    42
+
+treasure
+ask maybe

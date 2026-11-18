@@ -1,0 +1,19 @@
+animal is a world
+animal ask legs is 4
+animal ask count is
+    ask legs
+
+cat is an animal
+bird is an animal
+bird ask legs is 2
+cat ask count
+bird ask count
+cat inherits animal
+bird inherits cat
+pet is cat
+pet inherits animal
+treasure is
+    a world
+    42
+
+treasure
