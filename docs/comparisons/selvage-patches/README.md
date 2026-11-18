@@ -321,8 +321,18 @@ mutation tool and the benchmark sources are untouched.
 
 ### 6a. What it states (VI.6)
 
-**The domain D:** every `CcnotTape(a, b, i, j)` with both lengths at
-least 2 and both heads inside their tapes. On D, for any lengths:
+Three related statements, kept apart because they are not
+interchangeable.
+
+**1. The mathematical claim, over the model's domain.** D is every
+`CcnotTape(a, b, i, j)` with:
+- both lengths at least 2 (they need not be equal; the trace uses 8
+  and 13);
+- both heads inside their tapes;
+- the cells otherwise any bits.
+
+D belongs to the model the claims are made in. It is not a type, and
+nothing checks it statically. On D, for any lengths:
 
 | Rule | On D | Not onto, because |
 |---|---|---|
@@ -330,26 +340,34 @@ least 2 and both heads inside their tapes. On D, for any lengths:
 | `draw` | An embedding of D into `Bit` × D | The bit is always the cell under head `i` of the tape given |
 | `birth` | An embedding of D into D × D | A child's heads are always 0 |
 
-**Proof:** the two CCNOTs neither write their controls nor share a
-target once each tape has two cells, so they undo themselves. The head
-move is a bijection, so the tick is a permutation of D. A draw and a
-birth carry the ticked tape whole, so they are one-to-one.
+The general argument is a proof, for every length. The two CCNOTs
+neither write their controls nor share a target once each tape has two
+cells, so they undo themselves. The head move is a bijection of the head
+positions, so the tick is a permutation of D, total on D, with its
+inverse also mapping D onto D. A draw and a birth carry the ticked tape
+whole, so they are one-to-one. The test that runs every state with 2 or
+3 cells on each tape (1,024 states) is a finite exhaustive check,
+evidence for those sizes only.
 
-**Outside D,** every input is refused when it runs, in both backends,
-with status 70:
+**2. The checker's report.** No type carries D, so `selvage check`
+reports what it can establish without it: the tick and the draw as
+one-to-one, with nothing more established; the birth as one-to-one and
+not onto.
+
+The plan asked for the draw to be reported as not onto. That would need
+D in the types, a language feature with its own admission case, and it
+is not made to serve one report.
+
+**3. Run-time enforcement.** A program can build a tape outside D,
+because nothing stops it statically. Every such input that was tested is
+refused when it runs, in both backends, with status 70:
 - a tape of no cells, by division by zero;
 - a tape of one cell, by R4;
-- a head outside its tape, negative or past the end, by the index check.
+- a head outside its tape, negative or past the end, by the index
+  check.
 
-No head is wrapped round. This was measured in both backends before it
-was written down.
-
-**Not as planned:** the plan asked for the extent report to show the draw
-as not onto. Without D in the types the checker cannot establish that,
-so the report still gives the tick and the draw as one-to-one with
-nothing more established, and the birth as not onto. The description says so.
-Putting D into the types remains the open, separately justified language
-feature it was.
+No head is wrapped round into a valid one: the negative heads were
+tested before this was written down.
 
 ### 6b. Tests
 
@@ -358,11 +376,15 @@ feature it was.
 | `TestCcnotTape.test_on_its_domain_the_tick_is_a_permutation` | Every state of D with 2 or 3 cells on each tape (1,024): the tick maps D onto D; a draw and a birth are one-to-one; a draw's bit is the cell under `i`; a child's heads are 0 |
 | `TestCcnotTape.test_outside_its_domain_every_input_is_refused` | Seven inputs outside D, each refused with status 70 and the stated reason, in the interpreter and compiled |
 
+These bring the CCNOT tape's own named tests to 8 (`TestCcnotTape`). The
+whole suite is a separate count: 187 tests, of which the tape accounts
+for those 8 and the tape generator's test in `TestGenerated04`.
+
 ### 6c. Verification
 
 | Check | 0001 + 0003 | 0001 + 0003 + 0004 |
 |---|---|---|
-| Full suite | 185 / 185 | Running; not yet recorded |
+| Full suite (all tests) | 185 / 185 | 187 / 187 pass (270 s), on the tree before the wording change below; re-run after it: running |
 | Description check | Pass | Pass |
 | Mutation check | 145 / 145 | Running; not yet recorded (inputs unchanged by 0004) |
 | Benchmarks | 1.11 against C | Not re-run: 0004 changes no code and no benchmark source, so the compiled programs are built by the same toolchain from the same sources |
