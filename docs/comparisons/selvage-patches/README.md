@@ -628,5 +628,5 @@ Phase 7 is complete (2026-11-18), on the record above at moop commit
 |---|---|
 | 0007 applied to a fresh archive after 0001, 0003, 0004, 0005 and 0006 | Applies; reproduces the work copy byte for byte; differs from the tested 0006 tree in `SPEC.md` alone |
 | Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused (unchanged) |
-| Full suite on that tree | Running; not yet recorded |
+| Full suite on that tree | 199 / 199 pass (279 s); after the run the tree is still byte-identical to the work copy (clean at `6cce3b9`) |
 | Mutation check | Not re-run. Neither the mutation tool nor any generator reads `SPEC.md`, so 0006's result (153 / 153) stands for this tree, as with Phase 5's wording change |
