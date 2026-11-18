@@ -782,8 +782,7 @@ and Selvage's is in Selvage's own suite.
 
 **Licence (2026-11-18).** The maintainer asked for an attribution-only
 licence, and **0010** adds the MIT licence to Selvage: a `LICENSE` file
-(copyright 2026, `mrosst108-collab`, the account that owns the
-repository) and a licence section in Selvage's README. moop gets the
+(copyright 2026, Mark Rosst) and a licence section in Selvage's README. moop gets the
 same licence at its root.
 - **No code changes.** No test, tool or toolchain module reads either
   file, so the 0.5.0 validation above stands for the tree with 0010

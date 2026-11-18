@@ -1,12 +1,12 @@
 diff --git a/LICENSE b/LICENSE
 new file mode 100644
-index 0000000..339b8f7
+index 0000000..e242d9a
 --- /dev/null
 +++ b/LICENSE
 @@ -0,0 +1,21 @@
 +MIT License
 +
-+Copyright (c) 2026 mrosst108-collab
++Copyright (c) 2026 Mark Rosst
 +
 +Permission is hereby granted, free of charge, to any person obtaining a copy
 +of this software and associated documentation files (the "Software"), to deal
