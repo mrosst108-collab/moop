@@ -251,6 +251,18 @@ static void test_encoding(void)
     moop_encode_xor(&core, 5);
     check(moop_decode(&core) == 0, "encoding is self-inverse");
 
+    /* `mirrors 0` is the identity idiom: it must change no cell and no
+     * mark, so that answering with the receiver leaves the body as it was */
+    bool ca[8], cm[8], cb[13], cmb[13];
+    size_t head_a = core.a.head, head_b = core.b.head;
+    memcpy(ca, a, sizeof a); memcpy(cm, ma, sizeof ma);
+    memcpy(cb, b, sizeof b); memcpy(cmb, mb, sizeof mb);
+    moop_encode_xor(&core, 0);
+    check(memcmp(ca, a, sizeof a) == 0 && memcmp(cm, ma, sizeof ma) == 0 &&
+          memcmp(cb, b, sizeof b) == 0 && memcmp(cmb, mb, sizeof mb) == 0 &&
+          core.a.head == head_a && core.b.head == head_b,
+          "depositing 0 changes no cell, no mark and no head");
+
     bool xa[8] = {0}, xb[13] = {0}, mxa[8], mxb[13];
     MoopCore other;
     moop_core_init(&other, xa, mxa, 8, xb, mxb, 13);

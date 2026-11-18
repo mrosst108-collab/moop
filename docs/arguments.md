@@ -1,25 +1,34 @@
-# Messages that take something: options for a ruling
+# Messages that take something
 
-**Status: a draft for a ruling. Nothing here is decided, and none of it
-is in the interpreter.** Two of the options were built as throwaway
-prototypes outside the repository, to check the claims made for them;
-what was measured is marked *measured*. Everything said about how a
-form reads is judgment: no reading evidence was gathered.
+**Status: ruled 2026-11-18. Q1 to Q5 are adopted as recommended, with
+the qualifications below. The design is not implemented**: the
+interpreter still refuses `box add 5` (*expected an operator between
+expressions*). No new language construct is authorized by these
+decisions.
+
+The options and their analysis are kept below as the record of why. Two
+of the options were built as throwaway prototypes outside the
+repository, to check the claims made for them; what was measured is
+marked *measured*. Everything said about how a form reads is judgment:
+no reading evidence was gathered, and the prototypes do not establish
+that the two shapes read equally well.
 
 Terms: an **argument** is the value a message is given when it is sent;
 a **parameter** is the name a teaching gives that value.
 
-## The rulings asked for
+## Rulings (2026-11-18)
 
-| # | Question | Recommended |
-|---|---|---|
-| Q1 | How a message is given an argument | **A:** the message stands where an operator stands — `box add 5` |
-| Q2 | How a taught body reaches the argument | **P1:** the teaching names it — `box add n is mirrors n` |
-| Q3 | How a body sends its own receiver such a message | **Not yet** (A1): it joins the accepted losses, which body-local names would dissolve together |
-| Q4 | The limits | One argument; evaluated before the send; strict about whether a message takes one |
-| Q5 | The logic words | `and`, `or`, `nand`, `nor`, `xor` become innate messages of truth values; no word is reserved |
+| # | Question | Adopted | Qualification |
+|---|---|---|---|
+| Q1 | How a message is given an argument | **A:** the message occupies the operator position — `box add 5` | One grammar: no second message syntax |
+| Q2 | How a taught body reaches the argument | **P1:** the teaching names it — `box add n is mirrors n` | |
+| Q3 | How a body sends its own receiver such a message | **It cannot** (A1) | A limitation of the selected grammar, not an unimplemented feature that is promised |
+| Q4 | How many arguments, and when they are evaluated | **Exactly one, evaluated before dispatch; strict arity** | No optional, variadic or lazy arguments |
+| Q5 | The logic words | **`and`, `or`, `nand`, `nor`, `xor` are built-in messages on truth values;** no word is reserved | **Eager**, not short-circuit: under Q4 the argument is evaluated before dispatch |
 
-Each can be ruled on its own, except that Q3 and Q5 depend on Q1.
+The two forms fit together: `box add 5` sends a message with an
+argument, and `box add n is mirrors n` defines the teaching that
+answers it and binds the argument to `n`.
 
 ## What forces it
 
@@ -93,7 +102,7 @@ the operators, and it invites nested expressions, which the one-rule
 grammar does not have. As it stands it is borrowed on authority: nothing
 in moop forces it.
 
-**Recommended: A.** It is the only option that adds no shape and no
+**Adopted: A.** It is the only option that adds no shape and no
 reserved word, and the only one in which a program's own relations read
 like the built-in ones. What it gives up is in Q3.
 
@@ -117,7 +126,7 @@ like the built-in ones. What it gives up is in Q3.
 - **P3** reopens the decision against a receiver keyword: a word for
   the argument and none for the receiver is hard to defend.
 
-**Recommended: P1.** The teacher chooses the word, as English does
+**Adopted: P1.** The teacher chooses the word, as English does
 ("to add *something* to a box…"), and no word is reserved.
 
 ## Q3 — sending the receiver a message with an argument
@@ -127,51 +136,60 @@ name. So a body cannot write `add n` to its own receiver.
 
 | | What it means | Cost |
 |---|---|---|
-| **A1. Not yet** | Only `ask`, `inherits` and `mirrors` begin a headless chain, as now | A body cannot send its receiver a taught message with an argument |
+| **A1. Not expressible** | Only `ask`, `inherits` and `mirrors` begin a headless chain, as now | A body cannot send its receiver a taught message with an argument |
 | A2. Imperatives by count | A chain that cannot be read with a head is read without one: `add n` | The whole line must be counted; adding or dropping one word changes who is addressed |
 | A3. Both shapes | `ask add n` when headless, `box add 5` when headed | Two spellings of one send |
 
-**Recommended: A1.** The loss is the one already accepted twice: the
-receiver has no name, so it can stand only at the head of a chain that
-begins with a reserved operator. One later construct would dissolve all
-three faces of it: **names local to a body**, of which a parameter is
-the first.
+**Adopted: A1, as a limitation of the selected grammar.** Under A a body
+cannot send its own receiver a message that takes something, and
+nothing in this design promises that it will. The limitation has the
+same root as the one with `inherits`: the receiver has no name, so it
+can stand only at the head of a chain that begins with a reserved
+operator.
 
-```
-box twice n is
-    me is mirrors 0
-    me add n
-    me add n
-```
-
-That is a separate proposal (today *definitions cannot nest*), and it is
-not asked for here. If self-sends with arguments are wanted at once, B
-has them and A does not.
+B would have allowed it (`ask add n`), at the cost of a second form of
+argument-bearing send and of relations that read less naturally; that
+trade was judged not worth it at this stage.
 
 ## Q4 — limits
 
-- **One argument.** The shape `left OP right` has one right side. It
-  matches the user layer's logic, which is all two-place. More than one
-  is not designed.
+- **Exactly one argument.** The shape `left OP right` has one right
+  side. It matches the user layer's logic, which is all two-place. A
+  second argument cannot be written: in the prototype, `box add 5 6` is
+  refused when the line is read (*expected an operator between
+  expressions*), and so is `box add 5 x` (*'x' stands where a message
+  that takes something stands, and nothing follows it*). `box add 5 x 7`
+  is a pipeline, not two arguments: it sends `x` with `7` to what
+  `box add 5` answers.
 - **Arguments are terms.** A name, a number or a birth; a chain is given
   by naming it first (`t is tin ask value`, then `box add t`). The
   grammar has no grouping and gains none.
-- **Evaluated before the send,** receiver first, as `inherits` and
+- **Evaluated before dispatch,** receiver first, as `inherits` and
   `mirrors` evaluate their sides. Arguments passed as unevaluated chains
   belong with reflection, which is open.
 - **Strict arity.** A message taught with a parameter refuses a send
   without an argument, and the reverse, naming the form to write. One
   teaching per proto and name: re-teaching replaces it, whatever it
   takes.
+- **No exceptions:** no optional, variadic or lazy arguments.
 
 ## Q5 — the logic words
 
-Under A, `and`, `or`, `nand`, `nor` and `xor` are innate messages of
-truth values, calling `src/logic.c`. They are not reserved: a proto may
-be taught its own `and`. This settles the open question in
-`docs/syntax.md` (keywords or ordinary messages) for A. Numbers would
-host arithmetic the same way; which arithmetic belongs to the user layer
-is its own question.
+Under A, `and`, `or`, `nand`, `nor` and `xor` are built-in messages on
+truth values, calling `src/logic.c`. They are not reserved: their
+built-in meaning comes from the position, a message sent to a truth
+value, and a proto may be taught its own `and`. This settles the open
+question in `docs/syntax.md` (keywords or ordinary messages). Numbers
+would host arithmetic the same way; which arithmetic belongs to the user
+layer is its own question, not ruled here.
+
+**Eager, not short-circuit.** Under Q4 the argument is evaluated before
+the message is dispatched, so `and` and `or` evaluate their right side
+whatever the left is. An argument is a term, so the one right side whose
+evaluation can be seen is a birth, which steps its generator's tapes.
+*Measured* in the prototype: with `f` false, `f and a w` births a proto
+from `w` (its value goes from 52 to 44) before `and` is dispatched, and
+`and` then refuses the proto (*and relates two truths*).
 
 Without grouping, `p ask maybe and q ask maybe` reads left to right as
 `((p ask maybe) and q) ask maybe` and is refused, since `q` is a proto.
@@ -189,28 +207,36 @@ The second draw is named first.
 - **Reflection.** A teaching becomes a name, a parameter and chains:
   still data in RAM, and what a mirror would read back.
 
-## What stays lost
+## Limits that remain
 
-- The receiver still cannot be the right operand of `inherits`. A
-  relation can now be taught from the other side, which covers most of
-  the need: `cat child_of animal` with the body `inherits elder`.
-- "A body cannot answer with the receiver itself" is recorded as an
-  accepted loss, and the interpreter already has a way: `mirrors 0`
-  deposits nothing and yields the receiver (*measured*:
-  `kid ask me inherits box` gives `true` with `me` taught as
-  `mirrors 0`). Whether to bless that idiom or keep the loss as stated
-  is yours.
+- **The receiver cannot be the right operand of `inherits`.** A relation
+  can be taught from the other side, which covers most of the need:
+  `cat child_of animal` with the body `inherits elder`.
+- **A body cannot send its own receiver a message that takes something**
+  (Q3), as above.
+- **Answering with the receiver: corrected.** The earlier record said a
+  body cannot answer with its receiver. That was inaccurate: the
+  existing identity idiom `mirrors 0` does it, and is retained
+  (2026-11-18). Depositing 0 sets no cell, no mark and no head, and
+  `mirrors` yields its left side, which in a headless chain is the
+  receiver. The idiom belongs to `mirrors`: the receiver still has no
+  name, and the language has no general receiver-returning expression.
+  Regression checks: `tests/test_core.c` (depositing 0 changes nothing)
+  and `tests/run_tests.sh` (`kid ask me inherits box` is `true` with `me`
+  taught on `box` as `mirrors 0`, and the body's value is unchanged).
 
 ## What the prototypes showed (measured)
 
 Both prototypes are outside the repository and are not proposed as
-patches.
+patches. They establish that both shapes pass the existing checks. They
+do not establish equal readability, and do not settle the semantic cost
+of Q3: those were design judgments.
 
 | | A | B |
 |---|---|---|
 | Change to `src/` | 126 lines added, 9 removed, 3 files | 127 added, 9 removed, 3 files |
 | Of which the parser | 14 added, 2 removed | 15 added, 2 removed |
-| Existing checks (`make test`) | 63 of 63 pass, none edited | 63 of 63 pass, none edited |
+| Existing checks (`make test`, as of 0.7.0) | 63 of 63 pass, none edited | 63 of 63 pass, none edited |
 
 The evaluator's part is the same in both: the frame, the arity
 refusals, the logic words. The options differ by about fifteen parser
@@ -243,7 +269,7 @@ Refused, as run:
 A parameter `n` left a name `n` bound outside as it was. A2, C and D
 were not built.
 
-## Open after a ruling
+## Still open
 
 - Whether a parameter may take a name already bound outside, or is
   refused.

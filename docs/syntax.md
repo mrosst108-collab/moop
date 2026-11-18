@@ -107,11 +107,16 @@ body whose receiver is `world`, so `ask maybe` at the prompt observes
 the world's body. English drops the subject of imperatives; moop does
 the same.
 
-Known, accepted losses (revisit when messages take arguments): the
-receiver cannot appear as the right operand of `inherits`, and a body
-cannot answer with the receiver itself. (`arguments.md` notes that
-`mirrors 0` already yields the receiver; whether that idiom stands is
-not decided.)
+Known limits. The receiver cannot appear as the right operand of
+`inherits`. Under the adopted design for messages that take something
+(`arguments.md`), a body cannot send its own receiver such a message: a
+limitation of that grammar, not a feature promised for later.
+
+A body *can* answer with its receiver, by the existing identity idiom
+`mirrors 0` (retained 2026-11-18): depositing 0 changes nothing, and
+`mirrors` yields its left side, here the receiver. An earlier entry here
+said a body could not; it was inaccurate. The idiom belongs to
+`mirrors`; it is not a general way to name the receiver.
 
 ## Ubiquitous homoiconicity (decided)
 
@@ -153,8 +158,9 @@ Indentation says a line belongs to a block, so **an indented line under
 no open block is refused**: *an indented line belongs to a block, and
 none is open*. It is not run as if it were flush left. A body therefore
 cannot hold a blank line: the blank line closes it, and an indented line
-after it is refused, not run as a statement of its own. (Built with
-running files; awaiting a ruling — see Open questions.)
+after it is refused, not run as a statement of its own. (Decided
+2026-11-18, for the REPL and files alike: the REPL's prompt does not
+justify a different rule.)
 
 ## Running a file
 
@@ -176,8 +182,9 @@ An error found when a block is evaluated names the body line that
 failed. A message that fails while a taught chain runs is reported at
 the statement that sent it, not where the chain was taught.
 
-What the reader refuses, in both, so that a mistake never runs as
-something else:
+**Reader constraints** (decided 2026-11-18). The reader refuses these,
+in both, so that a mistake never runs as something else; none is
+tolerated silently or split into several statements:
 
 - a line longer than 1,023 bytes (*line too long*): it is refused whole,
   never split into two statements;
@@ -220,7 +227,8 @@ A-loops: values 0..255.
 Not implemented, and honestly erroring: number↔number bijections
 (general invertible functions — `celsius <-> fahrenheit` — remain the
 open design work), reflection (reading a taught chain back as a value),
-comments (a file cannot carry one).
+comments (a file cannot carry one), messages that take something
+(designed and adopted: `arguments.md`).
 
 ## Decisions
 
@@ -236,13 +244,25 @@ comments (a file cannot carry one).
   level's receiver is the world (see above).
 - No creation word: the indefinite article births; `is` + article
   introduces, `is` alone aliases (see above).
+- Files (0.7.0, 2026-11-18): a file is a session without the banner and
+  the prompts; it stops at its first error, named `FILE:LINE`, with exit
+  status 1; `quit` is the REPL's command, not a word of the language.
+- An indented line under no open block is refused, at the REPL and in a
+  file (2026-11-18).
+- Reader constraints: a line over 1,023 bytes, a NUL byte, and input
+  that cannot be read (such as a directory) are refused, never tolerated
+  or split (2026-11-18).
+- Messages that take something (2026-11-18; `arguments.md`). Adopted, not
+  implemented: `box add 5` sends, `box add n is mirrors n` teaches and
+  names the parameter; exactly one argument, evaluated before dispatch,
+  strict arity; a body cannot send its receiver such a message;
+  `and`, `or`, `nand`, `nor`, `xor` are built-in, eager messages on truth
+  values, not reserved words.
+- `mirrors 0` is the identity idiom: it answers with the receiver and
+  changes nothing (2026-11-18).
 
 ## Open questions
 
-- **Messages that take something** (arguments). Drafted for a ruling in
-  `arguments.md`, with a recommendation: the message stands where an
-  operator stands (`box add 5`), and the teaching names what it takes
-  (`box add n is mirrors n`). Nothing is decided or built.
 - General invertible functions under `<->` (`celsius <-> fahrenheit`):
   the primitive involutions exist (deposit, exchange); composing them
   into definable bijections is the next design step.
@@ -251,17 +271,8 @@ comments (a file cannot carry one).
 - Reflection: `is` stores chains as data, but the surface language
   cannot yet read one back (quote a chain, inspect a body, rewrite a
   teaching programmatically). The data is there; the mirror is missing.
-- String and boolean literal forms; whether the logic operator words
-  (and, or, nand, nor, xor) are keywords or ordinary messages.
-- **The reader rule that came with files** (built in 0.7.0, awaiting a
-  ruling): an indented line under no open block is refused, at the REPL
-  as in a file. What forces it: the REPL's prompt shows whether a block
-  is open (`....>` against `moop>`), and a file has no prompt, so in a
-  file a blank line inside a body would silently end it and the rest of
-  the body would run as top-level statements addressed to the world — a
-  mistake becoming an action. The alternative is what the REPL did
-  before: ignore the indentation and run the line. A reader for files
-  only would be two readers.
+- String and boolean literal forms. (Whether the logic words are
+  keywords is settled: built-in messages, not reserved; `arguments.md`.)
 - **Comments.** A file cannot carry one, so a program cannot explain
   itself. Not built: a comment is a lexical construct and needs its
   derivation like any other (what forces it is that files are read by

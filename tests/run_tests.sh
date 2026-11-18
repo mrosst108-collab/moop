@@ -60,6 +60,12 @@ v1=$(echo "$vals" | sed -n 1p); v2=$(echo "$vals" | sed -n 2p); v3=$(echo "$vals
 check "value <-> body applied twice is identity" "$v1" "$v3"
 check "value <-> body actually transforms" "yes" "$([ "$v1" != "$v2" ] && echo yes)"
 
+# mirrors 0 is the identity idiom: a body answers with its receiver, and
+# the body is left as it was (retained 2026-11-18)
+check "mirrors 0 answers with the receiver, even when delegated" "true" "$(printf 'box is a world\nbox ask me is mirrors 0\nkid is a box\nkid ask me inherits box\nquit\n' | "$BIN" 2>/dev/null | grep -oE 'true|false')"
+idv=$(printf 'box is a world\nbox ask me is mirrors 0\nbox ask value\nbox ask me ask value\nbox ask value\nquit\n' | "$BIN" 2>/dev/null | sed '1,2d' | grep -oE '[0-9]+$' | tr '\n' ' ')
+check "mirrors 0 leaves the body's value as it was" "yes" "$(echo $idv | awk '{print ($1==$2 && $2==$3 && NF==3) ? "yes" : "no"}')"
+
 ex=$(printf 'box is a world\noth is a world\nbox -> value\noth -> value\nbox <-> oth\nbox -> value\noth -> value\nquit\n' | "$BIN" 2>/dev/null | grep -oE '[0-9]+$' | tail -4)
 x1=$(echo "$ex" | sed -n 1p); y1=$(echo "$ex" | sed -n 2p)
 x2=$(echo "$ex" | sed -n 3p); y2=$(echo "$ex" | sed -n 4p)
