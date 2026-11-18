@@ -1,0 +1,45 @@
+# MAYBE: three-valued logic and decisions.
+#
+# Crisp rules decide what they can and say `maybe` for the rest.  Kleene logic
+# carries maybe through `and`, `or` and `not`.  `decide` sends exactly the
+# undecided cases outward, as a question built from the program's own code, to
+# whoever answers Decide: a rule book, a model, a person.  An answer that
+# replies maybe passes the question on to the next answer out.
+
+rule by_severity(severity: I64) returns Trit
+    if severity >= 4
+        true
+    otherwise if severity <= 1
+        false
+    otherwise
+        maybe
+
+# true or maybe is true; false or maybe is maybe.  The note is part of the
+# question's context, so whoever decides can read it.
+rule urgent(severity: I64, outage: Trit, note: Text) returns Trit
+    by_severity(severity) or outage
+
+rule route(severity: I64, outage: Trit, note: Text) returns Text uses Decide, System
+    if decide urgent(severity, outage, note)
+        "page the on-call engineer"
+    otherwise
+        "queue for the morning"
+
+# A first-line answer.  It settles nothing itself; it counts the questions it
+# passes outward, so the run shows how many reached the world.
+answer Tally for Decide takes I64
+    (settle(question, context), n) => (maybe, n) where
+        add 1 to n
+        discard question
+        discard context
+
+rule shift uses Decide, Output, System
+    output route(5, false, "checkout down for all users")
+    output route(1, false, "typo on the help page")
+    output route(3, true, "payments failing in one region")
+    output route(3, maybe, "some users report slow logins")
+    output route(2, maybe, "error rate doubled since the last deploy")
+
+rule main uses Output, Decide, System
+    (done, tally) is shift() with Tally from 0
+    output tally

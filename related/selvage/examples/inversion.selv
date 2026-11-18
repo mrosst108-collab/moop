@@ -1,0 +1,24 @@
+# Inversion is a rule of the language.  The prelude's `mirror` takes code and gives its
+# inverse; the checker certifies it, and `invert` runs it and nothing else.  A block is a
+# sequence that reads from either end, so inverting it moves nothing: each step is read
+# backward, and the sequence is read from its other end.
+rule leapfrog(k: I64) takes (I64, I64) returns (I64, I64)
+    (q, p) <-> (q, p) where
+        subtract k * q / 2 from p
+        add p to q
+        subtract k * q / 2 from p
+
+rule main uses Output
+    # steps are data: the two below, as a sequence read from its first step
+    steps is Then(AddTo(quote k, quote p), Then(Swap(quote p, quote q), Done))
+    output block(mirror(steps))
+    # `mirror` is its own inverse: the checker derived `undo mirror`, and it is `mirror`
+    output mirror(mirror(steps)) = steps
+    output undo mirror(steps) = mirror(steps)
+    # a loss is mirrored like any step: what it gives is code only the system may run
+    output block(mirror(Then(Discard("x"), Done)))
+    # the built-in `inverse` is this rule, applied to a whole definition
+    output inverse(definition(quote leapfrog))
+    output inverse(inverse(definition(quote leapfrog))) = definition(quote leapfrog)
+    # and `mirror` inverts its own definition; inverting that gives the definition back
+    output inverse(inverse(definition(quote mirror))) = definition(quote mirror)

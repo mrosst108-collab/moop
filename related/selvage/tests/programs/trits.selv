@@ -1,0 +1,44 @@
+# Kleene's strong logic and decide; both backends must print the same lines.
+rule show_and(a: Trit, b: Trit) returns Trit
+    a and b
+
+rule show_or(a: Trit, b: Trit) returns Trit
+    a or b
+
+rule by_severity(severity: I64) returns Trit
+    if severity >= 4
+        true
+    otherwise if severity <= 1
+        false
+    otherwise
+        maybe
+
+rule urgent(severity: I64, outage: Trit, note: Text) returns Trit
+    by_severity(severity) or outage
+
+rule route(severity: I64, outage: Trit, note: Text) returns Text uses Decide, System
+    if decide urgent(severity, outage, note)
+        "page"
+    otherwise
+        "queue"
+
+# not is a bijection on Trit: the checker certifies it.
+rule flip takes Trit returns Trit
+    true <-> false
+    false <-> true
+    maybe <-> maybe
+
+rule main uses Output, Decide, System
+    output (show_and(true, true), show_and(true, maybe), show_and(true, false))
+    output (show_and(maybe, true), show_and(maybe, maybe), show_and(maybe, false))
+    output (show_and(false, true), show_and(false, maybe), show_and(false, false))
+    output (show_or(true, true), show_or(true, maybe), show_or(true, false))
+    output (show_or(maybe, true), show_or(maybe, maybe), show_or(maybe, false))
+    output (show_or(false, true), show_or(false, maybe), show_or(false, false))
+    output (not true, not maybe, not false)
+    output (flip(maybe), undo flip(true))
+    output by_severity(3) = maybe
+    output route(5, false, "checkout down for all users")
+    output route(1, false, "typo on the help page")
+    output route(3, maybe, "some users report slow logins")
+    output route(2, maybe, "error rate doubled since the last deploy")

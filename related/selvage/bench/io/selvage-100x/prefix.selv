@@ -1,0 +1,28 @@
+rule prefix_sum takes Array(U64) returns Array(U64)
+    a <-> a where
+        repeat with i from 1 to length(a) - 1
+            add a[i - 1] to a[i]
+
+rule churn(rounds: I64) takes Array(U64) returns Array(U64)
+    a <-> a where
+        repeat with i from 1 to rounds
+            a is prefix_sum(a)
+            a is undo prefix_sum(a)
+
+rule fill(n: I64) returns Array(U64)
+    a is array(U64, n)
+    repeat with i from 0 to n - 1
+        set a[i] to U64(i mod 1000)
+    a
+
+rule total(a: Array(U64)) returns U64
+    s is U64(0)
+    repeat with i from 0 to length(a) - 1
+        add a[i] to s
+    s
+
+rule main uses Output
+    a is churn(3)(fill(10000000))
+    output total(a)
+    b is prefix_sum(a)
+    output b[length(b) - 1]

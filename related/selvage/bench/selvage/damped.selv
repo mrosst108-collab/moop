@@ -1,0 +1,20 @@
+# The same motion with friction.  Each step overwrites p, so the rule is lossy:
+# the old p goes to the journal (64 bits a step), and main commits after every
+# 1000 steps, which prunes it.  This measures the price of a declared loss.
+# A commit point sits between rule calls: what a rule does can always be rewound.
+type Phase(q: I64, p: I64)
+
+rule damped(k: I64) takes Phase returns Phase
+    Phase(q, p) => Phase(q, p) where
+        repeat with i from 1 to 1000
+            subtract k * q / 2000 from p
+            add p to q
+            subtract k * q / 2000 from p
+            set p to p - p / 4096
+
+rule main uses Output, System
+    s is Phase(100000000, 0)
+    repeat with i from 1 to 100000
+        set s to damped(10)(s)
+        commit
+    output s

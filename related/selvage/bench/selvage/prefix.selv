@@ -1,0 +1,29 @@
+# In-place prefix sum and its derived inverse, 10 rounds over 10 million words.
+rule prefix_sum takes Array(U64) returns Array(U64)
+    a <-> a where
+        repeat with i from 1 to length(a) - 1
+            add a[i - 1] to a[i]
+
+rule churn(rounds: I64) takes Array(U64) returns Array(U64)
+    a <-> a where
+        repeat with i from 1 to rounds
+            a is prefix_sum(a)
+            a is undo prefix_sum(a)
+
+rule fill(n: I64) returns Array(U64)
+    a is array(U64, n)
+    repeat with i from 0 to n - 1
+        set a[i] to U64(i) * 2654435761
+    a
+
+rule checksum(a: Array(U64)) returns U64
+    s is U64(0)
+    repeat with i from 0 to length(a) - 1
+        set s to bitxor(s * 31, a[i])
+    s
+
+rule main uses Output
+    a is churn(10)(fill(10000000))
+    output checksum(a)
+    b is prefix_sum(a)
+    output checksum(b)

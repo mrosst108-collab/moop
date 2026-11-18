@@ -1,0 +1,8 @@
+rule fib(n: I64) returns I64
+    if n < 2
+        n
+    otherwise
+        fib(n - 1) + fib(n - 2)
+
+rule main uses Output
+    output fib(38)

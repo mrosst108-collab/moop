@@ -1,0 +1,95 @@
+# Two tiers of logic.
+#
+# The system's own gates are reversible: `ccnot`, and what the prelude builds from it.  An
+# ordinary gate, which gives one bit for two and so loses information, is not a second kind
+# of primitive.  It is a reversible gate followed by `discard`: the gate keeps its inputs
+# beside its result, and the loss is the explicit step that lets them go, into the journal.
+#
+#   and_into   (a, b)  <->  (a, b, a and b)      reversible: an embedding, 4 values into 8
+#   and_gate   (a, b)   =>  a and b              dissipative: and_into, then discard a and b
+
+# ---- the reversible tier: built from ccnot, every clause `<->` -----------------------------
+# AND, kept reversible: the inputs stay and the result goes into an empty cell.
+rule and_into takes (Bit, Bit) returns (Bit, Bit, Bit)
+    (a, b) <-> (a, b, c) where
+        c is Bit(0)
+        (a, b, c) is ccnot((a, b, c))
+
+# OR by De Morgan: toggle both inputs, AND into a cell that starts at 1, toggle back.
+rule or_into takes (Bit, Bit) returns (Bit, Bit, Bit)
+    (a, b) <-> (a, b, c) where
+        c is Bit(1)
+        a is toggle(a)
+        b is toggle(b)
+        (a, b, c) is ccnot((a, b, c))
+        a is toggle(a)
+        b is toggle(b)
+
+rule nand_into takes (Bit, Bit) returns (Bit, Bit, Bit)
+    (a, b) <-> (a, b, c) where
+        c is Bit(1)
+        (a, b, c) is ccnot((a, b, c))
+
+# ---- the dissipative tier: a reversible gate and an explicit loss --------------------------
+rule and_gate takes (Bit, Bit) returns Bit
+    (a, b) => c where
+        (a, b, c) is and_into((a, b))
+        discard a
+        discard b
+
+rule or_gate takes (Bit, Bit) returns Bit
+    (a, b) => c where
+        (a, b, c) is or_into((a, b))
+        discard a
+        discard b
+
+rule nand_gate takes (Bit, Bit) returns Bit
+    (a, b) => c where
+        (a, b, c) is nand_into((a, b))
+        discard a
+        discard b
+
+# The same gate as its truth table.  Three clauses give 0, so where the output is 0 the choice
+# among them is kept; the output 1 shows its clause, and nothing is kept.
+rule and_table takes (Bit, Bit) returns Bit
+    (0, 0) => 0
+    (0, 1) => 0
+    (1, 0) => 0
+    (1, 1) => 1
+
+# ---- the least a gate can lose ---------------------------------------------------------
+# AND as a permutation: the output, and where the output is 0, which input gave it.  Dropping
+# that is all the gate loses: nothing for (1, 1), one of three otherwise.
+type Which
+    Neither
+    First
+    Second
+
+type Told
+    One
+    Zero(which: Which)
+
+rule and_told takes (Bit, Bit) returns Told
+    (1, 1) <-> One
+    (0, 0) <-> Zero(Neither)
+    (1, 0) <-> Zero(First)
+    (0, 1) <-> Zero(Second)
+
+rule forget takes Told returns Bit
+    One => 1
+    Zero(which) => 0 where
+        discard which
+
+rule and_least takes (Bit, Bit) returns Bit
+    (a, b) => c where
+        told is and_told((a, b))
+        c is forget(told)
+
+rule main uses Output, System
+    output and_into((1, 1))
+    output undo and_into((1, 1, 1))
+    output or_into((0, 1))
+    output nand_into((1, 1))
+    repeat with a from 0 to 1
+        repeat with b from 0 to 1
+            output (and_gate((Bit(a), Bit(b))), or_gate((Bit(a), Bit(b))), nand_gate((Bit(a), Bit(b))), and_table((Bit(a), Bit(b))), and_least((Bit(a), Bit(b))))

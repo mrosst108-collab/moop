@@ -1,0 +1,7 @@
+# -0.0 is not what twin computes from 0.0, so the pair is outside its image.
+rule twin takes F64 returns (F64, F64)
+    x <-> (x, y) where
+        y is x
+
+rule main uses Output
+    output undo twin((0.0, -0.0))

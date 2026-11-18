@@ -1,0 +1,23 @@
+rule chain(start: U64) returns U64
+    n is start
+    steps is U64(0)
+    repeat while n not= 1
+        if n mod 2 = 0
+            set n to n / 2
+        otherwise
+            set n to 3 * n + 1
+        set steps to steps + 1
+    steps
+
+rule longest(limit: U64) returns U64
+    best is U64(0)
+    best_start is U64(1)
+    repeat with s from U64(1) to limit
+        c is chain(s)
+        if c > best
+            set best to c
+            set best_start to s
+    best_start
+
+rule main uses Output
+    output longest(3000000)

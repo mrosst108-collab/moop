@@ -1,0 +1,44 @@
+# Shapes are types.  A record is a type with one constructor; `<-` derives a
+# record from another by fields only.  A clause rule on shapes is certified by
+# the shapes alone.
+
+type Point(x: I64, y: I64)
+type Pixel(color: U8) <- Point
+
+type Sign
+    Positive(n: I64)
+    Negative(n: I64)
+    Zero
+
+# Exclusive and exhaustive on the left, exclusive on the right: a bijection.
+rule flip takes Sign returns Sign
+    Positive(n) <-> Negative(n)
+    Negative(n) <-> Positive(n)
+    Zero <-> Zero
+
+# A derived record splits into its parent and its own field, and back.
+rule split takes Pixel returns (Point, U8)
+    Pixel(x, y, color) <-> (Point(x, y), color)
+
+# Exclusive on both sides but not exhaustive: a partial bijection.
+rule small takes I64 returns I64
+    0 <-> 10
+    1 <-> 11
+
+# Overlapping right sides: the clause choice is a loss, so the rule says so.
+rule magnitude takes Sign returns I64
+    Positive(n) => n
+    Negative(n) => n
+    Zero => 0
+
+rule main uses Output, System
+    output flip(Positive(5))
+    output undo flip(Negative(5))
+    px is Pixel(3, 4, 200)
+    output px
+    (pt, c) is split(px)
+    output pt
+    output undo split((pt, c))
+    output small(1)
+    output undo small(10)
+    output magnitude(Negative(7))

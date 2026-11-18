@@ -1,0 +1,34 @@
+# R8: every operation is defined or refused.  The interpreter and the C23
+# backend must print the same lines.
+rule main uses Output
+    output I64(-9223372036854775807 - 1) / -1
+    output I64(-9223372036854775807 - 1) mod -1
+    output U8(250) + U8(10)
+    output I8(127) + I8(1)
+    output I16(-32768) - I16(1)
+    output I32(7) mod I32(-3)
+    output -7 / 2
+    output -7 mod 2
+    output U64(0) - U64(1)
+    output U32(65536) * U32(65536)
+    output shift_left(U8(1), 9)
+    output shift_right(I16(-8), 1)
+    output shift_right(U16(65535), 20)
+    output I8(1000.7)
+    output U8(-5.0)
+    output I64(0.0 / 0.0)
+    output I64(1e300)
+    output Bit(3)
+    output U8(-1)
+    output bitxor(U16(61680), U16(4080))
+    output 0.1 + 0.2
+    output 1.0 / 0.0
+    output -1.0 / 0.0
+    output 100.0
+    output 1e16
+    output 0.0001
+    output 0.00001
+    output -0.0
+    output 123456789.125
+    output sqrt(2.0)
+    output floor(-2.5)

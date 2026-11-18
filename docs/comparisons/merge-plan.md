@@ -343,12 +343,14 @@ Selvage.
 | Rulings | G1 to G7 decided; in Selvage's register, C1 to C5 and N1 to N3 ratified (XII.1); A1 retains `repeat while`, so `0002` is not adopted |
 
 **Outside this repository, and the maintainer's:**
-- **Applying the patches to Selvage.** Patches `0001` and `0003` to
-  `0008` (`selvage-patches/`, with instructions in its README) apply in
-  order to the 0.4.9 release archive, and reproduce the validated tree
-  byte for byte. No Selvage repository was reachable from the sessions
-  that built them, so none has been applied anywhere.
-- **Selvage's version number.** It is 0.4.9 throughout the patches.
+- **Selvage 0.5.0, integrated.** Patches `0001` and `0003` to `0009`
+  (0002 excluded) applied in order to the 0.4.9 release archive give
+  Selvage 0.5.0, the version the maintainer recommended. It passed its
+  final validation: suite 199/199, mutation check 153/153, the
+  description check and benchmarks. The tree is in this repository at
+  `related/selvage/` (`related/README.md`). Putting it into a Selvage
+  repository of its own is the maintainer's; none was reachable from
+  these sessions.
 
 **Permanent, on moop's side.** Wiring 1 stays frozen, and both languages
 reproduce `tests/tape_vectors.txt` byte for byte. A change of wiring is

@@ -1,0 +1,21 @@
+# Temporaries are computed, used and uncomputed; the checker writes each uncompute
+# as a `was` step, and the derived inverse recomputes them where it needs them.
+type Pair(a: I64, b: I64)
+
+rule mix(k: I64) takes Pair returns Pair
+    Pair(a, b) <-> Pair(a, b) where
+        t is a * k + 3
+        add t to b
+        u is t * 2
+        add u to b
+        repeat with i from 1 to 4
+            s is a + i
+            add s * k to b
+        repeat with j from 4 down to 2
+            subtract j * a from b
+
+rule main uses Output
+    p is mix(3)(Pair(5, 7))
+    output p
+    output undo mix(3)(p)
+    output undo mix(3)(p) = Pair(5, 7)

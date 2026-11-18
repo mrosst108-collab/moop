@@ -1,0 +1,32 @@
+# Code is data.  A quoted expression is a Code form built from the same
+# constructors the parser produces, so a rule can take it apart and build new
+# code.  Differentiation is lossy (constants vanish), and the rule says so.
+
+# The variable is a parameter: the name `x` differentiates to 1, any other name to 0.
+rule derivative(x: Text) takes Code returns Code
+    Literal(c) => Literal(0) where
+        discard c
+    Name(v) => Literal(d) where
+        d is 0
+        if v = x
+            add 1 to d
+        discard v
+    Add(u, v) => Add(du, dv) where
+        du is derivative(x)(u)
+        dv is derivative(x)(v)
+    Multiply(u, v) => Add(Multiply(du, v2), Multiply(u2, dv)) where
+        u2 is u
+        v2 is v
+        du is derivative(x)(u)
+        dv is derivative(x)(v)
+
+rule main uses Output, System
+    h is quote x * x + 3 * x
+    output h
+    d is derivative("x")(h)
+    output d
+    output evaluate(h, quote x, 2)
+    output evaluate(d, quote x, 2)
+    output identity(h) = identity(quote x * x + 3 * x)
+    # with respect to another name, x is a constant
+    output derivative("y")(quote x * y + 3 * x)

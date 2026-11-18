@@ -1,0 +1,64 @@
+# Witness: who may read what a run kept.
+#
+# Root alone holds the journal.  `history` is an inquiry, asked by a rule that lists
+# Witness and answered by the nearest answer for Witness.  With none installed that is
+# Root, which gives a copy.  A host installs its own answer to decide what the code
+# inside it sees.  That answer may ask `history` of the next answer out, and it gives
+# back what it does not disclose, so an inquiry leaves the journal as it was.
+
+rule spend takes (I64, I64) returns I64
+    (kept, secret) => kept where
+        discard secret
+
+# Discloses nothing.
+answer Closed for Witness takes ()
+    (history(), s) <-> (Empty, s)
+
+# Discloses everything, and counts the inquiries.
+answer Counting for Witness takes I64
+    (history(), n) => (h, n) where
+        h is ask history()
+        add 1 to n
+
+# Splits a journal into what may be shown and what stays hidden: which rule dropped
+# something is shown, the value it dropped is not.  The split is certified, so it can
+# be put back together.
+rule redact takes Journal returns (Journal, Journal)
+    Empty <-> (Empty, Empty)
+    Kept(Dropped(code, by, value), rest) <-> (Kept(Dropped(code, by, ()), shown), Kept(value, hidden)) where
+        (shown, hidden) is redact(rest)
+    Kept(Chose(code, by, among), rest) <-> (Kept(Chose(code, by, among), shown), hidden) where
+        (shown, hidden) is redact(rest)
+    Kept(Decided(code, by, asked, world), rest) <-> (Kept(Decided(code, by, asked, world), shown), hidden) where
+        (shown, hidden) is redact(rest)
+
+# Discloses the redacted journal.  It asks Root's history, copies out the part that may
+# be shown, puts the journal back together and gives it back.
+answer Redacting for Witness takes ()
+    (history(), s) => (out, s) where
+        all is ask history()
+        (shown, hidden) is redact(all)
+        out is shown
+        (shown, hidden) was redact(all)
+        all was ask history()
+
+# Code that reads history.  What it sees is decided by whoever runs it.
+rule inquire returns Journal uses Witness
+    ask history()
+
+# Every inquiry is made before the first `output`: output is a commit point, and after
+# it the journal is empty.
+rule main uses Output, System, Witness
+    a is spend((1, 4242))
+    b is spend((2, 7777))
+    open is inquire()
+    (redacted, host) is inquire() with Redacting from ()
+    (nothing, closed) is inquire() with Closed from ()
+    ((nested, inner), outer) is (inquire() with Counting from 0) with Redacting from ()
+    after is inquire()
+    output open
+    output redacted
+    output nothing
+    output nested
+    output inner
+    output after = open

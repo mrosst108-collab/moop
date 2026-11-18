@@ -1,0 +1,303 @@
+# The prelude: fixed for the whole run (R7).
+#
+# It is the chain every reversible thing in Selvage rests on, written in Selvage:
+#   ccnot -> reversible logic -> reversible functions -> actors
+#         -> Root (system-facing) -> Object (user-facing) -> your answers.
+# `selvage lineage` shows, for any rule, which links of this chain it rests on.
+
+# ---- the base ---------------------------------------------------------------------
+# Four clauses over bits; the clause test alone certifies it.
+rule ccnot takes (Bit, Bit, Bit) returns (Bit, Bit, Bit)
+    (0, b, c) <-> (0, b, c)
+    (1, 0, c) <-> (1, 0, c)
+    (1, 1, 0) <-> (1, 1, 1)
+    (1, 1, 1) <-> (1, 1, 0)
+
+# ---- reversible logic: built from ccnot only ---------------------------------------------
+# CNOT is ccnot with its first control held at 1.
+rule cnot takes (Bit, Bit) returns (Bit, Bit)
+    (a, c) <-> (a, c) where
+        (1, a, c) is ccnot((1, a, c))
+
+# NOT is ccnot with both controls held at 1.
+rule toggle takes Bit returns Bit
+    c <-> c where
+        (1, 1, c) is ccnot((1, 1, c))
+
+# On Bit, `add x to z` is CNOT and `add x * y to z` is ccnot (add is xor, * is and);
+# the checker certifies those updates by the rule it uses for ccnot's clauses.
+
+# Word addition, realized: in-place ripple-carry addition (Cuccaro, Draper, Kutin and
+# Moulton 2004).  b becomes a + b modulo 2^n; a and the ancilla c come back unchanged.
+# Bit 0 is the least significant.  Its inverse, derived by `invert`, subtracts.
+rule ripple_add takes (Array(Bit), Array(Bit), Bit) returns (Array(Bit), Array(Bit), Bit)
+    (a, b, c) <-> (a, b, c) where
+        add a[0] to b[0]
+        add a[0] to c
+        add c * b[0] to a[0]
+        repeat with i from 1 to length(a) - 1
+            add a[i] to b[i]
+            add a[i] to a[i - 1]
+            add a[i - 1] * b[i] to a[i]
+        repeat with j from 1 to length(a) - 1
+            add a[length(a) - j - 1] * b[length(a) - j] to a[length(a) - j]
+            add a[length(a) - j] to a[length(a) - j - 1]
+            add a[length(a) - j - 1] to b[length(a) - j]
+        add c * b[0] to a[0]
+        add a[0] to c
+        add c to b[0]
+
+# Exchange, realized: three CNOT layers swap two words bit by bit.
+rule exchange takes (Array(Bit), Array(Bit)) returns (Array(Bit), Array(Bit))
+    (a, b) <-> (a, b) where
+        repeat with i from 0 to length(a) - 1
+            add a[i] to b[i]
+            add b[i] to a[i]
+            add a[i] to b[i]
+
+# Compute and uncompute, realized: CNOT fan-out copies a word into zeroed bits, and the
+# same gates clear the copy.  `t is x` and `t was x` are this; a temporary computed from
+# an expression is Bennett's construction over the same gates.
+rule fanout takes (Array(Bit), Array(Bit)) returns (Array(Bit), Array(Bit))
+    (a, z) <-> (a, z) where
+        repeat with i from 0 to length(a) - 1
+            add a[i] to z[i]
+
+# Kleene's three-valued logic, realized.  A Trit is two bits (known, value): false is
+# (1, 0), true is (1, 1), maybe is (0, 0).  Each rule keeps its inputs and adds its result
+# into a target pair, so with an empty target (0, 0) the target becomes the answer: the
+# same contract as fanout.  Every product is a ccnot into an empty cell, every sum a cnot;
+# the checker uncomputes the cells.
+rule trit_and takes (Bit, Bit, Bit, Bit, Bit, Bit) returns (Bit, Bit, Bit, Bit, Bit, Bit)
+    (k1, v1, k2, v2, k, v) <-> (k1, v1, k2, v2, k, v) where
+        add v1 * v2 to v
+        t1 is k1 * k2
+        t2 is k1 * (v1 + 1)
+        t3 is k2 * (v2 + 1)
+        u is t1 + t2 + t1 * t2
+        add u + t3 + u * t3 to k
+
+rule trit_or takes (Bit, Bit, Bit, Bit, Bit, Bit) returns (Bit, Bit, Bit, Bit, Bit, Bit)
+    (k1, v1, k2, v2, k, v) <-> (k1, v1, k2, v2, k, v) where
+        add v1 + v2 + v1 * v2 to v
+        t1 is k1 * k2
+        t2 is k1 * v1
+        t3 is k2 * v2
+        u is t1 + t2 + t1 * t2
+        add u + t3 + u * t3 to k
+
+rule trit_not takes (Bit, Bit, Bit, Bit) returns (Bit, Bit, Bit, Bit)
+    (k1, v1, k, v) <-> (k1, v1, k, v) where
+        add k1 to k
+        add k1 * (v1 + 1) to v
+
+# ---- forms -------------------------------------------------------------------------------
+# What a program is made of, as types a rule can take apart.  The parser's forms are the
+# values of these types.  Nothing here runs anything: holding a form grants nothing.
+
+# A list of parts: the parameters of a rule, the members of a tuple, the declarations of
+# a program.
+type Parts
+    NoParts
+    Part(first: Any, rest: Parts)
+
+# Code: expressions, steps and clauses.  A block of steps is written, by `sequence`, as a
+# sequence read from either end, Then(first, rest) or After(before, last), ending in Done;
+# a tuple, as Tupled(items).
+type Code
+    Literal(value: Any)
+    Name(name: Text)
+    Add(left: Code, right: Code)
+    Subtract(left: Code, right: Code)
+    Multiply(left: Code, right: Code)
+    Divide(left: Code, right: Code)
+    Mod(left: Code, right: Code)
+    Negate(operand: Code)
+    And(left: Code, right: Code)
+    Or(left: Code, right: Code)
+    Not(operand: Code)
+    Equal(left: Code, right: Code)
+    NotEqual(left: Code, right: Code)
+    Less(left: Code, right: Code)
+    LessEqual(left: Code, right: Code)
+    Greater(left: Code, right: Code)
+    GreaterEqual(left: Code, right: Code)
+    Call(function: Code, arguments: Any)
+    Tupled(items: Parts)
+    Index(array: Code, index: Code)
+    Field(whole: Code, name: Text)
+    Undo(call: Code)
+    Quote(code: Any)
+    Decide(condition: Code)
+    Request(name: Text, arguments: Any)
+    Ask(asked: Code)
+    Send(instance: Code, asked: Code)
+    Instance(made: Code, state: Code)
+    With(body: Code, instance: Code)
+    Let(pattern: Code, value: Code)
+    Was(pattern: Code, value: Code)
+    AddTo(amount: Code, target: Code)
+    SubtractFrom(amount: Code, target: Code)
+    Set(target: Code, value: Code)
+    Swap(left: Code, right: Code)
+    Discard(name: Text)
+    Restore(name: Text)
+    Output(value: Code)
+    Commit
+    Do(expression: Code)
+    If(condition: Code, yes: Any, no: Any)
+    RepeatWith(name: Text, first: Code, last: Code, body: Any)
+    RepeatDown(name: Text, first: Code, last: Code, body: Any)
+    RepeatWhile(condition: Code, body: Any)
+    Clause(left: Code, right: Code, steps: Any)
+    LossyClause(left: Code, right: Code, steps: Any)
+    Done
+    Then(first: Code, rest: Code)
+    After(before: Code, last: Code)
+
+# A type as it is written.  An unstated type is TypeName("").
+type TypeExpr
+    TypeName(name: Text)
+    TypeApp(name: Text, arguments: Parts)
+    TupleType(members: Parts)
+
+type Param(name: Text, kind: TypeExpr)
+
+type Slot(name: Text, kind: TypeExpr)
+
+type Ctor(name: Text, slots: Parts)
+
+type Op(name: Text, params: Parts, reply: TypeExpr)
+
+# A declaration is not Code.  Its header names and types it; a rule's or an answer's body
+# is Code: a list of clauses, or the block of an expression rule.
+type Declaration
+    RuleDecl(name: Text, params: Parts, domain: TypeExpr, codomain: TypeExpr, row: Parts, body: Any)
+    AnswerDecl(name: Text, params: Parts, groups: Parts, state: TypeExpr, clauses: Parts)
+    TypeDecl(name: Text, shapes: Parts, parent: Text)
+    RequestDecl(name: Text, requests: Parts, sealed: Text)
+
+# A program: its declarations, in the order written.
+type Program(declarations: Parts)
+
+# Inversion.  Code is data, so the inverse of code is computed by a rule, and this is the
+# rule: `invert` runs these clauses and has no table of its own.  A block is a sequence that
+# reads from either end, Then(first, rest) or After(before, last).  To invert it nothing is
+# moved: each step is read backward and the sequence is read from its other end.  Every
+# clause is `<->`, so the checker certifies `mirror` and derives its inverse, which is
+# `mirror` again.  It is a bijection on code, whatever the code does: a lossy clause keeps
+# its `=>`, and `discard x` becomes `x was discarded`, which only the system may run.
+rule mirror takes Code returns Code
+    Done <-> Done
+    Then(step, rest) <-> After(tser, pets) where
+        pets is mirror(step)
+        tser is mirror(rest)
+    After(rest, step) <-> Then(pets, tser) where
+        pets is mirror(step)
+        tser is mirror(rest)
+    Let(p, e) <-> Was(p, e)
+    Was(p, e) <-> Let(p, e)
+    AddTo(e, t) <-> SubtractFrom(e, t)
+    SubtractFrom(e, t) <-> AddTo(e, t)
+    Swap(a, b) <-> Swap(a, b)
+    Discard(x) <-> Restore(x)
+    Restore(x) <-> Discard(x)
+    If(c, yes, no) <-> If(c, sey, on) where
+        sey is mirror(yes)
+        on is mirror(no)
+    RepeatWith(i, a, b, body) <-> RepeatDown(i, b, a, ydob) where
+        ydob is mirror(body)
+    RepeatDown(i, b, a, body) <-> RepeatWith(i, a, b, ydob) where
+        ydob is mirror(body)
+    Clause(left, right, steps) <-> Clause(right, left, spets) where
+        spets is mirror(steps)
+    LossyClause(left, right, steps) <-> LossyClause(right, left, spets) where
+        spets is mirror(steps)
+
+# ---- the roots ---------------------------------------------------------------------------
+# What a run has let go of, newest first.
+type Journal
+    Empty
+    Kept(entry: Any, rest: Journal)
+
+# Each entry names the rule that kept it, so a rewind out of step is refused.
+type Entry
+    Dropped(code: Text, by: Text, value: Any)
+    Chose(code: Text, by: Text, among: I64)
+    Decided(code: Text, by: Text, asked: I64, world: Bool)
+
+# Retention.  `keep` is sealed to Root: only the system sends it, and only Root answers it.
+request System for Root
+    keep(entry: Any) returns ()
+
+# Disclosure.  `history` is an inquiry: it is asked by a rule that lists Witness and
+# answered by the nearest answer for Witness.  A host installs its own to decide what
+# the code inside it sees; that answer may ask `history` of the next one out.
+request Witness
+    history() returns Journal
+
+# Termination.  A refusal (R8) is a request.  The nearest installed answer for Refusal
+# may take it; otherwise Root's answer is the end of the run.
+request Refusal
+    refuse(reason: Text) returns ()
+
+# The system-facing root.  It alone holds the journal.  Every loss in a run is a `keep`
+# message to it, and that clause is a bijection, so a loss is reversible at the system
+# level: rewinding is taking those messages back, which only the system may do.
+# `history` gives a copy and leaves the journal as it was.  Its answer to `refuse` has
+# no clause, since it has no reply: the run ends.
+answer Root for System, Witness, Refusal takes Journal
+    (keep(e), j) <-> ((), Kept(e, j))
+    (history(), j) <-> (h, j) where
+        h is j
+
+# The user-facing root.  It holds a Root and delegates every request to it, so its
+# reversibility is Root's.  Every run starts inside an Object: a request that no
+# installed answer takes reaches it.
+answer Object for System, Witness, Refusal takes Root
+
+# ---- the CCNOT tape -------------------------------------------------------------------------
+# Two circular tapes of bits, a and b, under heads i and j.  One tick fires two CCNOTs that share
+# their controls, the cells under both heads, and target the next cell of each tape; then head i
+# moves forward and head j backward.  It is wiring 1 of moop's tape, and a trace of moop's own
+# implementation pins it bit for bit (VI.6).  Each tape needs at least two cells, or a target
+# would be a control: R4 refuses that when it runs.
+type CcnotTape(a: Array(Bit), b: Array(Bit), i: I64, j: I64)
+
+rule tape_tick takes CcnotTape returns CcnotTape
+    CcnotTape(a, b, i, j) <-> CcnotTape(a, b, ni, nj) where
+        add a[i] * b[j] to a[(i + 1) mod length(a)]
+        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]
+        ni is (i + 1) mod length(a)
+        i was (ni + length(a) - 1) mod length(a)
+        nj is (j + length(b) - 1) mod length(b)
+        j was (nj + 1) mod length(b)
+
+# A draw ticks the tape and copies the cell then under head i: a deterministic observation of the
+# tape, not a random bit.  It is a rule, not a request, so nothing else can be the tape's draw.
+rule draw takes CcnotTape returns (Bit, CcnotTape)
+    s <-> (seen, s) where
+        s is tape_tick(s)
+        seen is s.a[s.i]
+
+# A birth draws one cell for each cell of a child tape, a's first, and gives the child with the
+# parent.  The tape a program draws from is the one it makes and passes along; the tapes it
+# starts from are where it starts, not a source of entropy.
+rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+    s <-> (CcnotTape(ca, cb, 0, 0), s) where
+        ca is array(Bit, length(s.a))
+        cb is array(Bit, length(s.b))
+        repeat with k from 0 to length(ca) - 1
+            s is tape_tick(s)
+            add s.a[s.i] to ca[k]
+        repeat with k from 0 to length(cb) - 1
+            s is tape_tick(s)
+            add s.a[s.i] to cb[k]
+
+# ---- measurement --------------------------------------------------------------------------------
+# A request to the quantum world for the outcome of a measurement (VII.4).  No backend answers it,
+# and neither does Root, so `ask measure()` is refused, ending the run with status 70; a quantum
+# profile would install the answer.  It is not `draw`: a draw is a certified rule over a tape the
+# program holds, and a measurement's outcome is world input.
+request Measure
+    measure() returns Bit

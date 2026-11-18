@@ -1,8 +1,17 @@
 # Experiments
 
 Programs behind `../merge.md` and `../merge-plan.md`. The `.selv` files
-are Selvage 0.4.9 programs; they need that toolchain (not in this
-repository) and Clang 18 to build.
+were written for Selvage 0.4.9, and the tables below describe them as
+they were then. Selvage 0.5.0, the integrated toolchain, is now in this
+repository at `related/selvage`. Under it (checked 2026-11-18):
+
+- **Still run:** `conform.selv` still prints `tests/tape_vectors.txt`
+  byte for byte, and `tape.selv`, `feistel.selv`, `tick_timing.selv` and
+  `instance_copy_defect.selv` still pass the checker.
+- **Refused:** `ccnot_tape.selv` and `birth.selv`, because the names
+  they declare (`CcnotTape`, `tape_tick`, `draw`, `birth`) now belong to
+  Selvage's prelude (*is defined twice*). They are kept as records of
+  what was admitted. The live text is in `related/selvage/selvage/prelude.selv`.
 
 ## Current — the merge candidate
 

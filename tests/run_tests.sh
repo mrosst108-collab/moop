@@ -16,6 +16,10 @@ check() {
 
 check "--version prints version" "moop 0.10.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
+# Artifact identity only: the copy of the wiring-1 trace kept by the related
+# Selvage tree is moop's file, byte for byte. This runs neither language;
+# moop's run is test_wiring_1_trace, Selvage's is in its own suite.
+check "Selvage's stored copy of the wiring-1 trace is moop's file (no language is run)" "same" "$(cmp -s related/selvage/tests/programs/ccnot_tape.trace tests/tape_vectors.txt && echo same)"
 check "number unit tests pass with the default 128-bit implementation" "0" "$(build/test_number > /dev/null; echo $?)"
 check "number unit tests pass with the portable implementation, forced" "0" "$(build/test_number_portable > /dev/null; echo $?)"
 check "the forced build really uses the portable implementation" "wide: portable" "$(build/test_number_portable | head -1)"

@@ -1,0 +1,65 @@
+# A program that uses every form the parser can write, for the form census.
+type Pair(left: I64, right: I64)
+
+type Light
+    Red
+    Green
+
+request Store
+    put(v: I64) returns ()
+    peek() returns I64
+
+answer Cell for Store takes I64
+    (put(v), s) => ((), v) where
+        discard s
+    (peek(), s) <-> (v, s) where
+        v is s
+
+rule step(k: I64) takes (I64, I64) returns (I64, I64)
+    (a, b) <-> (a, b) where
+        t is k * 2
+        add t to a
+        subtract k / 3 + k mod 2 from b
+        repeat with r from 1 to 2
+            swap a and b
+        repeat with i from 0 to 2
+            add i to a
+        repeat with j from 2 down to 0
+            subtract j from b
+        if k > 0 and not (k = 1) or k >= 9
+            add -k to a
+        t was k * 2
+
+rule back takes (I64, I64) returns (I64, I64)
+    (a, b) <-> (a, b) where
+        (a, b) is undo step(3)((a, b))
+
+rule drop takes (I64, I64) returns I64
+    (a, b) => a where
+        set b to b - 1
+        discard b
+
+rule through takes (Cell, I64) returns (Cell, I64, I64)
+    (c, n) <-> (c, n, m) where
+        m is c -> peek()
+        add n to m
+
+rule sure(t: Trit) returns Bool uses Decide, System
+    decide t
+
+rule low(p: Pair, xs: Array(I64)) returns Bool
+    p.left < p.right and xs[0] <= 1 and p.left not= 3
+
+rule main uses Output, Store, Decide, System
+    xs is array(I64, 2)
+    n is 0
+    repeat while n < 2
+        set xs[n] to n
+        set n to n + 1
+    output low(Pair(1, 2), xs)
+    (r, cell) is ask put(4) with Cell from 0
+    output cell
+    commit
+    output quote a * (b, c)
+    output sure(true)
+    low(Pair(1, 2), xs)

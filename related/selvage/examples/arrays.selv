@@ -1,0 +1,42 @@
+# Owned arrays.  Linear use makes an in-place update unobservable, so an exact
+# update on an element is certified, and whole loops of them run backward.
+
+# In-place prefix sum; its derived inverse takes adjacent differences.
+rule prefix_sum takes Array(U64) returns Array(U64)
+    a <-> a where
+        repeat with i from 1 to length(a) - 1
+            add a[i - 1] to a[i]
+
+# Reverses in place by swaps.
+rule reverse takes Array(I64) returns Array(I64)
+    a <-> a where
+        repeat with i from 0 to length(a) / 2 - 1
+            swap a[i] and a[length(a) - 1 - i]
+
+# A conditional update: the condition reads nothing the branch changes, so the
+# condition still decides the branch when the rule runs backward.
+rule count_above(limit: I64) takes (Array(I64), I64) returns (Array(I64), I64)
+    (a, n) <-> (a, n) where
+        repeat with i from 0 to length(a) - 1
+            if a[i] > limit
+                add 1 to n
+
+rule squares(n: I64) returns Array(I64)
+    a is array(I64, n)
+    repeat with i from 0 to n - 1
+        set a[i] to i * i - 10
+    a
+
+rule main uses Output
+    u is array(U64, 8)
+    repeat with i from 0 to 7
+        set u[i] to U64(i) + 1
+    s is prefix_sum(u)
+    output s
+    output undo prefix_sum(s)
+    v is squares(7)
+    output v
+    output reverse(v)
+    (w, n) is count_above(5)((v, 0))
+    output n
+    output undo count_above(5)((w, n))

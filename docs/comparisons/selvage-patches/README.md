@@ -755,6 +755,22 @@ What 0009 leaves alone:
 | `selvage --version` | `selvage 0.5.0` |
 | Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused |
 | Emitted C for the seven benchmarks | Identical between 0008 and 0.5.0, and between 0003, where the timings were measured, and 0.5.0. The runtime header is identical too |
-| Benchmarks, measured again on the integrated tree | Running; not yet recorded |
-| Full suite | Running; not yet recorded |
-| Mutation check | Running; not yet recorded |
+| Benchmarks, measured again on the integrated tree (`bench/run.py 5`, Clang 18.1.3, rustc 1.97.0) | 1.13 against C23 and 1.05 against Rust in the geometric mean, every output as expected. Earlier sessions measured 1.10 to 1.12 against C; `fib`, whose code did not change, puts session noise at about 7% |
+| Full suite | 199 / 199 pass (251 s) |
+| Mutation check | 153 / 153 noticed, none missed (37 min), including 5 tape, 5 circuit and 3 `measure` mutations |
+| Tree identity after the runs | Identical to the work copy at `3be2404`, apart from what the benchmark script writes: the compiled programs in `bench/bin/` and its rewrite of `bench/results.md`. The integrated tree keeps the patched `results.md`, and the new measurement is recorded here |
+
+**Added to moop as a related project** (2026-11-18). A fresh application
+of the eight patches to the archive is at `related/selvage/`. It holds
+95 files: the archive's 92, and the 3 that the patches add
+(`selvage/circuit.py`, `tests/programs/ccnot_tape.selv`,
+`tests/programs/ccnot_tape.trace`). It has no build output, and it is
+identical to the validated work copy. `related/README.md` gives:
+- the archive's sha256 and the patch order;
+- that the archive contains no licence file. None is added: the licence
+  is the owner's to choose.
+
+moop's `make test` gains one check: the two stored copies of the trace
+are the same file. That shows the two files are identical; it runs
+neither language. moop's runtime conformance is `test_wiring_1_trace`,
+and Selvage's is in Selvage's own suite.

@@ -1,0 +1,85 @@
+# Declarations are data.  A rule, an answer, a type or a request group is a form of the type
+# Declaration, and a program is a form of the type Program.  A rule takes them apart one shape
+# per clause, as it takes apart any other form.  A declaration is not Code: its header names
+# and types it, and only the clauses in its body are Code.
+
+type Light
+    Red
+    Green
+
+request Store
+    put(v: I64) returns ()
+
+answer Cell for Store takes I64
+    (put(v), s) => ((), v) where
+        discard s
+
+rule tick(k: I64) takes (I64, I64) returns (I64, I64)
+    (n, m) <-> (n, m) where
+        add k to n
+        swap n and m
+
+# How many parts a list has.
+rule count takes Parts returns I64
+    NoParts => 0
+    Part(first, rest) => n where
+        n is count(rest)
+        add 1 to n
+        discard first
+
+# What a declaration declares, and under which name.
+rule kind takes Declaration returns (Text, Text)
+    RuleDecl(name, params, domain, codomain, row, body) => ("rule", name) where
+        discard params
+        discard domain
+        discard codomain
+        discard row
+        discard body
+    AnswerDecl(name, params, groups, state, clauses) => ("answer", name) where
+        discard params
+        discard groups
+        discard state
+        discard clauses
+    TypeDecl(name, shapes, parent) => ("type", name) where
+        discard shapes
+        discard parent
+    RequestDecl(name, requests, sealed) => ("request", name) where
+        discard requests
+        discard sealed
+
+# Every clause of a list read the other way: the body of the inverse.
+rule each_mirrored takes Parts returns Parts
+    NoParts <-> NoParts
+    Part(clause, rest) <-> Part(esualc, tser) where
+        esualc is mirror(clause)
+        tser is each_mirrored(rest)
+
+# The inverse of a clause rule, written in the language: the types it takes and returns
+# change places, and each clause is mirrored.  It is certified, and it is its own inverse.
+rule turned takes Declaration returns Declaration
+    RuleDecl(name, params, domain, codomain, row, body) <-> RuleDecl(name, params, codomain, domain, row, ydob) where
+        ydob is each_mirrored(body)
+
+# The names a program declares, in the order written.
+rule names takes Parts returns Parts
+    NoParts => NoParts
+    Part(d, rest) => Part(name, more) where
+        (what, name) is kind(d)
+        discard what
+        more is names(rest)
+
+rule main uses Output, System
+    d is definition(quote tick)
+    output d
+    output kind(definition(quote Cell))
+    output kind(definition(quote Light))
+    output kind(definition(quote Store))
+    # the inverse written above gives what the toolchain's own `inverse` gives, but for the name
+    t is turned(sequence(d))
+    output block(t)
+    output turned(turned(sequence(d))) = sequence(d)
+    # the whole program is a form too
+    p is program()
+    Program(all) is p
+    output count(all)
+    output names(all)

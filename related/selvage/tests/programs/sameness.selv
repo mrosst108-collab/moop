@@ -1,0 +1,26 @@
+# Sameness: `was` and patterns compare on the canonical form (every NaN is the one
+# NaN; -0.0 differs from 0.0).  The `=` operator stays IEEE 754.
+type Reading(value: F64, weight: F64)
+
+rule ratio takes F64 returns (F64, F64)
+    x <-> (x, y) where
+        y is x / x
+
+rule twin takes F64 returns (F64, F64)
+    x <-> (x, y) where
+        y is x
+
+rule tag takes Reading returns (Reading, Reading)
+    r <-> (r, s) where
+        s is r
+
+rule main uses Output
+    p is ratio(0.0)
+    output p
+    output undo ratio(p)
+    output undo twin((2.5, 2.5))
+    z is 0.0 / 0.0
+    output z = z
+    output 0.0 = -0.0
+    q is tag(Reading(z, -0.0))
+    output undo tag(q)

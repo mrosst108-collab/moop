@@ -1,0 +1,58 @@
+# Requests and answers.  `ask` goes to the nearest enclosing answer; `->` goes
+# to a named one.  An answer clause is a rule from (request, state) to
+# (reply, state), certified like any other rule, so a message can be undone.
+
+type Receipt
+    Deposited(amount: I64)
+    Withdrew(amount: I64)
+
+request Account
+    deposit(amount: I64) returns Receipt
+    withdraw(amount: I64) returns Receipt
+
+answer Ledger for Account takes I64
+    (deposit(n), balance) <-> (Deposited(n), balance) where
+        add n to balance
+    (withdraw(n), balance) <-> (Withdrew(n), balance) where
+        subtract n from balance
+
+# A clause rule that owns an account and sends it a message.  Because Ledger is
+# certified, so is pay, and `undo pay` takes the payment back.
+rule pay(n: I64) takes Ledger returns (Receipt, Ledger)
+    account <-> (receipt, account) where
+        receipt is account -> withdraw(n)
+
+request Noise
+    sample(dt: F64) returns F64
+
+# Replays a recorded path of increments; its state counts the samples taken.
+answer Replay(path: Array(F64)) for Noise takes I64
+    (sample(dt), i) => (dw, i) where
+        dw is path[i] * dt
+        add 1 to i
+        discard dt
+
+# A random walk that asks for its increments.  Its replies are world input and
+# its float updates round, so it is lossy; the journal keeps both.
+rule walk(n: I64) takes F64 returns F64 uses Noise
+    x => x where
+        repeat with i from 1 to n
+            dw is ask sample(0.5)
+            add dw to x
+            discard dw
+
+rule main uses Output, System
+    account is Ledger from 100
+    r1 is account -> deposit(50)
+    output r1
+    output account
+    (r2, after) is pay(30)(account)
+    output r2
+    output after
+    output undo pay(30)((r2, after))
+    path is array(F64, 4)
+    repeat with i from 0 to 3
+        set path[i] to F64(i) + 1.0
+    (x, noise) is walk(4)(0.0) with Replay(path) from 0
+    output x
+    output noise

@@ -1,0 +1,14 @@
+rule count_primes(n: I64) returns I64
+    composite is array(Bool, n)
+    count is 0
+    repeat with i from 2 to n - 1
+        if not composite[i]
+            set count to count + 1
+            j is i * i
+            repeat while j < n
+                set composite[j] to true
+                set j to j + i
+    count
+
+rule main uses Output
+    output count_primes(50000000)

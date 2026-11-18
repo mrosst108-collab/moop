@@ -1,0 +1,15 @@
+# 200 million certified leapfrog steps on an integer grid, then the derived
+# inverse runs them all backward to the exact starting point.
+type Phase(q: I64, p: I64)
+
+rule orbit(k: I64, steps: I64) takes Phase returns Phase
+    Phase(q, p) <-> Phase(q, p) where
+        repeat with i from 1 to steps
+            subtract k * q / 2000 from p
+            add p to q
+            subtract k * q / 2000 from p
+
+rule main uses Output
+    s is orbit(10, 100000)(Phase(100000, 0))
+    output s
+    output undo orbit(10, 100000)(s)

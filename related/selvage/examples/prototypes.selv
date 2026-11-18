@@ -1,0 +1,39 @@
+# Prototypes by delegation.  An answer delegates a request it does not answer itself to
+# the one component of its state that answers it.  The component's rule runs on the
+# component's own state and keeps its certificate.  Every run starts inside an Object,
+# the user-facing root, which holds a Root and delegates every request to it.
+
+request Counter
+    bump(n: I64) returns I64
+    reset() returns ()
+
+answer Count for Counter takes I64
+    (bump(n), c) <-> (n, c) where
+        add n to c
+
+# A Resettable holds a Count and a tally of its own.  It answers reset itself, lossily:
+# the old count is overwritten, so the root keeps it.  It has no rule for bump, and one
+# component of its state answers bump, so bump is delegated to the Count, certified.
+answer Resettable for Counter takes (Count, I64)
+    (reset(), (c, resets)) => ((), (c, resets)) where
+        c was Count from k
+        set k to 0
+        c is Count from k
+        add 1 to resets
+
+# Two messages to a prototype.  bump is certified where it is answered, so this rule is
+# certified, and `undo` takes both messages back.
+rule bump_twice(k: I64) takes Resettable returns (I64, I64, Resettable)
+    n <-> (a, b, n) where
+        a is n -> bump(k)
+        b is n -> bump(k)
+
+rule main uses Output, System, Witness
+    n is Resettable from (Count from 5, 0)
+    (a, b, n2) is bump_twice(10)(n)
+    output n2
+    output undo bump_twice(10)((a, b, n2))
+    r is n2 -> reset()
+    h is ask history()
+    output n2
+    output h

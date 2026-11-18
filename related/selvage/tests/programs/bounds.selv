@@ -1,0 +1,4 @@
+rule main uses Output
+    a is array(I64, 3)
+    output a[2]
+    output a[3]

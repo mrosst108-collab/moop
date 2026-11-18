@@ -1,0 +1,36 @@
+# Bit-reversible integration on an integer grid (Levesque and Verlet 1993).
+#
+# The conservative part of the motion is a certified bijection, so `undo`
+# runs the orbit backward exactly.  Friction loses information; the rule says
+# so with `set` and the `=>` arrow, and the journal holds what was lost.
+
+type Phase(q: I64, p: I64)
+
+# Kick-drift-kick steps of a harmonic oscillator, spring constant k/1000.
+# Each update reads only what it does not change, so the step is certified.
+rule orbit(k: I64, steps: I64) takes Phase returns Phase
+    Phase(q, p) <-> Phase(q, p) where
+        repeat with i from 1 to steps
+            subtract k * q / 2000 from p
+            add p to q
+            subtract k * q / 2000 from p
+
+# The same motion with friction.  `set` overwrites, which is an exchange plus a
+# discard, so this rule is lossy; the system can still rewind it.
+rule damped_orbit(k: I64, steps: I64) takes Phase returns Phase
+    Phase(q, p) => Phase(q, p) where
+        repeat with i from 1 to steps
+            subtract k * q / 2000 from p
+            add p to q
+            subtract k * q / 2000 from p
+            set p to p - p / 64
+
+rule main uses Output, System
+    start is Phase(100000, 0)
+    s is orbit(10, 10000)(start)
+    output s
+    back is undo orbit(10, 10000)(s)
+    output back
+    output back = start
+    d is damped_orbit(10, 100)(start)
+    output d

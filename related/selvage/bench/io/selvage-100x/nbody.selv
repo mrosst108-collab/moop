@@ -1,0 +1,90 @@
+# The n-body benchmark (Sun and four planets, dt = 0.01).  It is an expression
+# rule that owns its arrays: its overwrites are internal and recomputable from
+# its parameter, so nothing is journaled and nothing is lost to the system.
+
+rule energy(x: Array(F64), y: Array(F64), z: Array(F64), vx: Array(F64), vy: Array(F64), vz: Array(F64), m: Array(F64)) returns F64
+    e is 0.0
+    repeat with i from 0 to 4
+        add 0.5 * m[i] * (vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i]) to e
+        repeat with j from i + 1 to 4
+            dx is x[i] - x[j]
+            dy is y[i] - y[j]
+            dz is z[i] - z[j]
+            subtract m[i] * m[j] / sqrt(dx * dx + dy * dy + dz * dz) from e
+    e
+
+rule simulate(steps: I64) returns (F64, F64)
+    pi is 3.141592653589793
+    solar is 4.0 * pi * pi
+    year is 365.24
+    x is array(F64, 5)
+    y is array(F64, 5)
+    z is array(F64, 5)
+    vx is array(F64, 5)
+    vy is array(F64, 5)
+    vz is array(F64, 5)
+    m is array(F64, 5)
+    set m[0] to solar
+    set x[1] to 4.84143144246472090e+00
+    set y[1] to -1.16032004402742839e+00
+    set z[1] to -1.03622044471123109e-01
+    set vx[1] to 1.66007664274403694e-03 * year
+    set vy[1] to 7.69901118419740425e-03 * year
+    set vz[1] to -6.90460016972063023e-05 * year
+    set m[1] to 9.54791938424326609e-04 * solar
+    set x[2] to 8.34336671824457987e+00
+    set y[2] to 4.12479856412430479e+00
+    set z[2] to -4.03523417114321381e-01
+    set vx[2] to -2.76742510726862411e-03 * year
+    set vy[2] to 4.99852801234917238e-03 * year
+    set vz[2] to 2.30417297573763929e-05 * year
+    set m[2] to 2.85885980666130812e-04 * solar
+    set x[3] to 1.28943695621391310e+01
+    set y[3] to -1.51111514016986312e+01
+    set z[3] to -2.23307578892655734e-01
+    set vx[3] to 2.96460137564761618e-03 * year
+    set vy[3] to 2.37847173959480950e-03 * year
+    set vz[3] to -2.96589568540237556e-05 * year
+    set m[3] to 4.36624404335156298e-05 * solar
+    set x[4] to 1.53796971148509165e+01
+    set y[4] to -2.59193146099879641e+01
+    set z[4] to 1.79258772950371181e-01
+    set vx[4] to 2.68067772490389322e-03 * year
+    set vy[4] to 1.62824170038242295e-03 * year
+    set vz[4] to -9.51592254519715870e-05 * year
+    set m[4] to 5.15138902046611451e-05 * solar
+    px is 0.0
+    py is 0.0
+    pz is 0.0
+    repeat with i from 0 to 4
+        add vx[i] * m[i] to px
+        add vy[i] * m[i] to py
+        add vz[i] * m[i] to pz
+    set vx[0] to -px / solar
+    set vy[0] to -py / solar
+    set vz[0] to -pz / solar
+    e0 is energy(x, y, z, vx, vy, vz, m)
+    repeat with round from 1 to steps
+        repeat with i from 0 to 4
+            repeat with j from i + 1 to 4
+                dx is x[i] - x[j]
+                dy is y[i] - y[j]
+                dz is z[i] - z[j]
+                d2 is dx * dx + dy * dy + dz * dz
+                mag is 0.01 / (d2 * sqrt(d2))
+                subtract dx * m[j] * mag from vx[i]
+                subtract dy * m[j] * mag from vy[i]
+                subtract dz * m[j] * mag from vz[i]
+                add dx * m[i] * mag to vx[j]
+                add dy * m[i] * mag to vy[j]
+                add dz * m[i] * mag to vz[j]
+        repeat with i from 0 to 4
+            add 0.01 * vx[i] to x[i]
+            add 0.01 * vy[i] to y[i]
+            add 0.01 * vz[i] to z[i]
+    (e0, energy(x, y, z, vx, vy, vz, m))
+
+rule main uses Output
+    (e0, e1) is simulate(2000000)
+    output e0
+    output e1

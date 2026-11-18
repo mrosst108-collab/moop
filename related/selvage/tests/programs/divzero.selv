@@ -1,0 +1,6 @@
+rule f(a: I64, b: I64) returns I64
+    a / b
+
+rule main uses Output
+    output f(1, 2)
+    output f(1, 0)

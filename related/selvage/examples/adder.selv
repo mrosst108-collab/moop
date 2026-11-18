@@ -1,0 +1,51 @@
+# Arithmetic built upward from ccnot.
+#
+# On Bit, `add` is XOR and `*` is AND, so `add x * y to z` is exactly ccnot,
+# `add x to z` is CNOT, and the checker certifies each update by the same rule
+# it uses for the four clauses of ccnot.
+
+# A half adder: carry gets a and b, then b gets a xor b.
+rule half_adder takes (Bit, Bit, Bit) returns (Bit, Bit, Bit)
+    (a, b, carry) <-> (a, b, carry) where
+        (a, b, carry) is ccnot((a, b, carry))
+        (a, b) is cnot((a, b))
+
+# The ripple-carry adder itself, `ripple_add`, is in the prelude: it is how word
+# addition is realized from ccnot.
+
+rule bits_of(x: U8) returns Array(Bit)
+    r is array(Bit, 8)
+    repeat with i from 0 to 7
+        set r[i] to Bit(shift_right(x, i))
+    r
+
+rule value_of(r: Array(Bit)) returns U8
+    v is U8(0)
+    repeat with i from 0 to 7
+        set v to bitor(v, shift_left(U8(r[i]), i))
+    v
+
+# Compare the ccnot circuit with the machine's own addition for every pair
+# below `limit`, and check that undo turns the sum back into the addend.
+rule mismatches(limit: I64) returns I64
+    bad is 0
+    repeat with x from 0 to limit
+        repeat with y from 0 to limit
+            (a, b, c) is ripple_add((bits_of(U8(x)), bits_of(U8(y)), Bit(0)))
+            if value_of(b) not= U8(x) + U8(y) or value_of(a) not= U8(x) or c not= Bit(0)
+                set bad to bad + 1
+            (a2, b2, c2) is undo ripple_add((a, b, c))
+            if value_of(b2) not= U8(y)
+                set bad to bad + 1
+            discard a
+            discard b
+            discard a2
+            discard b2
+    bad
+
+rule main uses Output
+    output half_adder((1, 1, 0))
+    output half_adder((1, 0, 0))
+    (a, s, c) is ripple_add((bits_of(U8(200)), bits_of(U8(100)), Bit(0)))
+    output value_of(s)
+    output mismatches(255)
