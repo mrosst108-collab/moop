@@ -84,7 +84,7 @@ because Selvage's own register already uses G1 to G11.
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported. **Complete** (2026-11-18): built and validated as `selvage-patches/0004`: suite 187/187, mutation check 145/145, the domain a model claim with a proof, refusals outside it in both backends |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates. **Complete** (2026-11-18): built and validated as `selvage-patches/0005` (the profile in part): suite 194/194, mutation check 150/150, the epoch 208 CCNOT against 104 interpreted ticks, benchmarks' emitted C unchanged |
-| 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it. **Built and validated as `selvage-patches/0006`**: the `Measure` group in the prelude, answered by nothing; suite 199/199, mutation check 153/153, benchmarks' emitted C unchanged; decisions N1 to N3 proposed |
+| 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it. **Complete** (2026-11-18): built and validated as `selvage-patches/0006`, the `Measure` group in the prelude, answered by nothing: suite 199/199, mutation check 153/153, benchmarks' emitted C unchanged. N1 to N3 adopted, N2 with a qualification; the rulings are entered in Selvage's description by `0007` (description only) |
 
 Phases 1 and 2 are independent of the tape and of each other, and are
 built (`selvage-patches/`). Phase 0 is done. Birth is decided
@@ -264,6 +264,27 @@ the prelude; not sealed, so a program may install a stand-in, which
 cannot make an asking rule certified; `measure` takes no argument until
 qubits exist. Compiled code has no `ask`, so there the program is refused
 at build time (status 1), not at run time.
+
+*Rulings (2026-11-18).* N1 to N3 are adopted:
+
+| # | Ruling | Reason |
+|---|---|---|
+| N1 | **Adopted.** `Measure` in the prelude, unanswered | Measurement is an environmental request, not a simulation the prelude provides. An answer comes from the world the program runs in, or from an answer the program installs explicitly. The prelude claims no implementation of quantum measurement |
+| N2 | **Adopted, with a qualification.** The group is unsealed; a program may install an answer | It allows explicit environmental adapters and test stand-ins without changing what physical measurement means, and it needs no seal made for measurement alone. The qualification: *environmental measurement* (an answer from the actual execution environment) and a *stand-in* (a modelled reply the program supplies for tests, simulations or controlled experiments) are kept apart. A stand-in implements the request's contract. It does not establish that a physical measurement occurred, and it does not make what follows quantum measurement |
+| N3 | **Adopted for now.** `measure()` takes no argument | No qubit type or register exists, so no argument model is invented in advance. When quantum registers or qubit types are introduced, the signature is revisited together with the semantics of measurement, state update, outcome representation and irreversibility |
+
+*Enforcement points.* The interpreter refuses an unanswered `measure`
+at run time (status 70). Compiled code refuses at build time (status 1).
+These are different enforcement points, not contradictory semantics:
+neither backend runs past a `measure` that nothing answers. The build
+refusal is the broader of the two. Compiled code has no `ask` at all
+(Selvage backlog item 5), so it refuses a program that asks `measure`
+even where a stand-in would answer it.
+
+*Disposition.* Further quantum work stays gated by actual quantum-state
+and backend support, not by the existence of the `Measure` request. A
+request can be declared before its physical realization exists;
+declaring it does not establish the realization.
 
 ## Budgets
 

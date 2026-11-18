@@ -1,0 +1,62 @@
+diff --git a/SPEC.md b/SPEC.md
+index be0ce82..0dc6272 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -1240,15 +1240,18 @@ request Measure
+ ```
+ 
+ No answer for it exists, in the prelude or in the toolchain, and Root does not answer it. An `ask measure()` that no installed answer takes reaches Root unanswered and is refused (VI.5): the run ends with status 70, after whatever it output before. A quantum profile would install the answer. No quantum type exists (IX.4).
++- **An environmental request** (N1). The prelude declares the request and does not answer it, and claims no implementation of quantum measurement. An answer comes from the world a program runs in, or from an answer the program installs explicitly. A request can be declared before its physical realization exists: the declaration does not establish the realization.
+ - **What Q3 asks of the asker already holds,** by rules that were there before: a rule that asks `measure` lists `Measure` in its row (R6), and a clause rule that asks it is lossy and writes `=>`, because its reply is world input. Nothing is special to `measure`: the refusal is the one every request nobody answers meets, with the same reason.
+ - **Not `draw`.** A draw is a certified rule over a tape the program holds, the same in every backend (VI.6). A rule that draws is certified, and one that asks `measure` is lossy whatever is installed: a rule's class is fixed statically, so the two cannot stand in for each other.
+-- **A stand-in** (N2). `Measure` is not sealed, so a program may install an answer of its own for it, as it may for `Refusal` or `Witness`. Inside that `with`, `measure` is answered as the stand-in says, and what it replies is not a measurement; a stand-in that replies with the tape's `draw` does not make a draw random (C1). Outside every stand-in the request reaches Root and is refused.
+-- **What is measured is not said** (N3). `measure` takes nothing: a qubit, and how one is named, are the quantum interface's to define (XII.5), and its signature may change when they are.
+-- **Compiled code** has no `ask` (IX.2), so a program that asks `measure` is not built: it is refused, with status 1, before anything runs.
++- **Environmental measurement and stand-ins** (N2). `Measure` is not sealed, so a program may install an answer of its own for it, as it may for `Refusal` or `Witness`. Two cases are kept apart:
++    - *Environmental measurement*: an answer supplied by the environment the program runs in, through a quantum profile. None exists.
++    - *A stand-in*: an answer the program installs, a modelled reply for a test, a simulation or a controlled experiment. Inside its `with`, `measure` is answered as the stand-in says. A stand-in implements the request's contract: it does not establish that a physical measurement occurred, and what it replies is not quantum measurement. One that replies with the tape's `draw` does not make a draw random (C1). Outside every stand-in the request reaches Root and is refused.
++- **What is measured is not said** (N3). `measure` takes nothing: a qubit, and how one is named, are the quantum interface's to define (XII.5). When qubit types or registers exist, the signature is to be revisited together with what a measurement does to the state, how its outcome is represented, and its irreversibility.
++- **Compiled code** has no `ask` (IX.2), so a program that asks `measure` is not built: it is refused, with status 1, before anything runs. The two backends refuse at different points, not with different meanings: the interpreter when the request is asked, compiled code when the program is built, and neither runs past a `measure` that nothing answers. The build refusal is the broader of the two: compiled code refuses every `ask`, a stand-in's included, until requests are lowered statically (XII.4, item 5).
+ 
+ | Item | Implementation | Design | Evidence |
+ |---|---|---|---|
+-| The group `Measure` in the prelude, answered by nothing; `ask measure()` refused at Root with status 70 | Built | Proposed (N1) | TestMeasure.test_the_prelude_declares_measure_and_nothing_answers_it, test_an_ask_of_measure_is_refused_at_root_with_status_70; the measure generator (XI.2) |
++| The group `Measure` in the prelude, answered by nothing; `ask measure()` refused at Root with status 70 in the interpreter, and a program that asks it not built in compiled code (status 1) | Built | Proposed (N1) | TestMeasure.test_the_prelude_declares_measure_and_nothing_answers_it, test_an_ask_of_measure_is_refused_at_root_with_status_70; the measure generator (XI.2) |
+ | A rule that asks `measure`: `Measure` in its row, and lossy if it is a clause rule | Built | Ratified | TestMeasure.test_a_rule_that_measures_is_lossy_and_a_rule_that_draws_is_not; the same generator |
+ | A program's own answer for `Measure`, a stand-in taking the request inside its `with` only | Built | Proposed (N2) | TestMeasure.test_a_stand_in_takes_the_request_inside_its_with_only; the same generator |
+ | Measurement answered by a quantum backend: the outcome kept, a commit point | Absent | Ratified | — |
+@@ -2453,7 +2456,7 @@ After these:
+ 7. **The RME-7 prelude** and its conformance suite; seals for roles and units; evidence binding (G5).
+ 8. **Concurrency,** after its scheduling, message-ordering and replay semantics are specified.
+ 9. **The reversible profile:** lowering certified finite-shape rules to X, CNOT and CCNOT circuits, with a check that every uncompute restores its scratch registers; the partial-bijection embedding. Built in part (IX.4): rules over bits whose words are layout, with that check. What remains: conditions and clause choices on bits (controlled blocks), word arithmetic as adder circuits, the extension of a partial bijection to a permutation (IX.4), and a backend that runs the circuits.
+-10. **The quantum realization interface:** qubit management, superposition and phase operations, a measurement backend, reset. The request group `Measure` is declared, and nothing answers it (VII.4).
++10. **The quantum realization interface:** qubit management, superposition and phase operations, a measurement backend, reset. The request group `Measure` is declared, and nothing answers it (VII.4). This item waits on quantum state and a backend that supports it: the declared request does not open it.
+ 11. **Notation and the derived printer.**
+ 
+ ### XII.5 Open questions
+@@ -2464,7 +2467,7 @@ After these:
+ 4. **κ admission for `install`:** who holds a slot's policy, and what it may inspect.
+ 5. **Concurrency without a foundational scheduler.** Actors can be built from Request, but deterministic replay of a concurrent run needs a precise account of scheduling, message ordering and external input; actor composition does not by itself make concurrency reversible.
+ 6. **Unsafe operations.** How an explicit unsafe boundary interacts with certification and the journal.
+-7. **The quantum realization interface.** Qubit management, phase operations, superposition, the measurement backend and the reset implementation are Absent, and their interface is Open. Only the request group `Measure` is declared, answered by nothing; what `measure` measures is part of the open interface (N3).
++7. **The quantum realization interface.** Qubit management, phase operations, superposition, the measurement backend and the reset implementation are Absent, and their interface is Open. Only the request group `Measure` is declared, answered by nothing; what `measure` measures is part of the open interface, and its signature is to be revisited with it (N3).
+ 8. **Modules.** A program is one file. A seal other than Root's needs a place that holds it, which is a module. Type parameters are set aside until the boundaries of the existing language are settled (P7).
+ 9. **What an answer that takes `refuse` may reply.** Recording a refusal is built: what ran inside is aborted, and it must compute `()`. Substituting a result, so that the refused computation goes on, needs a rule for when the class of the rule that refused is unchanged.
+ 10. **Whether `Object` should own a request.** As ruled it has no clause and delegates everything to Root.
+@@ -2499,13 +2502,13 @@ Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G7 bet
+ | C4 | The names `CcnotTape`, `tape_tick`, `draw` and `birth`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names; before C5, also a request group `Draw` and a record `Tapes` |
+ | C5 | `draw` and `birth` are prelude rules over the tape, with no request group, so that no program can stand in for the tape's draw: a prelude rule's name cannot be declared again. The reservation is of the rule names only; a program's own request may share the word | VI.6 | An answer `CcnotTape` for a request group `Draw`, which any program could answer as well; or that answer with a new kind of seal letting anyone send the group's requests and only the prelude answer them: a new declaration and a new case of R5, and draws left to the interpreter until answers compile. A namespace shared by rules and requests, to close the residual word, is a separate question |
+ 
+-Taken in declaring the request group `Measure` (VII.4), the merge plan's Phase 7 between moop and Selvage. It carries out Q3 as far as it can go with no quantum backend:
++Taken in declaring the request group `Measure` (VII.4), the merge plan's Phase 7 between moop and Selvage. It carries out Q3 as far as it can go with no quantum backend. The maintainer ruled N1 to N3 on 2026-11-18: N1 adopted, N2 adopted with a qualification, N3 adopted for now. They are given here as ruled; entering them in XII.1 is the maintainer's:
+ 
+ | # | Decision | Where | The alternative |
+ |---|---|---|---|
+ | N1 | The group `Measure`, with the one request `measure() returns Bit`, is declared in the prelude, and nothing answers it: an `ask` reaches Root and is refused. Its two names are the prelude's | VII.4 | The group in an example, reserving no names but giving no signature that every program shares and a profile could answer; or no declaration until a backend exists |
+-| N2 | `Measure` is not sealed: a program may install an answer of its own, a stand-in, as it may for `Refusal` and `Witness` | VII.4 | Sealed to Root, which under R5 would forbid programs to ask it as well; or a new kind of seal that lets anyone ask and only the system answer: a new declaration and a new case of R5, the alternative C5 also declined |
+-| N3 | `measure` takes no argument. What is measured is left to the quantum interface, and the signature may change with it | VII.4, XII.5 | An argument naming a qubit, such as an index: a way of naming qubits before there is any qubit management |
++| N2 | `Measure` is not sealed: a program may install an answer of its own, a stand-in, as it may for `Refusal` and `Witness`. Ruled with a qualification: environmental measurement, answered by the environment, and a stand-in, a modelled reply for tests, simulations or controlled experiments, are kept apart; a stand-in implements the request's contract and does not establish that a physical measurement occurred | VII.4 | Sealed to Root, which under R5 would forbid programs to ask it as well; or a new kind of seal that lets anyone ask and only the system answer: a new declaration and a new case of R5, the alternative C5 also declined |
++| N3 | `measure` takes no argument, for now. What is measured is left to the quantum interface; when qubit types or registers exist, the signature is revisited with the semantics of measurement, the update of the state, the outcome's representation and its irreversibility | VII.4, XII.5 | An argument naming a qubit, such as an index: a way of naming qubits before there is any qubit management |
+ 
+ Taken in entering T1 to T4, and while building 0.4.9. T5 and Q13 were recommended for ratification in review, T5 with the qualification that its proof show the entries of the runs sharing a result to be uniquely decodable:
+ 

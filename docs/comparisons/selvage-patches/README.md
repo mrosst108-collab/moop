@@ -19,6 +19,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0004-phase5-tape-domain.patch` | Phase 5: the tape's domain, each rule's extent on it, and the refusals outside it (section 6). Apply on top of 0003 |
 | `0005-phase6-reversible-profile.patch` | Phase 6: the reversible profile, in part (section 7). Apply on top of 0004 |
 | `0006-phase7-measure.patch` | Phase 7: the request group `Measure`, declared and answered by nothing (section 8). Apply on top of 0005 |
+| `0007-phase7-rulings.patch` | The rulings on N1 to N3 entered in Selvage's description; no code or tests (section 8f). Apply on top of 0006 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -39,6 +40,10 @@ git apply 0005-phase6-reversible-profile.patch
 
 ```bash
 git apply 0006-phase7-measure.patch
+```
+
+```bash
+git apply 0007-phase7-rulings.patch
 ```
 
 0002 (not adopted) was written against 0001 alone and no longer applies
@@ -541,7 +546,11 @@ declared there. That reserves two names, `Measure` and `measure`, since
 request names are shared by every group. A program's own *rule* may still
 be called `measure`, as for `draw` (tested).
 
-### 8b. Three decisions, entered as proposed (XII.6, N1 to N3)
+### 8b. Three decisions (XII.6, N1 to N3), ruled 2026-11-18
+
+Adopted: N1, N2 with a qualification, N3 for now (the merge plan's
+Phase 7 section gives the rulings and reasons; 0007 enters them in the
+description).
 
 | # | Decision | The alternative |
 |---|---|---|
@@ -575,7 +584,7 @@ On N2, keep two things apart:
 | Kind | Claim |
 |---|---|
 | Built, and tested | The group is declared and nothing answers it; `ask measure()` is refused at Root with status 70, after what the run output before; a rule that asks lists `Measure` and, as a clause rule, is lossy; a stand-in takes the request only inside its `with` |
-| Built, in one backend only | The run-time refusal is the interpreter's. Compiled code has no `ask` (IX.2, backlog item 5): a program that asks `measure` is not built, and is refused with status 1 before anything runs. That is the general limit of `ask` in C, not something special to `measure` |
+| Built, in one backend only | The run-time refusal is the interpreter's. Compiled code has no `ask` (IX.2, backlog item 5): a program that asks `measure` is not built, and is refused with status 1 before anything runs. That is the general limit of `ask` in C, not something special to `measure`. Different enforcement points, not contradictory semantics: neither backend runs past a `measure` that nothing answers |
 | Stated in the description, not enforced | The two limits: there are no qubits for the toolchain to enforce them on |
 | Absent | Any answer to `measure`, the outcome kept, measurement as a commit point, reset, qubits, every quantum type |
 
@@ -597,3 +606,27 @@ one.
 | Benchmarks | 1.11 against C | The C emitted for all seven benchmarks is byte-identical with and without 0006, and the runtime header is unchanged, so the timings are those of 0003 |
 | 0006 applied to a fresh archive after 0001, 0003, 0004 and 0005 | — | Applies; reproduces the work copy (`49ecb90`) byte for byte. The suite and mutation check run on that reconstructed tree |
 | Tree identity | — | After the runs, the tested tree is byte-identical to the work copy (clean at `49ecb90`) and to a second fresh extraction of the archive with the five patches from this repository applied |
+
+Phase 7 is complete (2026-11-18), on the record above at moop commit
+`e38bb0b`.
+
+### 8f. 0007 — the rulings entered in the description
+
+0006 is left as it was accepted. 0007 changes `SPEC.md` only:
+- **VII.4:** measurement as an environmental request (N1). The two cases
+  of N2 kept apart: environmental measurement, and a stand-in, which
+  implements the request's contract and does not establish a physical
+  measurement. When N3's signature is revisited. The two backends'
+  enforcement points.
+- **XII.4, item 10:** the quantum interface waits on quantum state and a
+  backend; the declared request does not open it.
+- **XII.5, question 7, and XII.6:** N1 to N3 given as ruled. As for C1
+  to C5, entering them in XII.1 (which makes their entries Ratified) is
+  left to the maintainer.
+
+| Check | Result |
+|---|---|
+| 0007 applied to a fresh archive after 0001, 0003, 0004, 0005 and 0006 | Applies; reproduces the work copy byte for byte; differs from the tested 0006 tree in `SPEC.md` alone |
+| Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused (unchanged) |
+| Full suite on that tree | Running; not yet recorded |
+| Mutation check | Not re-run. Neither the mutation tool nor any generator reads `SPEC.md`, so 0006's result (153 / 153) stands for this tree, as with Phase 5's wording change |
