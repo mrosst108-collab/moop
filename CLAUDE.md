@@ -72,6 +72,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 
 - `LICENSE` — MIT (copyright 2026 Mark Rosst); `related/selvage/LICENSE` has the same terms.
 - `src/` — interpreter sources. All `.c` files in `src/` are compiled and linked into the single `moop` binary (`src/moop.h` holds the version constant). `src/tapeloop.{h,c}` is the computational core; `src/gates.{h,c}` the reversible operators; `src/logic.{h,c}` the irreversible operators; `src/ram.{h,c}` user-facing memory; `src/actor.{h,c}` the actor runtime; `src/proto.{h,c}` the generative proto hierarchy; `src/encode.{h,c}` the value-onto-tapes encoding; `src/number.{h,c}` numbers (user layer: canonical bounded rationals, literal reading, printing, equality; 128-bit magnitudes behind one internal abstraction, native or portable); `src/lexer.{h,c}`, `src/parser.{h,c}`, `src/eval.{h,c}` the interpreter pipeline.
+- `docs/language.md` — the language described for a reader (0.10.0): running, lines/blocks/comments, the grammar, values, names and births, messages, lineage, mirrors, the machine, refusals, words, and what is not built yet. Its 8 example blocks run as written and print exactly their `→` lines; keep it in step when the language changes.
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.

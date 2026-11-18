@@ -34,6 +34,10 @@ layers: an unpredictable-looking but replayable truth value drawn from the
 reversible core. See [docs/model.md](docs/model.md) for the wiring and open
 design questions.
 
+**The language, described:** [docs/language.md](docs/language.md), a
+single readable description of moop 0.10.0, whose examples all run as
+written.
+
 ## Building
 
 ```sh
