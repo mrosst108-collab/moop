@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -476,12 +477,18 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         return true;
     }
     case MOOP_NODE_NUMBER: {
-        char buf[32];
-        size_t n = node->len < sizeof buf - 1 ? node->len : sizeof buf - 1;
-        memcpy(buf, node->start, n);
-        buf[n] = '\0';
-        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER,
-                            .number = strtol(buf, NULL, 10) };
+        /* A literal too large for a number is refused, never saturated
+         * or cut short: a mistake must not become a value. */
+        long v = 0;
+        for (size_t i = 0; i < node->len; i++) {
+            if (v > (LONG_MAX - (node->start[i] - '0')) / 10) {
+                snprintf(err, errlen, "%.*s is too large: a number is at most %ld",
+                         (int)node->len, node->start, LONG_MAX);
+                return false;
+            }
+            v = v * 10 + (node->start[i] - '0');
+        }
+        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER, .number = v };
         return true;
     }
     case MOOP_NODE_SEND:

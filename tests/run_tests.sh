@@ -75,6 +75,9 @@ check "body <-> body exchanges the other way" "$y2" "$x1"
 # honesty: what is not implemented says so
 check "oversized values are refused, not truncated" "error: an 8-cell loop carries at most 255" "$(printf 'c is a world\n256 <-> c\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "number-number bijection is honestly absent" "error: a bijection relates a value and a body, or two bodies" "$(printf '1 <-> 2\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "the largest number literal is read exactly" "9223372036854775807" "$(printf '9223372036854775807\nquit\n' | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
+check "a number literal one past it is refused, not saturated" "error: 9223372036854775808 is too large: a number is at most 9223372036854775807" "$(printf '9223372036854775808\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a long literal is refused, not cut short" "1" "$(printf '99999999999999999999999999999999999999\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'is too large')"
 check "unknown names are reported" "error: unknown name 'ghost'" "$(printf 'ghost\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unhosted messages are reported" "error: nothing in the lineage hosts \"dance\"" "$(printf 'world -> dance\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
