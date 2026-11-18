@@ -590,9 +590,10 @@ one.
 | Focused tests | — | `TestMeasure` 4 / 4 and the generated `measure` test 1 / 1 pass |
 | Generator alone | — | 0 findings at 150 programs (seed 5) and 600 (seeds 1 and 7) |
 | Each new mutation, run alone | — | Noticed: Root answering `measure` (101 findings), a request nobody answers given 0 (101), an `ask` taken as no world input (92) |
-| Full suite (all tests) | 194 / 194 | Running; not yet recorded |
-| Mutation check | 150 / 150 | Running; not yet recorded |
+| Full suite (all tests) | 194 / 194 | 199 / 199 pass (282 s) |
+| Mutation check | 150 / 150 | 153 / 153 noticed (42 min); the three new ones with the findings they had alone (101, 101, 92); none missed |
 | Description check | Pass | Pass: 14 blocks check, 1 inverse, 6 prelude (the new `Measure` block among them), 1 refused |
 | Census | Nothing escaping | Nothing escaping |
 | Benchmarks | 1.11 against C | The C emitted for all seven benchmarks is byte-identical with and without 0006, and the runtime header is unchanged, so the timings are those of 0003 |
 | 0006 applied to a fresh archive after 0001, 0003, 0004 and 0005 | — | Applies; reproduces the work copy (`49ecb90`) byte for byte. The suite and mutation check run on that reconstructed tree |
+| Tree identity | — | After the runs, the tested tree is byte-identical to the work copy (clean at `49ecb90`) and to a second fresh extraction of the archive with the five patches from this repository applied |

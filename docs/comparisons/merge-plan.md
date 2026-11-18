@@ -84,7 +84,7 @@ because Selvage's own register already uses G1 to G11.
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported. **Complete** (2026-11-18): built and validated as `selvage-patches/0004`: suite 187/187, mutation check 145/145, the domain a model claim with a proof, refusals outside it in both backends |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates. **Complete** (2026-11-18): built and validated as `selvage-patches/0005` (the profile in part): suite 194/194, mutation check 150/150, the epoch 208 CCNOT against 104 interpreted ticks, benchmarks' emitted C unchanged |
-| 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it. **Built as `selvage-patches/0006`**: the `Measure` group in the prelude, answered by nothing; validation running |
+| 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it. **Built and validated as `selvage-patches/0006`**: the `Measure` group in the prelude, answered by nothing; suite 199/199, mutation check 153/153, benchmarks' emitted C unchanged; decisions N1 to N3 proposed |
 
 Phases 1 and 2 are independent of the tape and of each other, and are
 built (`selvage-patches/`). Phase 0 is done. Birth is decided
