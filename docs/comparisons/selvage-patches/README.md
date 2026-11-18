@@ -485,8 +485,9 @@ above are certified rules.
 
 | Check | 0001 + 0003 + 0004 | + 0005 |
 |---|---|---|
-| Full suite (all tests) | 187 / 187 | Running; not yet recorded |
-| Mutation check | 145 / 145 | Running; not yet recorded |
+| Full suite (all tests) | 187 / 187 | 194 / 194 pass (273 s) |
+| Mutation check | 145 / 145 | 150 / 150 noticed (41 min); the five new ones each by a substantive finding (38 to 257) |
 | Description check | Pass | Pass |
 | Benchmarks | 1.11 against C | The C emitted for all seven benchmarks is byte-identical with and without 0005, and the runtime header is unchanged, so the compiled programs, and so the timings, are those of 0003 |
 | 0005 applied to a fresh archive after 0001, 0003 and 0004 | — | Applies; reproduces the tested tree exactly |
+| Tree identity | — | Work copy clean at `3a9ecf9` and byte-identical to the archive with 0001, 0003, 0004 and 0005 applied, before and after the runs |
