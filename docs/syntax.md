@@ -228,11 +228,19 @@ teaching. A chain that begins with a word is headed by that name; only
   something. `box ask add`, when `add` takes something, and `box size 5`,
   when `size` takes nothing, are refused with the form to write. `maybe`
   and `value` take nothing. Re-teaching replaces a teaching, whatever it
-  takes; the nearest teaching up the lineage decides.
+  takes.
+- **Arity across inheritance** (ruled 2026-11-18): the nearest teaching
+  in the receiver's lineage decides. A child may re-teach a message with
+  a different arity; a send to it must then satisfy the child's
+  teaching, a mismatch is refused with no fallback to an ancestor's, the
+  parent keeps its own, and descendants inherit the nearest one. So a
+  child can change the calling contract of an inherited message: it is
+  not substitutable for its parent in general.
 - **The parameter** is named by the teaching (`box add n is …`). It is
   that body's own: no other body sees it, a name bound outside is
-  shadowed inside the body and unchanged after it, and it is never
-  rebound.
+  shadowed inside the body and unchanged after it (ruled 2026-11-18),
+  and it is never rebound. This is parameter binding only, not
+  body-local declarations or a mutable lexical environment.
 - **The logic words** `and`, `or`, `nand`, `nor`, `xor` are built-in
   messages on truth values, calling the user layer's logic
   (`src/logic.c`). They are eager: the right side is always evaluated, so

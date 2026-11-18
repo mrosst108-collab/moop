@@ -1,0 +1,19 @@
+animal is a world
+animal speak n is n
+cat is an animal
+cat ask speak is 9
+kitten is a cat
+dog is an animal
+animal speak 5
+cat ask speak
+kitten ask speak
+dog speak 4
+animal ask sound is 1
+cat sound n is n
+animal ask sound
+cat sound 3
+kitten sound 2
+dog ask sound
+n is 7
+dog speak 8
+n

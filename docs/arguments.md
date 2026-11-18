@@ -1,8 +1,11 @@
 # Messages that take something
 
 **Status: ruled 2026-11-18; implemented in moop 0.8.0** as a change of
-its own, authorized separately, with prototype A's grammar (the
-validation of the implementation is at the end). Q1 to Q5 are adopted as
+its own, authorized separately, with prototype A's grammar, and the
+implementation accepted (its validation is at the end). Two questions
+the implementation raised were then ruled: parameter shadowing and arity
+across inheritance (below). No further grammar expansion is
+authorized. Q1 to Q5 are adopted as
 recommended, with the qualifications below. No other new construct is
 authorized: not prototype B's `box ask add 5`, not names local to a body,
 not optional, variadic or lazy arguments.
@@ -282,8 +285,6 @@ the results below are the implementation's own.
 - `src/eval.c`: the send (receiver, then argument, then dispatch); the
   parameter, saved and restored with the receiver around each body;
   strict arity; the logic words on truth values.
-- `src/main.c`: error buffers hold every message in full (they were 128
-  bytes, and some of the new refusals are longer).
 
 **Refusals, as built.** The prototype's refusals are kept and these are
 added, so that each mistake is named rather than reported as a generic
@@ -301,11 +302,42 @@ parse error:
 | `t add 5`, `t` a truth value | *a truth value answers and, or, nand, nor and xor, not "add"* |
 
 **Where the build had to choose.** Two behaviours the ruling did not
-spell out follow from what it adopted: a parameter shadows a name bound
-outside for the length of its body, as P1 describes; and the nearest
-teaching up the lineage decides a message's arity, since re-teaching
-replaces a teaching whatever it takes (Q4). Whether a child may teach a
-different arity than its parent's stays open (below); as built, it can.
+spell out were built as what it adopted implies, and then ruled on
+(below): a parameter shadows a name bound outside, and the nearest
+teaching decides a message's arity.
+
+## Two further rulings (2026-11-18)
+
+**Parameter shadowing: adopted.** A teaching's named parameter shadows
+an outer binding of the same name within that teaching's body. It is
+local parameter binding and nothing more: it does not imply general
+body-local declarations or mutable lexical environments. Outside the
+body the outer name is as it was.
+
+**Arity across inheritance: nearest-teaching semantics, adopted.** The
+nearest teaching in the receiver's lineage determines the message's
+arity, and a child may re-teach a message with a different arity from
+its parent's.
+- A send to the child must satisfy the child's nearest teaching.
+- An arity mismatch is refused. Dispatch does not fall back to an
+  ancestor's teaching.
+- The parent's teaching is unchanged when the message is addressed
+  through the parent.
+- Descendants inherit the nearest applicable teaching, and its arity,
+  unless they re-teach it.
+
+This keeps the existing lineage lookup, with no arity-invariance rule
+and no overloading. **A consequence, stated plainly:** a child can change
+the calling contract of a message it inherits, so a child is not
+substitutable for its parent in general. A program that sends `speak 5`
+to an `animal` may be refused when the receiver is a `cat` that was
+taught `ask speak`.
+
+Regression tests: `tests/programs/arity.moop` (the nearest teaching
+decides, through a child and a grandchild, and a parameter shadows an
+outer name), and four refusals in `tests/run_tests.sh`. The child
+refuses the parent's arity, both ways round, and so does the grandchild;
+the parent keeps its own.
 
 **Validation of the implementation** (not of the prototype):
 
@@ -321,11 +353,10 @@ different arity than its parent's stays open (below); as built, it can.
 | Sanitizers | Both test layers pass under AddressSanitizer and UBSan |
 | Warnings | None under GCC 13 (`-Wall -Wextra -Wpedantic`); `clang -std=c23` reports nothing |
 
+**Tests added after acceptance**, for the two rulings above: smoke
+checks 88 to 93, C unit tests unchanged at 95.
+
 ## Still open
 
-- Whether a parameter may take a name already bound outside, or is
-  refused. As built, it shadows the outer name inside its body (P1).
-- Whether a child may re-teach a message with a different arity than
-  its parent's. As built, it may: the nearest teaching decides.
 - Arrow spellings: the word operators have none.
 - Arithmetic on numbers, and which of it is the user layer's.

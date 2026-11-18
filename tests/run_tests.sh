@@ -102,6 +102,15 @@ check "logic relates truths only" "error: and relates two truths" "$(printf 'c i
 check "a truth value answers only the logic words" "error: a truth value answers and, or, nand, nor and xor, not \"add\"" "$(printf 'c is a world\nt is c inherits world\nt add 5\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "a number answers no message that takes something" "error: a number answers no message that takes something" "$(printf '5 add 3\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
+# arity across inheritance (ruled 2026-11-18): the nearest teaching decides,
+# a mismatch is refused, and dispatch never falls back to an ancestor's teaching
+check "the nearest teaching decides, down the lineage, and a parameter shadows an outer name" "$(cat $P/arity.out)" "$("$BIN" $P/arity.moop 2>&1)"
+L='animal is a world\nanimal speak n is n\ncat is an animal\ncat ask speak is 9\nkitten is a cat\nanimal ask sound is 1\ncat sound n is n\n'
+check "a child that re-teaches without a parameter refuses an argument; no fallback to the parent's" "error: speak takes nothing: ask speak" "$(printf "${L}cat speak 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "so does its descendant, which inherits the child's teaching" "error: speak takes nothing: ask speak" "$(printf "${L}kitten speak 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "a child that re-teaches with a parameter refuses ask; no fallback to the parent's" "error: sound takes something: write it after sound, without ask" "$(printf "${L}cat ask sound\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "the parent's teaching is unchanged when the parent is addressed" "error: speak takes something: write it after speak, without ask" "$(printf "${L}animal ask speak\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+
 # eager: the argument is evaluated before dispatch, and what it did stands
 # even when dispatch refuses (f and a w births from w, then and refuses)
 E='coin is a world\nw is a world\nf is w inherits coin\n'
