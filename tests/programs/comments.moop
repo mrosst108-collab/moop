@@ -1,0 +1,22 @@
+; A program with full-line comments (docs/foundations.md, F1-F3).
+; None of these lines runs or prints.
+animal is a world
+    ; an indented comment under no open block is not an error
+animal echo n is
+    ; a comment as the first line of a body
+    n
+; an unindented comment inside the block leaves it open
+      ; and so does a deeply indented one
+
+animal echo 5
+cat is an animal
+cat inherits animal
+treasure is
+    a world
+;
+    42
+
+treasure
+	; a tab before the semicolon is still a comment
+;;; several semicolons are one comment
+cat echo 7

@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.8.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.9.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -129,6 +129,26 @@ one=$(printf "${O}r is a w pair a w\nr ask value\nquit\n" | "$BIN" 2>/dev/null |
 two=$(printf "${O}p is a w\nq is a w\np ask value\nq ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tr '\n' ' ')
 check "the receiver is born before the argument" "$(echo $two | cut -d' ' -f2)" "$one"
 check "and the two births differ, so the order is seen" "yes" "$([ "$(echo $two | cut -d' ' -f1)" != "$(echo $two | cut -d' ' -f2)" ] && echo yes)"
+
+# full-line comments (0.9.0; docs/foundations.md, F1-F3)
+check "comments, inside and outside blocks, as a program" "$(cat $P/comments.out)" "$("$BIN" $P/comments.moop 2>&1)"
+check "a comment line in the repl runs and prints nothing" "" "$(printf '; a note\n    ; an indented note\nquit\n' | "$BIN" 2>&1 | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
+check "a comment line in the repl keeps a block open" "42" "$(printf 'treasure is\n    a world\n; a note\n    42\n\ntreasure\nquit\n' | "$BIN" 2>&1 | sed -e '1,2d' -e 's/moop> //g' -e 's/\.\.\.\.> //g' -e '/^$/d')"
+check "a blank line after a comment line still closes the block" "error: an indented line belongs to a block, and none is open" "$(printf 'treasure is\n    a world\n; a note\n\n    42\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a comment line does not excuse an unindented line in a block" "error: expected an indented line or a blank line" "$(printf 'treasure is\n    a world\n; a note\n42\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"
+check "a body of comment lines only is empty" "error: the definition body is empty" "$(printf 'treasure is\n    ; nothing here\n\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a semicolon after code is not a comment" "error: unexpected character ';'" "$(printf 'x is 5 ; five\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "nor after code in a block" "error: unexpected character ';'" "$(printf 'treasure is\n    42 ; the answer\n\nquit\n' | "$BIN" 2>&1 >/dev/null | head -1)"
+T=build/files
+mkdir -p $T
+printf 'treasure is\n    a world\n    ; a note\n    ghost\n\n' > $T/body_line.moop
+check "an error in a block names its real line, with comment lines between" "$T/body_line.moop:4: error: unknown name 'ghost'" "$("$BIN" $T/body_line.moop 2>&1)"
+printf '; a note\nghost\n' > $T/count.moop
+check "comment lines are counted in line numbers" "$T/count.moop:2: error: unknown name 'ghost'" "$("$BIN" $T/count.moop 2>&1)"
+printf 'x is 5\n; a note \000 with a NUL\nx\n' > $T/nul_comment.moop
+check "a comment line holding a NUL byte is still refused" "$T/nul_comment.moop:2: error: a NUL byte in the line" "$("$BIN" $T/nul_comment.moop 2>&1)"
+printf 'x is 5\n;%01100d\nx\n' 0 > $T/long_comment.moop
+check "a comment line too long is still refused" "$T/long_comment.moop:2: error: line too long" "$("$BIN" $T/long_comment.moop 2>&1)"
 
 # running files: a file is a session without the banner and the prompts
 P=tests/programs

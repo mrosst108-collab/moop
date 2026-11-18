@@ -16,7 +16,15 @@
  * value. They differ in two places only. The REPL reports an error and goes on; a file stops
  * at its first error, which is named by line, and the exit status is 1.
  * And `quit` belongs to the REPL: it is a command, not a word of the
- * language, so in a file it is a name like any other. */
+ * language, so in a file it is a name like any other.
+ *
+ * Comments are full lines (docs/foundations.md, F1-F3): a line whose
+ * first character other than a space or a tab is `;` is set aside before
+ * indentation and blocks are considered. It runs nothing and prints
+ * nothing, it neither opens nor closes a block, and its indentation is
+ * never an error. A blank line still closes a block, so the two kinds of
+ * line that run nothing differ on purpose. A `;` after code is not a
+ * comment: the lexer refuses it as a stray character. */
 
 typedef struct {
     FILE *in;
@@ -98,6 +106,14 @@ static bool is_blank(const char *line)
     return line[strspn(line, " \t")] == '\0';
 }
 
+/* A full-line comment. It is recognized only after the line has been
+ * read, so the reader's refusals (a line too long, a NUL byte) apply to
+ * comments as to everything else. */
+static bool is_comment(const char *line)
+{
+    return line[strspn(line, " \t")] == ';';
+}
+
 static void print_value(const MoopValue *v)
 {
     switch (v->kind) {
@@ -115,6 +131,7 @@ static void collect_block(Reader *r, const MoopAst *head_src)
     char line[1024];
     char err[MOOP_ERR_MAX];
     MoopAst *bodies[16];
+    unsigned long body_line[16];    /* where each body line was read */
     size_t n = 0;
     unsigned long opened = r->line; /* the line that opened the block */
 
@@ -135,6 +152,8 @@ static void collect_block(Reader *r, const MoopAst *head_src)
                 goto out; /* the input could not be read */
             break;
         }
+        if (is_comment(line))
+            continue; /* the block stays open, indented or not */
         if (is_blank(line))
             break; /* blank line closes the block */
         if (line[0] != ' ' && line[0] != '\t') {
@@ -161,6 +180,7 @@ static void collect_block(Reader *r, const MoopAst *head_src)
             report(r, r->line, "out of memory");
             goto out;
         }
+        body_line[n] = r->line;
         n++;
     }
 
@@ -169,11 +189,11 @@ static void collect_block(Reader *r, const MoopAst *head_src)
         goto out;
     }
     /* a block is evaluated when it closes; what goes wrong then is
-     * reported at the body line that failed (the lines of a body follow
-     * the opening line one by one), or at the opening line */
+     * reported at the body line that failed, as it was read (comment
+     * lines may stand between body lines), or at the opening line */
     size_t at;
     if (!moop_eval_block(head, bodies, n, &at, err, sizeof err))
-        report(r, at < n ? opened + 1 + at : opened, err);
+        report(r, at < n ? body_line[at] : opened, err);
     moop_ast_free(head);
     return;
 
@@ -219,7 +239,7 @@ static void session(Reader *r)
             continue;
         if (r->name == NULL && strcmp(line, "quit") == 0)
             break;
-        if (is_blank(line))
+        if (is_comment(line) || is_blank(line))
             continue;
         /* Indentation says a line belongs to a block. The REPL's prompt
          * shows whether one is open; a file has no prompt, so a line

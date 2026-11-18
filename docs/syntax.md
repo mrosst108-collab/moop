@@ -162,6 +162,38 @@ after it is refused, not run as a statement of its own. (Decided
 2026-11-18, for the REPL and files alike: the REPL's prompt does not
 justify a different rule.)
 
+## Comments (0.9.0)
+
+Ratified as F1 to F3 of `foundations.md`, and built in 0.9.0. A line
+whose first character other than a space or a tab is `;` is a comment:
+
+```
+; a note before anything
+animal echo n is
+    ; a note inside the body
+    n
+; an unindented note: the block is still open
+
+animal echo 5
+```
+
+- **Set aside first.** A comment line is set aside before indentation
+  and blocks are considered. It runs nothing and prints nothing, in the
+  REPL as in a file. It neither opens nor closes a block, so a block
+  stays open across it, indented or not. Its indentation is never an
+  error, even under no open block.
+- **Two kinds of line run nothing, and differ on purpose.** A blank line
+  still closes a block (F3); a comment line does not. So a body still
+  cannot hold a blank line.
+- **Full lines only.** A `;` after code is not a comment: the lexer
+  refuses it as a stray character (*unexpected character ';'*), on its
+  own line or in a block.
+- **The reader's refusals still apply.** A comment line too long, or one
+  holding a NUL byte, is refused like any other line.
+- **Line numbers are the lines of the file,** comment lines included,
+  and an error inside a block names the body line where it was read.
+- **Comments are not data:** a taught chain holds none.
+
 ## Running a file
 
 `./build/moop FILE` runs a file. **A file is a session without the
@@ -281,8 +313,8 @@ A-loops: values 0..255.
 
 Not implemented, and honestly erroring: number↔number bijections
 (general invertible functions — `celsius <-> fahrenheit` — remain the
-open design work), reflection (reading a taught chain back as a value),
-comments (a file cannot carry one).
+open design work), reflection (reading a taught chain back as a value).
+Comments (0.9.0) are full lines only; a `;` after code is refused.
 
 ## Decisions
 
@@ -314,13 +346,17 @@ comments (a file cannot carry one).
   values, not reserved words.
 - `mirrors 0` is the identity idiom: it answers with the receiver and
   changes nothing (2026-11-18).
+- Comments (ratified as F1 to F3 of `foundations.md`, built in 0.9.0):
+  full lines beginning with `;`, set aside before blocks are considered,
+  so they leave a block open; a blank line still closes one; a `;` after
+  code is refused.
 
 ## Open questions
 
-The items below that concern comments, blank lines in bodies, literals,
-arithmetic and invertible functions are treated together in
-`foundations.md`, ratified on 2026-11-18. Nothing there is built yet;
-building it is authorized stage by stage.
+The items below that concern literals, arithmetic and invertible
+functions are treated together in `foundations.md`, ratified on
+2026-11-18 and built stage by stage. Its Stage 1, comments, is built in
+0.9.0; the rest is not built.
 
 - General invertible functions under `<->` (`celsius <-> fahrenheit`):
   the primitive involutions exist (deposit, exchange); composing them
@@ -332,12 +368,4 @@ building it is authorized stage by stage.
   teaching programmatically). The data is there; the mirror is missing.
 - String and boolean literal forms. (Whether the logic words are
   keywords is settled: built-in messages, not reserved; `arguments.md`.)
-- **Comments.** A file cannot carry one, so a program cannot explain
-  itself. Not built: a comment is a lexical construct and needs its
-  derivation like any other (what forces it is that files are read by
-  people; the open part is its form, and whether anything already
-  present can carry the job).
-- Whether a body may hold blank lines (a block closed by the first line
-  that is not indented, as in Python). Decided otherwise for now — a
-  blank line closes — and files make the cost visible: a long body
-  cannot be spaced out.
+

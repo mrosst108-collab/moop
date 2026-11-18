@@ -441,7 +441,22 @@ Each stage is its own change with its own validation report: test
 counts, sanitizers, warnings and the conformance list above. Each needs
 authorization before it starts. The order is fixed by dependency.
 
-**Stage 1. Reader (F1 to F3).**
+**Stage 1. Reader (F1 to F3). Built in 0.9.0.**
+- *Validation:*
+  - smoke checks: 108 of 108 pass (96 before), under `sh` and `dash`;
+  - C unit tests: 95 of 95 pass, unchanged, since the change is in
+    `src/main.c`, which they do not link;
+  - the new checks were seen to fail on four broken copies of the
+    reader: line numbers counted the old way (1 failure), comments
+    ignored only when not indented (2), a comment line closing the
+    block (4), no comment handling (7);
+  - clean under ASan and UBSan; no warnings under GCC 13 or
+    `clang -std=c23`.
+
+  The build also corrected one thing the plan did not foresee. An error
+  inside a block used to be reported at the opening line plus the body
+  line's position, which comment lines between body lines would make
+  wrong. Each body line now keeps the number it was read at.
 - *Change:* `src/main.c` only. A line whose first non-whitespace
   character is `;` is set aside before block handling, in the REPL and
   in files. The lexer is unchanged, so a `;` after code stays a stray
