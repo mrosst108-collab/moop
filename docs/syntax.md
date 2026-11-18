@@ -2,8 +2,8 @@
 
 Design notes for the surface language. The pipeline is lex
 (`src/lexer.{h,c}`) → parse (`src/parser.{h,c}`) → eval
-(`src/eval.{h,c}`). `is`, `->`, and `<-` evaluate today (see status at
-the end); `<->` does not, and says so.
+(`src/eval.{h,c}`). `is`, `->`, `<-` and `<->` evaluate today (see
+status at the end); what does not is listed there, and says so.
 
 Guiding principle: **minimalism through synergy and orthogonality** —
 one grammar rule, four operators with one non-overlapping job each, and
@@ -109,7 +109,9 @@ the same.
 
 Known, accepted losses (revisit when messages take arguments): the
 receiver cannot appear as the right operand of `inherits`, and a body
-cannot answer with the receiver itself.
+cannot answer with the receiver itself. (`arguments.md` notes that
+`mirrors 0` already yields the receiver; whether that idiom stands is
+not decided.)
 
 ## Ubiquitous homoiconicity (decided)
 
@@ -237,6 +239,10 @@ comments (a file cannot carry one).
 
 ## Open questions
 
+- **Messages that take something** (arguments). Drafted for a ruling in
+  `arguments.md`, with a recommendation: the message stands where an
+  operator stands (`box add 5`), and the teaching names what it takes
+  (`box add n is mirrors n`). Nothing is decided or built.
 - General invertible functions under `<->` (`celsius <-> fahrenheit`):
   the primitive involutions exist (deposit, exchange); composing them
   into definable bijections is the next design step.

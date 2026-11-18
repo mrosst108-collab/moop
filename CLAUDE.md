@@ -73,6 +73,7 @@ There is no separate lint step; the build uses `-Wall -Wextra -Wpedantic` and wa
 - `docs/model.md` — the core model's design rationale and open questions; keep it in sync with wiring changes.
 - `docs/syntax.md` — surface syntax design notes and decisions.
 - `docs/derivation.md` — the design methodology: moop as a derived language, the deletion test, and what a feature proposal must prove.
+- `docs/arguments.md` — a draft for a ruling on messages that take arguments (options, a recommendation, prototype measurements). Nothing in it is decided or built; do not implement from it before it is ruled on.
 - `docs/comparisons/` — comparisons with sibling languages, each import put through the deletion test (`selvage.md`: Selvage 0.4.9; `merge.md`: system-facing reversibility and a moop/Selvage merge, an exploration with its Selvage test programs in `experiments/`; `merge-plan.md`: the phased plan — decided: moop stays a separate language and is the reference model for Selvage's `CcnotTape`; moop's part, pinning wiring 1 to a shared trace, is done).
 - `tests/` — see the test layers above; `tests/tape_vectors.txt` is the shared wiring-1 trace; `tests/programs/` holds moop programs run as files.
 
