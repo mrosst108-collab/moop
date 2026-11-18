@@ -113,7 +113,7 @@ static void print_value(const MoopValue *v)
 static void collect_block(Reader *r, const MoopAst *head_src)
 {
     char line[1024];
-    char err[128];
+    char err[MOOP_ERR_MAX];
     MoopAst *bodies[16];
     size_t n = 0;
     unsigned long opened = r->line; /* the line that opened the block */
@@ -188,7 +188,7 @@ static void interpret(Reader *r, const char *line)
     MoopAst ast;
     MoopValue value;
     bool quiet = false;
-    char err[128];
+    char err[MOOP_ERR_MAX];
 
     if (!moop_parse(line, &ast, err, sizeof err)) {
         report(r, r->line, err);

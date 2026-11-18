@@ -1,10 +1,11 @@
 # Messages that take something
 
-**Status: ruled 2026-11-18. Q1 to Q5 are adopted as recommended, with
-the qualifications below. The design is not implemented**: the
-interpreter still refuses `box add 5` (*expected an operator between
-expressions*). No new language construct is authorized by these
-decisions.
+**Status: ruled 2026-11-18; implemented in moop 0.8.0** as a change of
+its own, authorized separately, with prototype A's grammar (the
+validation of the implementation is at the end). Q1 to Q5 are adopted as
+recommended, with the qualifications below. No other new construct is
+authorized: not prototype B's `box ask add 5`, not names local to a body,
+not optional, variadic or lazy arguments.
 
 The options and their analysis are kept below as the record of why. Two
 of the options were built as throwaway prototypes outside the
@@ -269,11 +270,62 @@ Refused, as run:
 A parameter `n` left a name `n` bound outside as it was. A2, C and D
 were not built.
 
+## Implementation (0.8.0)
+
+Authorized 2026-11-18, after the ruling, as its own change. The
+prototype was evidence for the design and is not the implementation;
+the results below are the implementation's own.
+
+**What changed.**
+- `src/parser.{h,c}`: a word in operator position is a `TELL` node with
+  one argument; a teaching designator may be `receiver message param`.
+- `src/eval.c`: the send (receiver, then argument, then dispatch); the
+  parameter, saved and restored with the receiver around each body;
+  strict arity; the logic words on truth values.
+- `src/main.c`: error buffers hold every message in full (they were 128
+  bytes, and some of the new refusals are longer).
+
+**Refusals, as built.** The prototype's refusals are kept and these are
+added, so that each mistake is named rather than reported as a generic
+parse error:
+
+| Line | Refusal |
+|---|---|
+| `box add 5 6` | *add takes one argument, and '6' would be a second* |
+| `box add 5 x` | *add takes one argument, and 'x' would be a second* |
+| `box ask add 5` (prototype B's form) | *ask sends a message that takes nothing: to give add something, write it without ask* |
+| `box ask add n` | *ask sends a message that takes nothing, so 'n' cannot be given to add, and as a message it needs an argument* |
+| `ask add n` (Q3) | *ask sends a message that takes nothing, and a body cannot give its own receiver something* |
+| `box maybe 5` | *maybe takes nothing: ask maybe* |
+| `5 add 3` | *a number answers no message that takes something* |
+| `t add 5`, `t` a truth value | *a truth value answers and, or, nand, nor and xor, not "add"* |
+
+**Where the build had to choose.** Two behaviours the ruling did not
+spell out follow from what it adopted: a parameter shadows a name bound
+outside for the length of its body, as P1 describes; and the nearest
+teaching up the lineage decides a message's arity, since re-teaching
+replaces a teaching whatever it takes (Q4). Whether a child may teach a
+different arity than its parent's stays open (below); as built, it can.
+
+**Validation of the implementation** (not of the prototype):
+
+| Check | Result |
+|---|---|
+| `make test`, smoke checks | 88 of 88 pass (65 before): 23 new, none of the old edited except the version line |
+| C unit tests (`build/test_core`) | 95 of 95 pass (83 before): 12 new parser checks |
+| Programs run as files | `tests/programs/arguments.moop` and `logic.moop` print their `.out` byte for byte; neither depends on the wiring |
+| Multiple arguments against pipelines | `box add 5 6` and `box add 5 x` refused; `box add 5 x 7` gives 7, and deposits 5 exactly as `box add 5` alone does |
+| Eager evaluation | With `f` false, `f and a w` reports *and relates two truths*, and `w` is where a plain `a w` leaves it (52 to 44 on wiring 1); without a birth it stays at 52 |
+| Receiver before argument | In `a w pair a w`, the answer (the argument) is the second of two births (241), not the first (246) |
+| Sensitivity of those checks | On a copy with the receiver and argument evaluated in the other order, the order check fails. On a copy where `and` short-circuits on false, the three eager checks fail. Both copies were thrown away |
+| Sanitizers | Both test layers pass under AddressSanitizer and UBSan |
+| Warnings | None under GCC 13 (`-Wall -Wextra -Wpedantic`); `clang -std=c23` reports nothing |
+
 ## Still open
 
 - Whether a parameter may take a name already bound outside, or is
-  refused.
+  refused. As built, it shadows the outer name inside its body (P1).
 - Whether a child may re-teach a message with a different arity than
-  its parent's.
+  its parent's. As built, it may: the nearest teaching decides.
 - Arrow spellings: the word operators have none.
 - Arithmetic on numbers, and which of it is the user layer's.

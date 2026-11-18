@@ -14,7 +14,7 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.7.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.8.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
@@ -77,6 +77,46 @@ check "oversized values are refused, not truncated" "error: an 8-cell loop carri
 check "number-number bijection is honestly absent" "error: a bijection relates a value and a body, or two bodies" "$(printf '1 <-> 2\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unknown names are reported" "error: unknown name 'ghost'" "$(printf 'ghost\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unhosted messages are reported" "error: nothing in the lineage hosts \"dance\"" "$(printf 'world -> dance\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+
+# messages that take something (0.8.0; docs/arguments.md, Q1-Q5)
+P=tests/programs
+check "argument sends and teachings, as a program" "$(cat $P/arguments.out)" "$("$BIN" $P/arguments.moop 2>&1)"
+check "and, or, nand, nor and xor on truth values, as a program" "$(cat $P/logic.out)" "$("$BIN" $P/logic.moop 2>&1)"
+A='box is a world\nbox add n is mirrors n\nbox x n is n\n'
+check "a second argument is refused (a number)" "error: add takes one argument, and '6' would be a second" "$(printf "${A}box add 5 6\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "a second argument is refused (a word)" "error: add takes one argument, and 'x' would be a second" "$(printf "${A}box add 5 x\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "box add 5 x 7 is a pipeline: what box add 5 answers is sent x with 7" "7" "$(printf "${A}box add 5 x 7\nquit\n" | "$BIN" 2>&1 | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
+pipe=$(printf "${A}box add 5 x 7\nbox ask value\nquit\n" | "$BIN" 2>&1 | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tail -1)
+plain=$(printf "${A}box add 5\nbox ask value\nquit\n" | "$BIN" 2>&1 | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tail -1)
+check "in that pipeline box add 5 still deposits 5" "$plain" "$pipe"
+check "a message that takes something needs its argument" "error: 'add' stands where a message stands, and nothing follows it: it needs an argument" "$(printf "${A}box add\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "ask gives nothing: box ask add 5 is refused" "error: ask sends a message that takes nothing: to give add something, write it without ask" "$(printf "${A}box ask add 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "a body cannot give its own receiver something (Q3)" "error: ask sends a message that takes nothing, and a body cannot give its own receiver something" "$(printf "${A}box twice n is\n    ask add n\n\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "strict arity: a message that takes something is not asked" "error: add takes something: write it after add, without ask" "$(printf "${A}box ask add\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "strict arity: a message that takes nothing is given nothing" "error: size takes nothing: ask size" "$(printf "${A}box ask size is 4\nbox size 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "innate messages take nothing" "error: maybe takes nothing: ask maybe" "$(printf "${A}box maybe 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "a teaching without ask must name what it takes" "error: 'helper' takes something here, and nothing names it: write 'ask helper' to teach a message that takes nothing" "$(printf "${A}box helper is 1\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "what a message takes is named by a word" "error: the word after add names what it takes: write a name there, not a value" "$(printf "${A}box add 5 is 3\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "a parameter is its own body's: another body does not see it" "error: unknown name 'n'" "$(printf "${A}box peek n is ask look\nbox ask look is n\nbox peek 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+check "logic relates truths only" "error: and relates two truths" "$(printf 'c is a world\nt is c inherits world\nt and c\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a truth value answers only the logic words" "error: a truth value answers and, or, nand, nor and xor, not \"add\"" "$(printf 'c is a world\nt is c inherits world\nt add 5\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a number answers no message that takes something" "error: a number answers no message that takes something" "$(printf '5 add 3\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+
+# eager: the argument is evaluated before dispatch, and what it did stands
+# even when dispatch refuses (f and a w births from w, then and refuses)
+E='coin is a world\nw is a world\nf is w inherits coin\n'
+refused=$(printf "${E}f and a w\nw ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tail -1)
+born=$(printf "${E}a w\nw ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tail -1)
+before=$(printf "${E}w ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tail -1)
+check "a refused logic message still births its argument, as a plain birth does" "$born" "$refused"
+check "and the birth is seen: the generator is not where it was" "yes" "$([ "$refused" != "$before" ] && echo yes)"
+check "the refusal is reported" "error: and relates two truths" "$(printf "${E}f and a w\nquit\n" | "$BIN" 2>&1 >/dev/null)"
+# order: the receiver is evaluated first, then the argument
+O='w is a world\nw pair other is other\n'
+one=$(printf "${O}r is a w pair a w\nr ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')
+two=$(printf "${O}p is a w\nq is a w\np ask value\nq ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tr '\n' ' ')
+check "the receiver is born before the argument" "$(echo $two | cut -d' ' -f2)" "$one"
+check "and the two births differ, so the order is seen" "yes" "$([ "$(echo $two | cut -d' ' -f1)" != "$(echo $two | cut -d' ' -f2)" ] && echo yes)"
 
 # running files: a file is a session without the banner and the prompts
 P=tests/programs

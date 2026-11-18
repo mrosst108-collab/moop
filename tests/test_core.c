@@ -500,7 +500,7 @@ static void test_lexer(void)
 static void test_parser(void)
 {
     MoopAst ast;
-    char err[64];
+    char err[MOOP_ERR_MAX];
 
     check(moop_parse("x is p -> q -> r", &ast, err, sizeof err),
           "a definition of a pipeline parses");
@@ -540,6 +540,50 @@ static void test_parser(void)
           "the article parses as a birth");
     check(!moop_parse("a ask maybe", &ast, err, sizeof err),
           "the article must be followed by a name");
+
+    /* messages that take something: a word in operator position */
+    check(moop_parse("box add 5", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_TELL &&
+              ast.nodes[ast.root].len == 3 &&
+              ast.nodes[ast.nodes[ast.root].left].kind == MOOP_NODE_WORD &&
+              ast.nodes[ast.nodes[ast.root].right].kind == MOOP_NODE_NUMBER,
+          "a word in operator position is a message with one argument");
+    check(moop_parse("box add 5 x 7", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_TELL &&
+              ast.nodes[ast.root].start[0] == 'x' &&
+              ast.nodes[ast.nodes[ast.root].left].kind == MOOP_NODE_TELL,
+          "box add 5 x 7 is a pipeline, not two arguments");
+    check(!moop_parse("box add 5 6", &ast, err, sizeof err) &&
+              strstr(err, "would be a second") != NULL,
+          "box add 5 6 is refused as a second argument");
+    check(!moop_parse("box add 5 x", &ast, err, sizeof err) &&
+              strstr(err, "would be a second") != NULL,
+          "box add 5 x is refused as a second argument");
+    check(!moop_parse("box add", &ast, err, sizeof err),
+          "a message in operator position needs its argument");
+    check(!moop_parse("box ask add 5", &ast, err, sizeof err) &&
+              strstr(err, "ask sends a message that takes nothing") != NULL,
+          "ask gives nothing: the form box ask add 5 is refused");
+    check(!moop_parse("ask add n", &ast, err, sizeof err) &&
+              strstr(err, "cannot give its own receiver") != NULL,
+          "a body cannot give its own receiver something");
+    check(moop_parse("box add n is mirrors n", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_IS &&
+              ast.nodes[ast.nodes[ast.root].left].kind == MOOP_NODE_TELL &&
+              ast.nodes[ast.nodes[ast.nodes[ast.root].left].right].kind ==
+                  MOOP_NODE_WORD,
+          "a teaching names what its message takes");
+    check(!moop_parse("box add 5 is 3", &ast, err, sizeof err),
+          "what a message takes is named by a word, not a value");
+    check(moop_parse("x and y", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_TELL,
+          "the logic words are messages, not reserved operators");
+    check(moop_parse("and is 5", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_IS,
+          "a logic word can still be a name");
+    check(moop_parse("c inherits world", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_INHERIT,
+          "reserved operator words are not messages");
 
     check(moop_parse("dog ask mood is", &ast, err, sizeof err) &&
               ast.nodes[ast.root].kind == MOOP_NODE_IS &&

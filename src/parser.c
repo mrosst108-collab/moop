@@ -102,10 +102,60 @@ static int parse_term(Parser *p)
     return -1;
 }
 
+/* A chain that begins with one of these has no head: it addresses the
+ * receiver. A WORD in operator position is not one of them — a chain
+ * that begins with a word is headed by that name. */
 static bool is_op(MoopTokKind kind)
 {
     return kind == MOOP_TOK_SEND || kind == MOOP_TOK_INHERIT ||
            kind == MOOP_TOK_BIJECT;
+}
+
+static bool starts_term(MoopTokKind kind)
+{
+    return kind == MOOP_TOK_WORD || kind == MOOP_TOK_NUMBER ||
+           kind == MOOP_TOK_ARTICLE;
+}
+
+/* `tok` (a term the grammar cannot place) follows the step `left`.
+ * Say why, by what the step was; false if this case has no message of
+ * its own. Two cases are about arguments:
+ *   box add 5 6      add takes one argument, and 6 would be a second
+ *   box ask add 5    ask gives nothing (prototype B's form is refused) */
+static bool refuse_after(Parser *p, int left, MoopToken tok)
+{
+    const MoopNode *l = &p->ast->nodes[left];
+    char msg[MOOP_ERR_MAX];
+    if (l->kind == MOOP_NODE_TELL) {
+        snprintf(msg, sizeof msg,
+                 "%.*s takes one argument, and '%.*s' would be a second",
+                 (int)l->len, l->start, (int)tok.len, tok.start);
+        fail(p, msg);
+        return true;
+    }
+    if (l->kind == MOOP_NODE_SEND &&
+        p->ast->nodes[l->right].kind == MOOP_NODE_WORD) {
+        const MoopNode *m = &p->ast->nodes[l->right];
+        bool headless = p->ast->nodes[l->left].kind == MOOP_NODE_RECEIVER;
+        if (headless)
+            snprintf(msg, sizeof msg,
+                     "ask sends a message that takes nothing, and a body "
+                     "cannot give its own receiver something");
+        else if (tok.kind == MOOP_TOK_WORD)
+            snprintf(msg, sizeof msg,
+                     "ask sends a message that takes nothing, so '%.*s' "
+                     "cannot be given to %.*s, and as a message it needs "
+                     "an argument",
+                     (int)tok.len, tok.start, (int)m->len, m->start);
+        else
+            snprintf(msg, sizeof msg,
+                     "ask sends a message that takes nothing: to give %.*s "
+                     "something, write it without ask",
+                     (int)m->len, m->start);
+        fail(p, msg);
+        return true;
+    }
+    return false;
 }
 
 static int parse_chain(Parser *p)
@@ -118,18 +168,44 @@ static int parse_chain(Parser *p)
     else
         left = parse_term(p);
     while (!p->failed) {
+        MoopToken op = peek(p);
         MoopNodeKind kind;
-        switch (peek(p).kind) {
+        switch (op.kind) {
         case MOOP_TOK_SEND:    kind = MOOP_NODE_SEND;    break;
         case MOOP_TOK_INHERIT: kind = MOOP_NODE_INHERIT; break;
         case MOOP_TOK_BIJECT:  kind = MOOP_NODE_BIJECT;  break;
+        case MOOP_TOK_WORD:    kind = MOOP_NODE_TELL;    break;
         default:
+            /* a number or a birth where an operator belongs */
+            if (starts_term(op.kind))
+                refuse_after(p, left, op);
             return left;
         }
         advance(p);
+        if (kind == MOOP_NODE_TELL && !starts_term(peek(p).kind)) {
+            /* a word in operator position, and no argument after it */
+            if (refuse_after(p, left, op))
+                return -1;
+            char msg[MOOP_ERR_MAX];
+            if (peek(p).kind == MOOP_TOK_IS)
+                snprintf(msg, sizeof msg,
+                         "'%.*s' takes something here, and nothing names it: "
+                         "write 'ask %.*s' to teach a message that takes "
+                         "nothing",
+                         (int)op.len, op.start, (int)op.len, op.start);
+            else
+                snprintf(msg, sizeof msg,
+                         "'%.*s' stands where a message stands, and nothing "
+                         "follows it: it needs an argument",
+                         (int)op.len, op.start);
+            fail(p, msg);
+            return -1;
+        }
         int right = parse_term(p);
+        bool tell = kind == MOOP_NODE_TELL;
         left = add_node(p, (MoopNode){
-            .kind = kind, .start = NULL, .len = 0,
+            .kind = kind,
+            .start = tell ? op.start : NULL, .len = tell ? op.len : 0,
             .left = left, .right = right,
         });
     }
@@ -171,9 +247,17 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
     if (!p.failed && peek(&p).kind == MOOP_TOK_IS) {
         const MoopNode *lhs = &p.ast->nodes[first];
         bool name_def = lhs->kind == MOOP_NODE_WORD;
-        bool msg_def = lhs->kind == MOOP_NODE_SEND &&
+        bool msg_def = (lhs->kind == MOOP_NODE_SEND ||
+                        lhs->kind == MOOP_NODE_TELL) &&
                        p.ast->nodes[lhs->right].kind == MOOP_NODE_WORD;
-        if (!name_def && !msg_def) {
+        if (lhs->kind == MOOP_NODE_TELL && !msg_def) {
+            char msg[MOOP_ERR_MAX];
+            snprintf(msg, sizeof msg,
+                     "the word after %.*s names what it takes: write a name "
+                     "there, not a value",
+                     (int)lhs->len, lhs->start);
+            fail(&p, msg);
+        } else if (!name_def && !msg_def) {
             fail(&p, "only names and messages can be defined");
         } else {
             advance(&p); /* is */

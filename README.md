@@ -96,6 +96,22 @@ exactly the identity/membership distinction English draws. There is no
 creation keyword. A trailing `is` opens an indented block; a blank line
 closes it.
 
+Messages can take something (0.8.0): the message stands where an
+operator stands, and the teaching names what it takes.
+
+```
+moop> box is a world
+moop> box add n is mirrors n
+moop> box ask value
+181
+moop> box add 5 ask value
+176
+moop> c is a world
+moop> t is c inherits world
+moop> t and t
+true
+```
+
 Prototype-based OOP works: teach a message with `receiver -> message is
 chain` (the body is stored as a chain — code as data — and runs at each
 send addressed to the receiver — headless chains like `ask maybe` speak to it), delegate up the lineage,

@@ -198,11 +198,57 @@ byte, and a byte that does not print is named by its code (*unexpected
 byte 0xC3*), so the message stays readable. Source is ASCII: no word or
 number is written with any other byte.
 
+## Messages that take something (0.8.0)
+
+Ruled 2026-11-18 (`arguments.md`, Q1–Q5) and implemented in 0.8.0. A
+word in operator position is a message that takes something, as
+`inherits` and `mirrors` take their right side:
+
+```
+box add n is mirrors n      ; teaching: add takes something, called n
+box add 5                   ; sending: add, given 5
+box add 5 tag 7             ; a pipeline: what box add 5 answers is sent tag with 7
+t and f                     ; and, or, nand, nor, xor on truth values
+```
+
+Grammar: `chain := [term] ((-> | <- | <-> | WORD) term)*`. `ask` stays
+the send that gives nothing, so every chain parses without knowing any
+teaching. A chain that begins with a word is headed by that name; only
+`ask`, `inherits` and `mirrors` begin a headless chain.
+
+- **Exactly one argument**, the term after the message. A second cannot
+  be written: `box add 5 6` and `box add 5 x` are refused when the line
+  is read (*add takes one argument, and '6' would be a second*). A word
+  followed by a term is a pipeline step, so `box add 5 x 7` is valid.
+- **Evaluated before dispatch**, receiver first, then the argument, then
+  the message is looked up. Whatever evaluating them did stands, even if
+  dispatch then refuses: `f and a w` births from `w` before `and`
+  refuses the proto (*and relates two truths*).
+- **Strict arity.** The teaching decides whether a message takes
+  something. `box ask add`, when `add` takes something, and `box size 5`,
+  when `size` takes nothing, are refused with the form to write. `maybe`
+  and `value` take nothing. Re-teaching replaces a teaching, whatever it
+  takes; the nearest teaching up the lineage decides.
+- **The parameter** is named by the teaching (`box add n is …`). It is
+  that body's own: no other body sees it, a name bound outside is
+  shadowed inside the body and unchanged after it, and it is never
+  rebound.
+- **The logic words** `and`, `or`, `nand`, `nor`, `xor` are built-in
+  messages on truth values, calling the user layer's logic
+  (`src/logic.c`). They are eager: the right side is always evaluated, so
+  nothing short-circuits. They are not reserved: a name or a proto's own
+  message may use the word.
+- **A limitation of this grammar:** a body cannot send its own receiver a
+  message that takes something. `ask add n` is refused (*ask sends a
+  message that takes nothing, and a body cannot give its own receiver
+  something*). It is not a feature promised for later.
+
 ## Lexical rules
 
 - Words: letters, digits, underscores; must start with a letter or
   underscore. Keywords (`is`, `ask`, `inherits`, `mirrors`, `a`, `an`)
   are matched exactly, so `island`, `asked`, and `answer` stay words.
+  The logic words are not keywords.
 - Numbers: decimal digit runs.
 - `<->` is matched before `<-` (longest match).
 - A bare `-`, `<`, or any other stray character is a lex error: the
@@ -218,7 +264,8 @@ the article (`a dog` births), `x -> maybe` (observes the body), `child
 (user-facing root proto, generated at startup through actor → system
 root). Chains associate left: `p -> q -> r` is a pipeline. Dispatch
 order: innate (`maybe`, `value`), then taught (walking the lineage),
-then C-hosted tables.
+then C-hosted tables. Messages that take something (0.8.0, above):
+`box add 5`, `box add n is …`, and the logic words on truth values.
 
 `<->` is implemented for value↔body (XOR deposit) and body↔body
 (exchange); `x -> value` decodes a body. Interpreter bodies carry 8-cell
@@ -227,8 +274,7 @@ A-loops: values 0..255.
 Not implemented, and honestly erroring: number↔number bijections
 (general invertible functions — `celsius <-> fahrenheit` — remain the
 open design work), reflection (reading a taught chain back as a value),
-comments (a file cannot carry one), messages that take something
-(designed and adopted: `arguments.md`).
+comments (a file cannot carry one).
 
 ## Decisions
 
@@ -252,10 +298,10 @@ comments (a file cannot carry one), messages that take something
 - Reader constraints: a line over 1,023 bytes, a NUL byte, and input
   that cannot be read (such as a directory) are refused, never tolerated
   or split (2026-11-18).
-- Messages that take something (2026-11-18; `arguments.md`). Adopted, not
-  implemented: `box add 5` sends, `box add n is mirrors n` teaches and
-  names the parameter; exactly one argument, evaluated before dispatch,
-  strict arity; a body cannot send its receiver such a message;
+- Messages that take something (ruled 2026-11-18; implemented in 0.8.0;
+  `arguments.md`): `box add 5` sends, `box add n is mirrors n` teaches
+  and names the parameter; exactly one argument, evaluated before
+  dispatch, strict arity; a body cannot send its receiver such a message;
   `and`, `or`, `nand`, `nor`, `xor` are built-in, eager messages on truth
   values, not reserved words.
 - `mirrors 0` is the identity idiom: it answers with the receiver and

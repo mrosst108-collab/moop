@@ -8,14 +8,20 @@
  * meaning, never in shape):
  *
  *   statement := chain ["is" [chain]]
- *   chain     := [term] ((-> | <- | <->) term)*   ; associates left
+ *   chain     := [term] ((-> | <- | <-> | WORD) term)*   ; associates left
  *   term      := ("a" | "an") term | WORD | NUMBER
  *
  * `a -> b -> c` is ((a -> b) -> c): a pipeline, reading left to right.
  * The operators also have word spellings (ask, inherits, mirrors) —
  * same tokens, handled entirely by the lexer.
  *
- * A chain may begin with an operator: the missing head is the RECEIVER
+ * A WORD in operator position is a message that takes something: `box
+ * add 5` sends add to box with 5, as `c inherits d` relates c to d. It
+ * takes exactly one argument, the term after it. `ask` stays the send
+ * that gives nothing, so a chain parses without knowing any teaching.
+ * (docs/arguments.md, adopted 2026-11-18.)
+ *
+ * A chain may begin with a reserved operator: the missing head is the RECEIVER
  * — an English imperative, instructions addressed to whoever is being
  * spoken to. In a taught body that is the object that was asked; at the
  * top level it is the world. There is no receiver keyword.
@@ -41,6 +47,8 @@ typedef enum {
     MOOP_NODE_RECEIVER, /* implicit head of a chain that starts with an op */
     MOOP_NODE_BIRTH,    /* a/an: left = the generator term */
     MOOP_NODE_SEND,     /* ->  */
+    MOOP_NODE_TELL,     /* WORD in operator position: lexeme = the message,
+                           left = receiver, right = the one argument */
     MOOP_NODE_INHERIT,  /* <-  */
     MOOP_NODE_BIJECT,   /* <-> */
     MOOP_NODE_IS,       /* left = designator, right = chain (-1: block) */
@@ -60,6 +68,9 @@ typedef struct {
     size_t count;
     int root;
 } MoopAst;
+
+/* The size of an error buffer that holds every message in full. */
+#define MOOP_ERR_MAX 256
 
 /* Parse one line. Returns true and fills ast, or false and writes a
  * message (without the "error: " prefix) into err. */

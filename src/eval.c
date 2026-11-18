@@ -76,6 +76,8 @@ static bool env_bind(const char *name, size_t len, MoopValue value)
 typedef struct {
     MoopProto *owner;
     char *name;
+    char *param;                /* what it takes, by the name its teaching
+                                   gave; NULL if it takes nothing */
     MoopAst *bodies[BODY_MAX];  /* owned deep copies */
     size_t nbodies;
 } Teaching;
@@ -105,6 +107,14 @@ static Teaching *find_teaching(const MoopProto *owner,
  * object that was asked; between sends it is the world — the top level
  * is a body whose receiver is the world. */
 static MoopValue current_receiver;
+
+/* The parameter of the body being run, and the argument it was given.
+ * It is that body's own: saved and restored with the receiver around
+ * every send, so no body sees another body's parameter. Inside the body
+ * it shadows a name bound outside; it is never rebound (a body holds no
+ * `is`). */
+static const char *current_param;   /* NULL: the body takes nothing */
+static MoopValue current_arg;
 
 void moop_eval_init(void)
 {
@@ -147,10 +157,25 @@ static MoopProto *birth_proto(MoopProto *generator)
 static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
                       char *err, size_t errlen);
 
+static bool same_word(const char *word, const char *start, size_t len)
+{
+    return strlen(word) == len && memcmp(word, start, len) == 0;
+}
+
 static bool is_innate(const MoopNode *msg)
 {
-    return (msg->len == 5 && memcmp(msg->start, "maybe", 5) == 0) ||
-           (msg->len == 5 && memcmp(msg->start, "value", 5) == 0);
+    return same_word("maybe", msg->start, msg->len) ||
+           same_word("value", msg->start, msg->len);
+}
+
+/* Whether a C-hosted message of this name is found up the lineage. */
+static bool hosted(const MoopProto *proto, const char *start, size_t len)
+{
+    for (const MoopProto *p = proto; p != NULL; p = p->parent)
+        for (size_t i = 0; i < p->hosted; i++)
+            if (same_word(p->messages[i].name, start, len))
+                return true;
+    return false;
 }
 
 /* Run a taught body addressed to the receiver: headless chains inside
@@ -158,22 +183,44 @@ static bool is_innate(const MoopNode *msg)
  * restored. */
 static int send_depth;
 
+/* `arg` is the argument already evaluated, or NULL for a send with
+ * `ask`, which gives nothing. Arity is strict: the teaching decides
+ * whether the message takes something, and a send that does not match
+ * is refused before the body runs. */
 static bool eval_teaching(const Teaching *t, MoopValue receiver,
+                          const MoopValue *arg,
                           MoopValue *out, char *err, size_t errlen)
 {
+    if (t->param != NULL && arg == NULL) {
+        snprintf(err, errlen,
+                 "%s takes something: write it after %s, without ask",
+                 t->name, t->name);
+        return false;
+    }
+    if (t->param == NULL && arg != NULL) {
+        snprintf(err, errlen, "%s takes nothing: ask %s", t->name, t->name);
+        return false;
+    }
     if (send_depth == 32) {
         snprintf(err, errlen, "message recursion too deep");
         return false;
     }
 
     MoopValue saved = current_receiver;
+    const char *saved_param = current_param;
+    MoopValue saved_arg = current_arg;
     current_receiver = receiver;
+    current_param = t->param;
+    if (arg != NULL)
+        current_arg = *arg;
     send_depth++;
     bool ok = true;
     for (size_t i = 0; ok && i < t->nbodies; i++)
         ok = eval_node(t->bodies[i], t->bodies[i]->root, out, err, errlen);
     send_depth--;
     current_receiver = saved;
+    current_param = saved_param;
+    current_arg = saved_arg;
     return ok;
 }
 
@@ -209,7 +256,7 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     for (MoopProto *p = recv.proto; p != NULL; p = p->parent) {
         const Teaching *t = find_teaching(p, msg->start, msg->len);
         if (t != NULL)
-            return eval_teaching(t, recv, out, err, errlen);
+            return eval_teaching(t, recv, NULL, out, err, errlen);
     }
 
     char name[64];
@@ -228,8 +275,82 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
     return false;
 }
 
-/* Store a teaching, taking ownership of the bodies (freed on failure). */
+/* The user layer's own logic: two-place, and irreversible. */
+static const struct {
+    const char *name;
+    bool (*fn)(bool, bool);
+} logic_words[] = {
+    { "and", moop_and }, { "or", moop_or }, { "nand", moop_nand },
+    { "nor", moop_nor }, { "xor", moop_xor },
+};
+
+/* A message that takes something: `box add 5`. The receiver is
+ * evaluated, then the argument, then the message is dispatched. Eager:
+ * whatever evaluating the argument did (a birth steps its generator's
+ * tapes) stands, even if dispatch then refuses the message. */
+static bool eval_tell(const MoopAst *ast, const MoopNode *node,
+                      MoopValue *out, char *err, size_t errlen)
+{
+    MoopValue recv, arg;
+    if (!eval_node(ast, node->left, &recv, err, errlen) ||
+        !eval_node(ast, node->right, &arg, err, errlen))
+        return false;
+
+    if (recv.kind == MOOP_VAL_BOOL) {
+        /* built-in messages on truth values; the words are not reserved */
+        for (size_t i = 0; i < sizeof logic_words / sizeof logic_words[0];
+             i++) {
+            if (!same_word(logic_words[i].name, node->start, node->len))
+                continue;
+            if (arg.kind != MOOP_VAL_BOOL) {
+                snprintf(err, errlen, "%s relates two truths",
+                         logic_words[i].name);
+                return false;
+            }
+            *out = (MoopValue){
+                .kind = MOOP_VAL_BOOL,
+                .truth = logic_words[i].fn(recv.truth, arg.truth),
+            };
+            return true;
+        }
+        snprintf(err, errlen,
+                 "a truth value answers and, or, nand, nor and xor, "
+                 "not \"%.*s\"", (int)node->len, node->start);
+        return false;
+    }
+    if (recv.kind != MOOP_VAL_PROTO) {
+        snprintf(err, errlen,
+                 "a number answers no message that takes something");
+        return false;
+    }
+
+    /* dispatch, as for ask: innate, then taught (delegating), then
+     * C-hosted. Innate and hosted messages take nothing. */
+    if (is_innate(node)) {
+        snprintf(err, errlen, "%.*s takes nothing: ask %.*s",
+                 (int)node->len, node->start, (int)node->len, node->start);
+        return false;
+    }
+    for (MoopProto *p = recv.proto; p != NULL; p = p->parent) {
+        const Teaching *t = find_teaching(p, node->start, node->len);
+        if (t != NULL)
+            return eval_teaching(t, recv, &arg, out, err, errlen);
+    }
+    if (hosted(recv.proto, node->start, node->len)) {
+        snprintf(err, errlen, "%.*s takes nothing: ask %.*s",
+                 (int)node->len, node->start, (int)node->len, node->start);
+        return false;
+    }
+    snprintf(err, errlen, "nothing in the lineage hosts \"%.*s\"",
+             (int)node->len, node->start);
+    return false;
+}
+
+/* Store a teaching, taking ownership of the bodies (freed on failure).
+ * `param` names what the message takes, or is NULL if it takes nothing.
+ * Re-teaching replaces the teaching, whatever it takes. */
 static bool teach_store(MoopProto *owner, const MoopNode *msg,
+                        const MoopNode *param,
                         MoopAst **bodies, size_t nbodies,
                         char *err, size_t errlen)
 {
@@ -239,13 +360,27 @@ static bool teach_store(MoopProto *owner, const MoopNode *msg,
         return false;
     }
 
+    char *pname = NULL;
+    if (param != NULL) {
+        pname = malloc(param->len + 1);
+        if (pname == NULL) {
+            free_bodies(bodies, nbodies);
+            snprintf(err, errlen, "out of memory");
+            return false;
+        }
+        memcpy(pname, param->start, param->len);
+        pname[param->len] = '\0';
+    }
+
     Teaching *t = find_teaching(owner, msg->start, msg->len);
     if (t != NULL) {
         free_bodies(t->bodies, t->nbodies); /* re-teaching replaces */
+        free(t->param);
     } else {
         char *name = malloc(msg->len + 1);
         if (teachings_n == TEACHINGS_MAX || name == NULL) {
             free(name);
+            free(pname);
             free_bodies(bodies, nbodies);
             snprintf(err, errlen, "too many teachings");
             return false;
@@ -256,9 +391,23 @@ static bool teach_store(MoopProto *owner, const MoopNode *msg,
         t->owner = owner;
         t->name = name;
     }
+    t->param = pname;
     memcpy(t->bodies, bodies, nbodies * sizeof *bodies);
     t->nbodies = nbodies;
     return true;
+}
+
+/* What a teaching designator names: `x ask m` the message m, taking
+ * nothing; `x m n` the message m, taking something it calls n. */
+static const MoopNode *designated(const MoopAst *ast, const MoopNode *d,
+                                  const MoopNode **param)
+{
+    if (d->kind == MOOP_NODE_TELL) {
+        *param = &ast->nodes[d->right];
+        return d;
+    }
+    *param = NULL;
+    return &ast->nodes[d->right];
 }
 
 static bool eval_teach(const MoopAst *ast, const MoopNode *designator,
@@ -279,8 +428,9 @@ static bool eval_teach(const MoopAst *ast, const MoopNode *designator,
     }
     body->root = bodyidx; /* the stored chain, not the whole definition */
 
-    if (!teach_store(recv.proto, &ast->nodes[designator->right],
-                     &body, 1, err, errlen))
+    const MoopNode *param;
+    const MoopNode *msg = designated(ast, designator, &param);
+    if (!teach_store(recv.proto, msg, param, &body, 1, err, errlen))
         return false;
     *out = (MoopValue){ .kind = MOOP_VAL_BOOL, .truth = true };
     return true;
@@ -292,6 +442,11 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
     const MoopNode *node = &ast->nodes[idx];
     switch (node->kind) {
     case MOOP_NODE_WORD: {
+        if (current_param != NULL &&
+            same_word(current_param, node->start, node->len)) {
+            *out = current_arg;
+            return true;
+        }
         Binding *b = env_find(node->start, node->len);
         if (b == NULL) {
             snprintf(err, errlen, "unknown name '%.*s'",
@@ -331,6 +486,8 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
     }
     case MOOP_NODE_SEND:
         return eval_send(ast, node, out, err, errlen);
+    case MOOP_NODE_TELL:
+        return eval_tell(ast, node, out, err, errlen);
     case MOOP_NODE_INHERIT: {
         MoopValue child, parent;
         if (!eval_node(ast, node->left, &child, err, errlen) ||
@@ -385,7 +542,7 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
             return false;
         }
         const MoopNode *lhs = &ast->nodes[node->left];
-        if (lhs->kind == MOOP_NODE_SEND)
+        if (lhs->kind == MOOP_NODE_SEND || lhs->kind == MOOP_NODE_TELL)
             return eval_teach(ast, lhs, node->right, out, err, errlen);
         MoopValue value;
         if (!eval_node(ast, node->right, &value, err, errlen))
@@ -417,7 +574,7 @@ bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
     if (at != NULL)
         *at = nbodies; /* the head's, unless a body line fails below */
 
-    if (lhs->kind == MOOP_NODE_SEND) {
+    if (lhs->kind == MOOP_NODE_SEND || lhs->kind == MOOP_NODE_TELL) {
         MoopValue recv;
         if (!eval_node(head, lhs->left, &recv, err, errlen)) {
             free_bodies(bodies, nbodies);
@@ -428,8 +585,10 @@ bool moop_eval_block(const MoopAst *head, MoopAst **bodies, size_t nbodies,
             snprintf(err, errlen, "only protos host messages");
             return false;
         }
-        return teach_store(recv.proto, &head->nodes[lhs->right],
-                           bodies, nbodies, err, errlen);
+        const MoopNode *param;
+        const MoopNode *msg = designated(head, lhs, &param);
+        return teach_store(recv.proto, msg, param, bodies, nbodies,
+                           err, errlen);
     }
 
     /* name block: evaluate the sequence now, the last value gets the name */

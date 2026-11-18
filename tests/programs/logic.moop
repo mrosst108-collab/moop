@@ -1,0 +1,25 @@
+c is a world
+t is c inherits world
+f is world inherits c
+t and t
+t and f
+f and t
+f and f
+t or t
+t or f
+f or t
+f or f
+t nand t
+t nand f
+f nand t
+f nand f
+t nor t
+t nor f
+f nor t
+f nor f
+t xor t
+t xor f
+f xor t
+f xor f
+t and f or t
+t xor t xor t

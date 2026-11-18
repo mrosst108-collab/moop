@@ -1,0 +1,28 @@
+box is a world
+box echo n is n
+box echo 5
+box echo 200
+n is 7
+box echo 9
+n
+box both n is
+    ask maybe
+    n
+
+box both 3
+kid is a box
+kid echo 4
+box child_of elder is inherits elder
+kid child_of box
+kid child_of world
+box child_of box
+box and n is n
+box and 6
+box echo a world
+box echo box child_of world
+box ask size is 4
+box ask size
+box size n is
+    n
+
+box size 8
