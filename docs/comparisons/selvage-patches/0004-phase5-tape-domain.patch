@@ -1,5 +1,5 @@
 diff --git a/SPEC.md b/SPEC.md
-index 7c30e82..35d5d0c 100644
+index 7c30e82..444ca69 100644
 --- a/SPEC.md
 +++ b/SPEC.md
 @@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
@@ -25,7 +25,7 @@ index 7c30e82..35d5d0c 100644
  - **A birth** draws one cell for each cell of a child tape, `a`'s cells first, and gives the child, with both heads at 0, together with the parent. It is certified: the parent advances by ticks and the child is copies, so taking a birth back gives the parent back. A birth promises a valid reversible initialization and no more. It is one-to-one and not onto, since a child always starts with its heads at 0, and how many different children a tape can bear is not part of it (on tapes of 8 and 13 cells, 2.80% of possible children).
  - **A program makes its tape and passes it** (C3). `CcnotTape(a, b, 0, 0)` makes one from tapes the program fills; each `draw` and `birth` takes the tape and gives it back, so the program holds its tape as it holds any value. No tape is ambient, and `ask draw()` is refused at check time: there is no request to ask. The tapes a program starts from are an explicit initialization, not a source of entropy, and seeding does not make the tape random.
 -- **Domain.** Each tape needs at least two cells, or a target would be a control, and each head must be inside its tape. No type states that, so R4 and bounds checks guard it when the tape runs, in both backends: an empty tape is refused by a division by zero, a one-cell tape by R4. `selvage check` reports the tick and the draw as one-to-one with nothing more established, and the birth as one-to-one and not onto (V.2).
-+- **Domain.** The tapes the rules are for are the domain D: every `CcnotTape(a, b, i, j)` with `length(a) ≥ 2`, `length(b) ≥ 2`, `0 ≤ i < length(a)` and `0 ≤ j < length(b)`. On D, for any lengths:
++- **Domain.** The tapes the rules are for are the domain D: every `CcnotTape(a, b, i, j)` with `length(a) ≥ 2`, `length(b) ≥ 2`, `0 ≤ i < length(a)` and `0 ≤ j < length(b)`, the cells being any bits. The two lengths need not be equal. D belongs to the model these claims are made in: it is not a type, and nothing checks it statically, so a program can build a tape outside it, which is then refused when it runs (below). On D, for any lengths:
 +
 +  | Rule | On D | Not onto, because |
 +  |---|---|---|
@@ -33,7 +33,7 @@ index 7c30e82..35d5d0c 100644
 +  | `draw` | An embedding of D into `Bit` × D | The bit given is always the cell under head `i` of the tape given |
 +  | `birth` | An embedding of D into D × D | A child's heads are always 0 |
 +
-+  *Proof.* Fix the lengths. A tick first applies two CCNOTs whose controls are `a[i]` and `b[j]` and whose targets are `a[(i + 1) mod length(a)]` and `b[(j - 1) mod length(b)]`. With two cells or more on each tape, neither target is its tape's control, and the targets are on different tapes; so the controls are not written, and applying the pair twice is the identity. It then moves the heads by (+1, −1), a bijection of the head positions. A composition of bijections of the finite set D is a permutation of it. A draw gives the tick's result whole, beside a copy of one of its cells, so the draw is one-to-one; and a pair whose bit differs from the cell under `i` is not given. A birth gives the parent after `length(a) + length(b)` ticks, so it is one-to-one; and a child with a head not at 0 is not given. ∎
++  *Proof.* Fix the lengths. A tick first applies two CCNOTs whose controls are `a[i]` and `b[j]` and whose targets are `a[(i + 1) mod length(a)]` and `b[(j - 1) mod length(b)]`. With two cells or more on each tape, neither target is its tape's control, and the targets are on different tapes; so the controls are not written, and applying the pair twice is the identity. It then moves the heads by (+1, −1), a bijection of the head positions. A composition of bijections of the finite set D is a permutation of it: total on D, with an inverse that also maps D onto D. A draw gives the tick's result whole, beside a copy of one of its cells, so the draw is one-to-one; and a pair whose bit differs from the cell under `i` is not given. A birth gives the parent after `length(a) + length(b)` ticks, so it is one-to-one; and a child with a head not at 0 is not given. ∎ The proof covers every length. The run of every state of D with 2 or 3 cells on each tape (below) is a finite exhaustive check, evidence for those sizes only.
 +
 +  Outside D, every input is refused when it runs, in both backends, with status 70; none is wrapped round:
 +
@@ -43,7 +43,7 @@ index 7c30e82..35d5d0c 100644
 +  | A tape of one cell | R4: the update reads its own target |
 +  | A head outside its tape, negative or past the end | The index check: *index n is outside 0 to m* |
 +
-+  `selvage check` reports less than this, since no type states D: the tick and the draw as one-to-one with nothing more established, the birth as one-to-one and not onto (V.2). Stating D in types would be a language feature with its own admission case, and the tape does not justify it alone.
++  The claims above are about the model. `selvage check` reports less, since no type states D: the tick and the draw as one-to-one with nothing more established, the birth as one-to-one and not onto (V.2). Stating D in types would be a language feature with its own admission case, and the tape does not justify it alone.
  - **Both backends.** The three are clause rules, so compiled code runs them, `undo` included (IX.2).
  - **Moop's trace.** The tape is pinned to moop's own implementation: `tests/programs/ccnot_tape.selv` prints `tests/programs/ccnot_tape.trace` byte for byte, in the interpreter and compiled, and moop's C implementation prints the same file. A change of wiring is a new wiring with a new trace, never an edit.
  - **Admission** (I.4). *Foundation:* a record (Tier 2) and three clause rules over bit updates (Tier 1). *Synergy:* it gives Selvage generation, a certified birth that is taken back, and it gives the realization lineage rules whose defining step is `ccnot` itself, a first program for the reversible profile (IX.4). It needs no request and so no compiled answers. Of the four steps this is still the weakest: it makes no existing construct unnecessary. *Interference:* four names are reserved; no example, test program or benchmark changes. *Uniformity:* only existing constructs, with the domain guarded by the existing checks. The decisions taken in admitting it are C1 to C5 (XII.6).

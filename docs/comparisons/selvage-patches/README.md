@@ -384,8 +384,8 @@ for those 8 and the tape generator's test in `TestGenerated04`.
 
 | Check | 0001 + 0003 | 0001 + 0003 + 0004 |
 |---|---|---|
-| Full suite (all tests) | 185 / 185 | 187 / 187 pass (270 s), on the tree before the wording change below; re-run after it: running |
+| Full suite (all tests) | 185 / 185 | 187 / 187 pass (270 s) before the wording change; re-run on the final tree, since one test reads `SPEC.md`: running |
 | Description check | Pass | Pass |
-| Mutation check | 145 / 145 | Running; not yet recorded (inputs unchanged by 0004) |
+| Mutation check | 145 / 145 | 145 / 145 noticed (40 min), on the tree before the wording change. That change touched only `SPEC.md`, which neither the mutation tool nor its generators read, so the result stands for the final tree |
 | Benchmarks | 1.11 against C | Not re-run: 0004 changes no code and no benchmark source, so the compiled programs are built by the same toolchain from the same sources |
 | 0004 applied to a fresh archive after 0001 and 0003 | — | Applies; reproduces the tested tree exactly |
