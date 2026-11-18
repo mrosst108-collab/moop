@@ -1,10 +1,11 @@
 # Shared foundations: reader, values, numeric messages, certified transformations
 
-**Status: adopted in principle on 2026-11-18, with qualifications.**
-This text carries those qualifications. The decisions are to be entered
-as ratified once this wording is confirmed and the four points under
-*Not yet ruled* are settled. **Nothing is implemented**, and each
-realization needs its own authorization.
+**Status: ratified 2026-11-18.** F1 to F6 and F8 to F14 are adopted,
+with the qualifications recorded here, and so are U1 to U4. F7 (text)
+is deferred. **Nothing is implemented.** The rulings settle the design;
+building it is authorized stage by stage, in the order of the plan at
+the end, and never all at once. One precision, U1's bound on reading
+literals, is marked for confirmation.
 
 The ruling covered the common architecture, and it keeps the fourteen
 decisions as separate entries so that approving one does not blur
@@ -35,9 +36,12 @@ The rulings were made on a summary and numbered by topic. This document
 now follows that numbering. The draft numbered differently:
 
 - its F5 (number literal forms) and F11 (the form that defines a mirror)
-  are not covered by the rulings, and are listed under *Not yet ruled*;
+  were not covered by the first rulings;
 - its F14 (the domain) is replaced by the partial-bijection
   qualification on F11 to F14.
+
+Those two points, the word for division and proto equality were then
+ruled as U1 to U4 (below).
 
 ## The fourteen decisions
 
@@ -47,11 +51,11 @@ now follows that numbering. The draft numbered differently:
 | F2 | Comment lines and blocks | Adopted | A comment line is set aside before indentation and blocks are considered. It does not run, does not open or close a block, and its indentation never triggers the refusal of an indented line under no open block. Inside a block it leaves the block open, even when the comment line is not indented |
 | F3 | Blank lines | Retained | A blank line still closes a block |
 | F4 | Rational values | Adopted, with a qualification | Exact, canonical and **bounded** (below) |
-| F5 | Overflow and division by zero | Adopted | Refused. Never wrapped, rounded or saturated |
+| F5 | Overflow and division by zero | Adopted | Refused **if and only if the exact reduced result is not representable**; division by zero always. Never wrapped, rounded or saturated |
 | F6 | Truth literals | Adopted | `true` and `false` are reserved literals denoting the existing truth values |
 | F7 | Text | Deferred | No text-literal syntax now (below) |
 | F8 | Round-trip printing | Adopted | *Every implemented literal value has a canonical representation that can be read back as an equal value* |
-| F9 | Equality | Adopted, with a qualification | One `equals` protocol, with semantics defined for each value kind (below) |
+| F9 | Equality | Adopted, with a qualification | One `equals` protocol, with semantics defined for each value kind; protos by identity (U4) |
 | F10 | Arithmetic | Adopted | Messages on numbers, not new infix operators |
 | F11 | Arithmetic inverses | Adopted, with a qualification | Only mathematically invertible steps (below) |
 | F12 | Chain inversion | Adopted | Reverse the chain and invert each step |
@@ -96,9 +100,9 @@ representation, not unbounded representation: arithmetic is not closed
 on this set, so every operation is partial on it. A result is exact
 whenever it is representable, and refused when it is not.
 
-**Proposed precision for F5: refuse exactly when the reduced result does
-not fit.** An operation is refused when its exact result, in lowest
-terms, falls outside the bounds above, and for that reason only.
+**F5, as ratified: refuse exactly when the reduced result does not
+fit.** An arithmetic operation is refused if and only if its exact
+result, in lowest terms, cannot be represented within the bounds above.
 Division by zero is always refused. Three reasons:
 
 - **No needless refusals.** With 64-bit temporaries, even with
@@ -112,14 +116,32 @@ Division by zero is always refused. Three reasons:
   conformance tests can be exact.
 - **It makes F11 to F14 precise** (below).
 
-**Implementation note, not a language rule.** Checked arithmetic goes
-through a small portability layer:
+**Why 128-bit intermediates are enough.** Let M = 2⁶³ − 1.
+- **Sums.** For p/q ± r/s the unreduced numerator is ps ± rq, with
+  |ps ± rq| ≤ 2M² < 2¹²⁷, and the denominator qs ≤ M² < 2¹²⁶.
+- **Products and quotients** are bounded by M² in the same way.
+
+So each binary operation can be computed exactly in signed 128 bits,
+then reduced, normalized to a positive denominator, and only then
+checked against the 64-bit bounds. The rule is about the reduced value;
+the width only makes it cheap to apply.
+
+**Implementation requirements:**
+- reduce before checking representability;
+- never wrap, saturate or round;
+- keep every representable result exact;
+- refuse division by zero;
+- reduce each operation's result before the next step of a chain uses
+  it;
+- keep 128-bit arithmetic behind one internal abstraction.
+
+The language does not depend on GCC extensions or Clang's C23
+facilities:
 - `__int128` (as `__extension__`, so `-Wpedantic` stays quiet) works in
   GCC 13 and Clang 18;
 - C23's `_BitInt(128)` and `<stdckdint.h>` work in Clang 18 but not
-  GCC 13, so the language does not depend on them.
-
-The layer is tested on its own.
+  GCC 13;
+- a portable fallback is built and tested alongside the native one.
 
 A body still carries whole numbers from 0 to 255. Depositing a fraction
 or a negative number is refused, as an oversized one is now.
@@ -154,8 +176,7 @@ printing that reads back. Until then F8 and F9 say nothing about text.
   - **Text**, when introduced, will compare by its specified contents.
   - **Different kinds are unequal,** even when their printed forms look
     alike. That is an answer, not a refusal.
-  - **Protos:** equality is never structural, and its semantics are
-    defined separately (*Not yet ruled*, U4).
+  - **Protos:** identity, never structural (U4).
 
 The 702 print-and-read-back checks the prototype passed are evidence,
 not conformance; the boundary tests listed below are the conformance
@@ -182,8 +203,7 @@ c times 9/5 plus 32
 - **Layer:** these are user-layer operations, since as two-place
   functions they lose information.
 
-The word for division is not yet ruled (U3). *divide* stands for it
-below.
+Division is `over` (U3).
 
 ### F11 to F14: certified mirrors
 
@@ -193,8 +213,8 @@ below.
 |---|---|---|
 | plus n | minus n | always |
 | minus n | plus n | always |
-| times n | *divide* n | n ≠ 0 |
-| *divide* n | times n | n ≠ 0 |
+| times n | over n | n ≠ 0 |
+| over n | times n | n ≠ 0 |
 
 Multiplication by 0 is ordinary arithmetic, but it is not invertible,
 so it is never a certified step. `equals` observes and transforms
@@ -206,7 +226,7 @@ literal:
 
 **F12: inversion.** The mirror of a certified chain is the same steps in
 reverse order, each inverted: the mirror of `c times 9/5 plus 32` is
-`f minus 32` then *divide* `9/5`.
+`f minus 32 over 9/5`.
 
 **F13: derivation at each send.** The mirror is derived from the
 forward that the receiver's lineage gives at that moment, which is the
@@ -234,8 +254,10 @@ bounded set of F4 the claim is narrower:
 > representable values for which its forward steps succeed, with its
 > inverse defined over the resulting image.
 
-**Proposed sharpening, which holds under the exact refusal rule of F5.**
-The mirror is defined on the forward's image and nowhere else. Let D be
+**Ratified sharpening: a derived mirror is defined exactly on the image
+of its forward,** Domain(F⁻¹) = Image(F). It holds under F5's rule and
+describes the semantics over the bounded value model. The mirror is
+defined on the forward's image and nowhere else. Let D be
 the representable inputs on which every forward step succeeds.
 - **Forward then mirror.** For x in D, each step of the mirror applied
   to f(x) reproduces one of the forward's intermediate values, in
@@ -256,58 +278,112 @@ can occur.
 Lossy transformations stay distinct. They are ordinary teachings, and
 they have no mirror.
 
-## Not yet ruled
+## U1 to U4, ratified 2026-11-18
 
-These were in the draft and are not covered by the rulings above. Each
-needs a ruling before the wording is ratified or the affected step is
-realized.
+**U1. Rational and negative literals.**
 
-**U1. Literal forms for fractions and negative numbers.** F8 requires
-that a computed 9/5 or −7 read back as an equal value, so some readable
-form must exist.
-- **The draft:** literals `9/5` and `-7`, with no spaces, read in lowest
-  terms. `-` followed by a digit cannot be confused with `->`.
-- **The alternative:** print them as chains that compute them, `9 over
-  5` and `0 minus 7`. That needs no new lexical form, but a printed value
-  is then not a literal, and negatives read badly.
-- **Recommended:** the literals.
+```
+0      -7      9/5      -9/5
+```
 
-**U2. The form that defines a mirror.** The draft proposes
-`world celsius mirrors fahrenheit`, which teaches `celsius` as the
-mirror of `fahrenheit`.
-- *For it:* the shape is refused today, since a message in operator
-  position needs an argument, so it gives no existing line a new
-  meaning. `mirrors` keeps its one job, an information-preserving
-  correspondence. F14's involution law matches the existing law of
-  `mirrors`.
-- *Against it:* it is a new statement shape, and the 0.8.0 ruling
-  authorized no further grammar expansion. So it needs a ruling of its
-  own.
-- *Declined alternatives:*
-  - writing both directions and having moop verify they are inverses,
-    which duplicates the work;
-  - an operator that sends a message's inverse with no name for it,
-    which needs message names as values, that is, reflection.
+- **Form.** An optional `-`, digits, then optionally `/` and digits,
+  with no spaces. No decimal point: decimal floating-point literals are
+  not introduced. `-` followed by a digit cannot be confused with `->`.
+- **Meaning.** A literal denotes an exact rational, reduced on reading:
+  `10/4` reads as 5/2, and `-0` and `0/5` read as 0. The sign belongs to
+  the numerator. The written denominator has no sign and must not be 0.
+- **Printing (F8).** A whole number prints as an integer, anything else
+  as its reduced fraction: `-9/5`.
+- **Refused:** a denominator of 0, and a value outside F4's bounds once
+  reduced. Never truncated or saturated.
+- **Read with checked intermediates.** A reducible literal is not
+  refused because an unreduced part exceeds 64 bits:
+  `18446744073709551614/2` reads as 9223372036854775807.
 
-**U3. The word for division.**
-- *The draft:* `over`, as in `c over 5`, which reads like spoken
-  arithmetic.
-- *Your table:* `divide`. `c divide 5` reads as a command, and
-  `divided_by` would be two words joined.
-- **Recommended:** `over`, but the choice is yours, and nothing above
-  depends on which.
+  The ruling allows this *provided it can be parsed and reduced safely*.
+  For every implementation to refuse the same literals, that needs a
+  stated bound, so one is proposed here **for confirmation**: the width
+  of F5's intermediates. Each written part is read exactly up to
+  2¹²⁷ − 1; a literal with a larger part is refused as too large to
+  read; anything smaller is reduced and then checked against F4. This
+  adds no mechanism, since the arithmetic already needs that width.
+  Stage 2 builds this bound unless you rule otherwise.
 
-**U4. Proto equality.**
-- *The draft:* identity. Two protos are equal only when they are the
-  same proto, and the message is innate, so it cannot be re-taught.
-  That is never structural, which meets F9's qualification.
-- *Your ruling:* proto equality is defined separately.
-- **Needed:** your confirmation of identity, or another definition.
+**U2. The form that defines a mirror.** A new statement form,
+authorized by this ruling and by no other:
+
+```
+world celsius mirrors fahrenheit
+```
+
+- **What it does.** It teaches `celsius` as the derived mirror of
+  `fahrenheit`. It does not let a program assert that two arbitrary
+  messages are inverses: the mirror exists only if the derivation
+  certifies the forward.
+- **The derivation, at each send:**
+  1. find the applicable teaching of the forward, the nearest one in
+     the receiver's lineage;
+  2. establish that every step is invertible (F11);
+  3. reverse the order of the steps;
+  4. replace each step with its certified inverse.
+  Nothing is cached, so a stale inverse cannot answer.
+- **Like any teaching otherwise.** It is a whole statement; inside a
+  block it is refused, since definitions cannot nest. Re-teaching the
+  name replaces it. The mirror takes one number (strict arity), and
+  `maybe`, `value` and `equals` cannot be its name.
+- **Not reflection.** It authorizes this one form. Taught chains do not
+  become values a program can read or edit.
+- **Involution.** Mirroring twice restores the original, under
+  unchanged teachings (F14).
+
+**U3. Division is `over`.**
+
+| Operation | Message | Inverse | Condition |
+|---|---|---|---|
+| addition | `plus n` | `minus n` | always |
+| subtraction | `minus n` | `plus n` | always |
+| multiplication | `times n` | `over n` | n ≠ 0 |
+| division | `over n` | `times n` | n ≠ 0 |
+
+Multiplication by 0 is valid arithmetic but never a certified step;
+division by 0 is refused; `equals` is never a step.
+
+**U4. Proto equality is identity.** Two protos are equal exactly when
+they are the same proto.
+- Two references to one proto are equal; two different protos are
+  unequal, even when their teachings, parents and bodies are alike.
+- Equality is not recursive or structural, does not traverse teaching
+  chains, and does not depend on mutable state or on the lineage.
+- So `equals` is innate on protos and cannot be re-taught: a taught
+  `equals` would make equality depend on teachings.
+
+`equals` across all kinds:
+
+| Kind | Equal when |
+|---|---|
+| Number | exactly equal as rationals |
+| Truth | the same truth value |
+| Proto | the same proto |
+| Text, when implemented | its defined contents are equal |
+| Different kinds | never |
+
+## Certification is performed, not documented
+
+In moop the derivation certifies, at every send of a mirror. It accepts
+the forward only when its body is one chain from its parameter, every
+step of which is an F11 step whose argument is a number literal,
+non-zero for `times` and `over`. Otherwise it refuses, naming the step.
+
+The property *defined exactly on the image* then follows from that
+structure and from F5's rule, by the argument under F11 to F14, and the
+conformance tests check it at the edges. No comment, annotation or
+document can make a mirror certified.
 
 ## Conformance requirements for realization
 
-The prototype's random-pipeline tests and its independent model in
-Python fractions are kept. Each realization must also pass
+The prototype's random pipelines and its independent model in Python
+fractions are kept, as a script run with each realization and reported
+with it. `make test` stays shell and C. Each stage must also pass these
 deterministic boundary tests:
 
 - **Reader:** a comment line inside a block, indented and not indented;
@@ -317,16 +393,19 @@ deterministic boundary tests:
   - bounds: the largest and smallest numerators, the largest
     denominator, one past each (refused);
   - canonical form: zero as 0/1, negatives, lowest terms and spelling
-    (`10/4` reads as 5/2);
-  - refusals: division by zero, overflow at an intermediate step, and
-    the needless-refusal case above (it must give 1/6);
+    (`10/4` reads as 5/2, `-0` as 0);
+  - refusals: division by zero, a denominator of 0, overflow at an
+    intermediate step;
+  - the needless-refusal case: it must give 1/6;
+  - reading: a reducible literal with a part beyond 64 bits reads; a
+    part beyond 2¹²⁷ − 1 is refused;
   - printing: every boundary value reads back equal.
 - **Arithmetic:** each message with negative operands, zero operands and
-  operands at the bounds.
+  operands at the bounds; each result reduced before the next step.
 - **Mirrors:**
   - refusals: `times 0`, a name as an argument, the parameter as an
     argument, a body of more than one line, a message that takes
-    nothing, a cycle, a missing forward;
+    nothing, a cycle, a missing forward, the form inside a block;
   - forward then mirror, and mirror then forward, at the edges of the
     domain, and refusal outside the image;
   - re-teaching the forward after a mirror was used; a child's own
@@ -335,16 +414,56 @@ deterministic boundary tests:
   - Celsius and Fahrenheit as the acceptance case: 100 to 212, −40 to
     −40, 98 to 110/3 and back.
 
-## Realization order, each step authorized on its own
+## Implementation plan, stage by stage
 
-1. **Reader:** F1 to F3.
-2. **Values:** F4 to F6, F8 and F9. Bounded exact rationals, the
-   refusal rule, truth literals, equality and printing for the
-   implemented kinds. U1 and U4 must be ruled first.
-3. **Arithmetic:** F10. U3 must be ruled first.
-4. **Certified mirrors:** F11 to F14, with Celsius and Fahrenheit as the
-   acceptance case. U2 must be ruled first.
-5. **Text:** F7, when a second substantial consumer exists.
+Each stage is its own change with its own validation report: test
+counts, sanitizers, warnings and the conformance list above. Each needs
+authorization before it starts. The order is fixed by dependency.
+
+**Stage 1. Reader (F1 to F3).**
+- *Change:* `src/main.c` only. A line whose first non-whitespace
+  character is `;` is set aside before block handling, in the REPL and
+  in files. The lexer is unchanged, so a `;` after code stays a stray
+  character.
+- *Tests:* the reader list; a program with comments inside and outside
+  blocks, run as a file against its `.out`.
+- *Not included:* comments on the same line as code.
+
+**Stage 2. Values (F4 to F6, F8, F9, U1, U4).**
+- *Change:*
+  - a new user-layer module, `src/number.{h,c}`: canonical bounded
+    rationals, reduction, the exact operations, reading and printing;
+  - wide intermediates behind one internal type: the compiler's 128-bit
+    integer where it has one, otherwise a portable two-word fallback.
+    `make test` runs the number unit tests on both, so the fallback is
+    tested;
+  - the lexer reads U1's literals and the words `true` and `false`;
+  - values become rationals; `equals` is innate on every kind; printing
+    follows F8;
+  - a deposit takes whole numbers from 0 to 255;
+  - the literal check of commit `8a5b78f` is replaced by U1's reading.
+- *Tests:* the numbers list, as C unit tests on `src/number.c`; `equals`
+  across kinds; refused deposits.
+- *Not included:* arithmetic. Numbers answer only `equals` in this
+  stage.
+
+**Stage 3. Arithmetic (F10, U3).**
+- *Change:* numbers answer `plus`, `minus`, `times` and `over` through
+  `src/number.c`.
+- *Tests:* the arithmetic list; the 0.8.0 checks for eager evaluation
+  and receiver-first order still pass; the random-pipeline script and
+  its fractions model.
+
+**Stage 4. Certified mirrors (F11 to F14, U2).**
+- *Change:* the parser reads the U2 statement; a mirror teaching holds
+  its forward's name; the derivation certifies, reverses and inverts at
+  each send, and refuses cycles.
+- *Tests:* the mirrors list; Celsius and Fahrenheit as a program with a
+  `.out`, which does not depend on the wiring; the random pipelines with
+  mirrors.
+
+**Stage 5. Text (F7).** Deferred, until a second substantial consumer
+exists.
 
 ## Prototype evidence (measured)
 

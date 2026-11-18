@@ -319,9 +319,8 @@ comments (a file cannot carry one).
 
 The items below that concern comments, blank lines in bodies, literals,
 arithmetic and invertible functions are treated together in
-`foundations.md`. It was adopted in principle on 2026-11-18, with
-qualifications, and four points are still to be ruled. Nothing there is
-built yet.
+`foundations.md`, ratified on 2026-11-18. Nothing there is built yet;
+building it is authorized stage by stage.
 
 - General invertible functions under `<->` (`celsius <-> fahrenheit`):
   the primitive involutions exist (deposit, exchange); composing them
