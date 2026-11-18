@@ -317,6 +317,11 @@ comments (a file cannot carry one).
 
 ## Open questions
 
+The items below that concern comments, blank lines in bodies, literals,
+arithmetic and invertible functions are drafted together, for rulings,
+in `foundations.md`: one reader policy, one value model, arithmetic as
+messages, and certified mirrors. Nothing there is decided or built.
+
 - General invertible functions under `<->` (`celsius <-> fahrenheit`):
   the primitive involutions exist (deposit, exchange); composing them
   into definable bijections is the next design step.
