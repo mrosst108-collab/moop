@@ -20,6 +20,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0005-phase6-reversible-profile.patch` | Phase 6: the reversible profile, in part (section 7). Apply on top of 0004 |
 | `0006-phase7-measure.patch` | Phase 7: the request group `Measure`, declared and answered by nothing (section 8). Apply on top of 0005 |
 | `0007-phase7-rulings.patch` | The rulings on N1 to N3 entered in Selvage's description; no code or tests (section 8f). Apply on top of 0006 |
+| `0008-ratify-c-and-n.patch` | C1 to C5 and N1 to N3 ratified: moved from XII.6 to XII.1; a status change, no code or tests (section 9). Apply on top of 0007 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -44,6 +45,10 @@ git apply 0006-phase7-measure.patch
 
 ```bash
 git apply 0007-phase7-rulings.patch
+```
+
+```bash
+git apply 0008-ratify-c-and-n.patch
 ```
 
 0002 (not adopted) was written against 0001 alone and no longer applies
@@ -630,3 +635,77 @@ Phase 7 is complete (2026-11-18), on the record above at moop commit
 | Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused (unchanged) |
 | Full suite on that tree | 199 / 199 pass (279 s); after the run the tree is still byte-identical to the work copy (clean at `6cce3b9`) |
 | Mutation check | Not re-run. Neither the mutation tool nor any generator reads `SPEC.md`, so 0006's result (153 / 153) stands for this tree, as with Phase 5's wording change |
+
+## 9. Ratification of C1 to C5 and N1 to N3 (0008)
+
+Approved 2026-11-18 as a status change, not as authority to widen or
+reinterpret either set. 0008 changes `SPEC.md` only.
+
+### 9a. What moved
+
+- **XII.6 to XII.1.** Both tables moved unchanged. The eight decision
+  rows are byte-identical before and after the move (checked by diff).
+  Each block keeps its introduction, with one change: "entering them in
+  XII.1 is the maintainer's" now reads as ratified on 2026-11-18. C5's
+  note on how it changed C3 and C4, and N2's qualification, stay as they
+  were.
+- **The N dispositions.** The three dispositions given in the
+  ratification stand above the N table in XII.1, in the words given:
+  - N1: a prelude request group with no prelude answer;
+  - N2: unsealed; stand-ins permitted, and they do not establish physical
+    measurement;
+  - N3: argument-free until quantum state and register types exist.
+- **The enforcement distinction**, as given, closes the N block in
+  XII.1:
+  - the interpreter refuses an unanswered request at run time (status 70);
+  - compiled code refuses any program that asks for `measure` at build
+    time (status 1), because it cannot currently express requests, even
+    when a stand-in answer exists.
+- **XII.6's opening** lists C1 to C5 and N1 to N3 among the earlier
+  rulings. Nothing else in XII.6 changes.
+
+### 9b. Design status
+
+Under Selvage's status model (I.1), *Ratified* means a ruling in XII.1.
+Only entries that *are* one of these decisions changed status:
+
+| Entry | Before | After |
+|---|---|---|
+| VI.6: `CcnotTape`, `tape_tick`, `draw` and `birth` in the prelude, certified | Proposed | Ratified (C4, C5) |
+| VI.6: the three names not declared again; no request for the tape; a program's own request may share the word | Proposed | Ratified (C5) |
+| VII.4: the group `Measure` in the prelude, answered by nothing; refused at run time in the interpreter, not built in compiled code | Proposed (N1) | Ratified (N1) |
+| VII.4: a program's own answer for `Measure`, a stand-in | Proposed (N2) | Ratified (N2) |
+
+Left Proposed, because they rest on something other than these rulings:
+- **wiring 1 pinned to moop's trace.** That is moop's G2. C1 requires the
+  backends to agree, not that they agree with moop.
+- **draws and births against a model of wiring 1.** Evidence for the
+  implementation, not a decision.
+- **the domain D, and the refusals outside it.** Phase 5's statement,
+  which no ruling covers.
+
+Not touched:
+- A1 (`repeat while` retained) and patch 0002, which stays unadopted.
+- Every other entry in XII.1 and XII.6.
+
+### 9c. Verification
+
+| Check | Result |
+|---|---|
+| 0008 applied to a fresh archive after 0001, 0003, 0004, 0005, 0006 and 0007 | Applies; reproduces the work copy (`c0eed29`) byte for byte; differs from the 0007 tree in `SPEC.md` alone |
+| Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused (unchanged) |
+| Full suite on that tree | Running; not yet recorded |
+| Mutation check | Not re-run. Neither the mutation tool nor any generator reads `SPEC.md`, so 0006's result (153 / 153) stands |
+
+## 10. The record
+
+| Item | Status |
+|---|---|
+| C1 to C5 (the merge plan's G3 to G7) | Ratified (XII.1), 2026-11-18 |
+| N1 to N3 | Ratified (XII.1), 2026-11-18; N2 with its qualification |
+| A1 | `repeat while` retained; `0002` not adopted |
+| Phases 0, 3, 5 and 6 | Complete |
+| Phase 7 | Complete. `0007`, a description-only follow-up, validated: 199 / 199 |
+| Phase 4 | Not needed for the tape (G7) |
+| Phases 1 and 2 | Built as `0001`; A1 as above |
+| Further quantum work | Gated by actual quantum-state and backend support, not by the `Measure` request |

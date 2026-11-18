@@ -1,0 +1,98 @@
+diff --git a/SPEC.md b/SPEC.md
+index 0dc6272..68df53c 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -994,10 +994,10 @@ rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+ 
+ | Item | Implementation | Design | Evidence |
+ |---|---|---|---|
+-| `CcnotTape`, `tape_tick`, `draw` and `birth` in the prelude, certified | Built | Proposed | TestCcnotTape.test_the_tick_rests_on_ccnot_and_nothing_more_is_claimed |
++| `CcnotTape`, `tape_tick`, `draw` and `birth` in the prelude, certified | Built | Ratified (C4, C5) | TestCcnotTape.test_the_tick_rests_on_ccnot_and_nothing_more_is_claimed |
+ | Wiring 1, pinned to moop's trace, in the interpreter and compiled | Built | Proposed | TestCcnotTape.test_the_trace_is_moop_s, test_compiled_code_prints_moop_s_trace |
+ | Draws and births against a model of wiring 1, and taken back | Built | Proposed | The tape generator (XI.2); TestCcnotTape.test_draws_and_births_are_taken_back |
+-| `draw`, `birth` and `tape_tick` cannot be declared again; no request for the tape; a program's own request may share the word | Built | Proposed | TestCcnotTape.test_draw_is_the_tape_s |
++| `draw`, `birth` and `tape_tick` cannot be declared again; no request for the tape; a program's own request may share the word | Built | Ratified (C5) | TestCcnotTape.test_draw_is_the_tape_s |
+ | The domain D stated, and each rule's extent on it: the tick a permutation, a draw and a birth embeddings | Built | Proposed | Proof (VI.6); TestCcnotTape.test_on_its_domain_the_tick_is_a_permutation, every state of D with 2 or 3 cells on each tape (1,024) |
+ | Every input outside D refused when it runs, in both backends; no head wrapped round | Built | Proposed | TestCcnotTape.test_a_tape_needs_two_cells, test_outside_its_domain_every_input_is_refused |
+ | D established by the checker, not guarded at run time | Absent | Open | — (a length invariant in types; not justified by the tape alone) |
+@@ -1251,9 +1251,9 @@ No answer for it exists, in the prelude or in the toolchain, and Root does not a
+ 
+ | Item | Implementation | Design | Evidence |
+ |---|---|---|---|
+-| The group `Measure` in the prelude, answered by nothing; `ask measure()` refused at Root with status 70 in the interpreter, and a program that asks it not built in compiled code (status 1) | Built | Proposed (N1) | TestMeasure.test_the_prelude_declares_measure_and_nothing_answers_it, test_an_ask_of_measure_is_refused_at_root_with_status_70; the measure generator (XI.2) |
++| The group `Measure` in the prelude, answered by nothing; `ask measure()` refused at Root with status 70 in the interpreter, and a program that asks it not built in compiled code (status 1) | Built | Ratified (N1) | TestMeasure.test_the_prelude_declares_measure_and_nothing_answers_it, test_an_ask_of_measure_is_refused_at_root_with_status_70; the measure generator (XI.2) |
+ | A rule that asks `measure`: `Measure` in its row, and lossy if it is a clause rule | Built | Ratified | TestMeasure.test_a_rule_that_measures_is_lossy_and_a_rule_that_draws_is_not; the same generator |
+-| A program's own answer for `Measure`, a stand-in taking the request inside its `with` only | Built | Proposed (N2) | TestMeasure.test_a_stand_in_takes_the_request_inside_its_with_only; the same generator |
++| A program's own answer for `Measure`, a stand-in taking the request inside its `with` only | Built | Ratified (N2) | TestMeasure.test_a_stand_in_takes_the_request_inside_its_with_only; the same generator |
+ | Measurement answered by a quantum backend: the outcome kept, a commit point | Absent | Ratified | — |
+ | Reset as lossy state preparation | Absent | Ratified | — |
+ 
+@@ -2142,6 +2142,34 @@ The short labels are the identifiers under which rulings were made. Some recur,
+ | Open 13 | The differentiation variable | `derivative` takes its variable as a parameter: the name differentiates to 1, other names to 0. The parameterized rule is the library rule; no wrapper is added (VIII.2) |
+ | R12 | Rewindable `install` | Deferred. A journaled modification under κ admission, κ staying distinct from certification and from inversion (VIII.3) |
+ 
++Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G7 between moop and Selvage, entered here as C1 to C5 because G1 to G11 are taken. The maintainer ruled C1 to C5 on 2026-11-17; C5 changed how C3 and C4 are carried out, and they are given here as ruled after it. Ratified 2026-11-18, and moved here from XII.6 unchanged:
++
++| # | Decision | Where | The alternative |
++|---|---|---|---|
++| C1 | The CCNOT tape defines `draw`: a deterministic observation, the same in every backend, with no claim of randomness or independence. Another generator is a rule of its own, never an implementation of the tape | VI.6 | A faster generator for `draw` on the CPU (a certified rule over words is about 100 times faster per bit), giving the backends different values; or `draw` as a general generator interface |
++| C2 | The tick's head arithmetic is written inline: six names reserved, the transition visible where it is defined | VI.6 | Two helper functions for the head moves: about twice as fast per tick, and two more reserved names |
++| C3 | A program makes its tape and passes it to `draw` and `birth`; no tape is ambient | VI.6 | A tape held by `Object`, so that a draw works anywhere, with a ruling on where its seed comes from (open question 10) |
++| C4 | The names `CcnotTape`, `tape_tick`, `draw` and `birth`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names; before C5, also a request group `Draw` and a record `Tapes` |
++| C5 | `draw` and `birth` are prelude rules over the tape, with no request group, so that no program can stand in for the tape's draw: a prelude rule's name cannot be declared again. The reservation is of the rule names only; a program's own request may share the word | VI.6 | An answer `CcnotTape` for a request group `Draw`, which any program could answer as well; or that answer with a new kind of seal letting anyone send the group's requests and only the prelude answer them: a new declaration and a new case of R5, and draws left to the interpreter until answers compile. A namespace shared by rules and requests, to close the residual word, is a separate question |
++
++Taken in declaring the request group `Measure` (VII.4), the merge plan's Phase 7 between moop and Selvage. It carries out Q3 as far as it can go with no quantum backend. The maintainer ruled N1 to N3 on 2026-11-18: N1 adopted, N2 adopted with a qualification, N3 adopted for now. Ratified the same day, with these dispositions:
++
++| # | Ratified disposition |
++|---|---|
++| N1 | `Measure` is a prelude request group with no prelude answer |
++| N2 | The group remains unsealed; explicit stand-in answers are permitted, but do not establish physical measurement |
++| N3 | `measure()` remains argument-free until quantum state and register types exist; revisit its signature with the measurement semantics |
++
++The decisions as entered, moved here from XII.6 unchanged:
++
++| # | Decision | Where | The alternative |
++|---|---|---|---|
++| N1 | The group `Measure`, with the one request `measure() returns Bit`, is declared in the prelude, and nothing answers it: an `ask` reaches Root and is refused. Its two names are the prelude's | VII.4 | The group in an example, reserving no names but giving no signature that every program shares and a profile could answer; or no declaration until a backend exists |
++| N2 | `Measure` is not sealed: a program may install an answer of its own, a stand-in, as it may for `Refusal` and `Witness`. Ruled with a qualification: environmental measurement, answered by the environment, and a stand-in, a modelled reply for tests, simulations or controlled experiments, are kept apart; a stand-in implements the request's contract and does not establish that a physical measurement occurred | VII.4 | Sealed to Root, which under R5 would forbid programs to ask it as well; or a new kind of seal that lets anyone ask and only the system answer: a new declaration and a new case of R5, the alternative C5 also declined |
++| N3 | `measure` takes no argument, for now. What is measured is left to the quantum interface; when qubit types or registers exist, the signature is revisited with the semantics of measurement, the update of the state, the outcome's representation and its irreversibility | VII.4, XII.5 | An argument naming a qubit, such as an index: a way of naming qubits before there is any qubit management |
++
++Enforcement, as built (VII.4): the interpreter refuses an unanswered request at run time, with status 70. Compiled code refuses any program that asks for `measure` at build time, with status 1, because compiled code cannot currently express requests, even when a stand-in answer exists.
++
+ Adopted with the rulings:
+ - reversibility, recoverability and retrieval authority are distinct (II.2);
+ - `keep` has the exact domain K : Entry × Journal → NonEmptyJournal (VII.3);
+@@ -2477,7 +2505,7 @@ After these:
+ 
+ ### XII.6 Decisions awaiting a ruling
+ 
+-Earlier decisions are rulings: D1 to D9, E1 to E9, F1 to F7, G1 to G6, H1 to H6, J1 to J7, K1 to K6, L1 to L6, R9 to R11 and T1 to T4 (XII.1). None of the following is itself ruled: the toolchain behaves as stated, and each stands as Proposed until ruled.
++Earlier decisions are rulings: C1 to C5, D1 to D9, E1 to E9, F1 to F7, G1 to G6, H1 to H6, J1 to J7, K1 to K6, L1 to L6, N1 to N3, R9 to R11 and T1 to T4 (XII.1). None of the following is itself ruled: the toolchain behaves as stated, and each stands as Proposed until ruled.
+ 
+ Taken while building 0.4.8, for the declaration and program forms:
+ 
+@@ -2492,24 +2520,6 @@ Taken while building 0.4.8, for the declaration and program forms:
+ | M7 | The census counts a constructor as taken apart when a one-clause rule for it matches a node and binds its fields, and as put together when that clause rebuilds the node. Its nodes are every declaration as written and every derived inverse as it runs. The state of a run is listed as not being a form | VIII.1 | A census of declared types only, which would not show a form the parser writes and no type declares |
+ | M8 | `derivative`'s `Name` clause gives `Literal(d)` with `d` a counted `I64`, so its result is evaluated at an integer. A clause cannot choose between two right sides by a condition | VIII.2 | A way for a clause to bind one name in both branches of an `if`, which would let it give `Literal(1)` or `Literal(0)` as written |
+ 
+-Taken in admitting the CCNOT tape (VI.6). They are the merge plan's G3 to G7 between moop and Selvage, entered here as C1 to C5 because G1 to G11 are taken. The maintainer ruled C1 to C5 on 2026-11-17; C5 changed how C3 and C4 are carried out, and they are given here as ruled after it. Entering them in XII.1 is the maintainer's:
+-
+-| # | Decision | Where | The alternative |
+-|---|---|---|---|
+-| C1 | The CCNOT tape defines `draw`: a deterministic observation, the same in every backend, with no claim of randomness or independence. Another generator is a rule of its own, never an implementation of the tape | VI.6 | A faster generator for `draw` on the CPU (a certified rule over words is about 100 times faster per bit), giving the backends different values; or `draw` as a general generator interface |
+-| C2 | The tick's head arithmetic is written inline: six names reserved, the transition visible where it is defined | VI.6 | Two helper functions for the head moves: about twice as fast per tick, and two more reserved names |
+-| C3 | A program makes its tape and passes it to `draw` and `birth`; no tape is ambient | VI.6 | A tape held by `Object`, so that a draw works anywhere, with a ruling on where its seed comes from (open question 10) |
+-| C4 | The names `CcnotTape`, `tape_tick`, `draw` and `birth`. `tape_tick`, not `tape_step`, because a step is a statement of a clause; `tick` is taken by `examples/declarations.selv` | VI.6 | Other names; before C5, also a request group `Draw` and a record `Tapes` |
+-| C5 | `draw` and `birth` are prelude rules over the tape, with no request group, so that no program can stand in for the tape's draw: a prelude rule's name cannot be declared again. The reservation is of the rule names only; a program's own request may share the word | VI.6 | An answer `CcnotTape` for a request group `Draw`, which any program could answer as well; or that answer with a new kind of seal letting anyone send the group's requests and only the prelude answer them: a new declaration and a new case of R5, and draws left to the interpreter until answers compile. A namespace shared by rules and requests, to close the residual word, is a separate question |
+-
+-Taken in declaring the request group `Measure` (VII.4), the merge plan's Phase 7 between moop and Selvage. It carries out Q3 as far as it can go with no quantum backend. The maintainer ruled N1 to N3 on 2026-11-18: N1 adopted, N2 adopted with a qualification, N3 adopted for now. They are given here as ruled; entering them in XII.1 is the maintainer's:
+-
+-| # | Decision | Where | The alternative |
+-|---|---|---|---|
+-| N1 | The group `Measure`, with the one request `measure() returns Bit`, is declared in the prelude, and nothing answers it: an `ask` reaches Root and is refused. Its two names are the prelude's | VII.4 | The group in an example, reserving no names but giving no signature that every program shares and a profile could answer; or no declaration until a backend exists |
+-| N2 | `Measure` is not sealed: a program may install an answer of its own, a stand-in, as it may for `Refusal` and `Witness`. Ruled with a qualification: environmental measurement, answered by the environment, and a stand-in, a modelled reply for tests, simulations or controlled experiments, are kept apart; a stand-in implements the request's contract and does not establish that a physical measurement occurred | VII.4 | Sealed to Root, which under R5 would forbid programs to ask it as well; or a new kind of seal that lets anyone ask and only the system answer: a new declaration and a new case of R5, the alternative C5 also declined |
+-| N3 | `measure` takes no argument, for now. What is measured is left to the quantum interface; when qubit types or registers exist, the signature is revisited with the semantics of measurement, the update of the state, the outcome's representation and its irreversibility | VII.4, XII.5 | An argument naming a qubit, such as an index: a way of naming qubits before there is any qubit management |
+-
+ Taken in entering T1 to T4, and while building 0.4.9. T5 and Q13 were recommended for ratification in review, T5 with the qualification that its proof show the entries of the runs sharing a result to be uniquely decodable:
+ 
+ | # | Decision | Where | The alternative |

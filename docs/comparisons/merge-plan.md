@@ -59,9 +59,11 @@ tape:
 
 ## Decisions
 
-Each blocks the phase named. All six are decided by the maintainer
-(2026-11-17). G3 to G6 are entered in Selvage's description as C1 to C4,
-because Selvage's own register already uses G1 to G11.
+Each blocks the phase named. All seven are decided by the maintainer
+(2026-11-17). G3 to G7 are entered in Selvage's description as C1 to C5,
+because Selvage's own register already uses G1 to G11. C1 to C5 were
+ratified on 2026-11-18 and moved into Selvage's register of rulings
+(XII.1) unchanged (`selvage-patches/0008`).
 
 | # | Decision | Status | Blocks |
 |---|---|---|---|
@@ -265,7 +267,8 @@ cannot make an asking rule certified; `measure` takes no argument until
 qubits exist. Compiled code has no `ask`, so there the program is refused
 at build time (status 1), not at run time.
 
-*Rulings (2026-11-18).* N1 to N3 are adopted:
+*Rulings (2026-11-18).* N1 to N3 are adopted, and ratified the same day
+in Selvage's register of rulings (XII.1, `selvage-patches/0008`):
 
 | # | Ruling | Reason |
 |---|---|---|
