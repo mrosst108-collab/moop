@@ -47,6 +47,10 @@ make clean
 ./build/moop tests/programs/pets.moop  # run a file
 ```
 
+Numbers are exact rationals (`9/5`, `-7`), and `true` and `false` are
+literals; `2/3 equals 4/6` is `true`. Arithmetic is ratified, not yet
+built.
+
 A file is a session without the banner and the prompts: each statement
 that is not a definition prints its value. A file stops at its first
 error, named by file and line, and exits with status 1. A line that

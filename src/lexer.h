@@ -14,6 +14,8 @@
  *   a / an         birth                (the indefinite article: `a dog`
  *                                        is a NEW proto generated from
  *                                        dog, exactly as in English)
+ *   true / false   the truth values     (literals, not names, so they
+ *                                        cannot be rebound)
  *
  * The words are reserved; they cannot name values or messages. The
  * arrows wear their information behavior: one-way arrows forget a
@@ -23,7 +25,8 @@
 
 typedef enum {
     MOOP_TOK_WORD,     /* identifier: letters and underscores */
-    MOOP_TOK_NUMBER,   /* decimal digits */
+    MOOP_TOK_NUMBER,   /* -?digits(/digits)?: an integer or a fraction */
+    MOOP_TOK_TRUTH,    /* true, false: reserved literals */
     MOOP_TOK_SEND,     /* ->  */
     MOOP_TOK_INHERIT,  /* <-  */
     MOOP_TOK_BIJECT,   /* <-> */

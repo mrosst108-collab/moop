@@ -465,7 +465,33 @@ authorization before it starts. The order is fixed by dependency.
   blocks, run as a file against its `.out`.
 - *Not included:* comments on the same line as code.
 
-**Stage 2. Values (F4 to F6, F8, F9, U1, U4).**
+**Stage 2. Values (F4 to F6, F8, F9, U1, U4). Built in 0.10.0.**
+- *Validation:*
+  - smoke checks: 126 of 126 pass (108 before), under `sh` and `dash`;
+  - C unit tests: 102 of 102 pass (95 before);
+  - number unit tests: 23 of 23 pass in each build, native and
+    portable, each including 20,000 generated literals that are
+    canonical and read back equal;
+  - the independent model, `tests/model/literals.py`, seeds 1, 2 and 3:
+    9,000 literals, all as the model says, for both the native and the
+    portable build. That is 3,788 values, all of which read back equal,
+    and 5,212 refusals with the right reason (3,414 cannot be
+    represented, 572 denominator of 0, 1,226 a part too large to read);
+  - eight broken copies were each caught: bounds checked before
+    reduction, the reading bound off by one, no reduction, a lost carry
+    in the portable addition (caught only by the portable build),
+    structural proto equality, `equals` teachable, kinds compared by
+    their printed form, and fractions printed with the sign on the
+    denominator;
+  - clean under ASan and UBSan, model runs included; no warnings under
+    GCC 13 or `clang -std=c23`, in either mode.
+
+  Two details were settled in the build:
+  - **When a literal is read.** It is read when its line is read, so a
+    teaching whose body holds `5/0` is refused at the line that teaches
+    it.
+  - **Long literals in messages.** A literal in a refusal is shown up to
+    40 characters and then `...`, so no message outgrows its buffer.
 - *Change:*
   - a new user-layer module, `src/number.{h,c}`: canonical bounded
     rationals, reduction, the exact operations, reading and printing;

@@ -9,7 +9,7 @@
  *
  *   statement := chain ["is" [chain]]
  *   chain     := [term] ((-> | <- | <-> | WORD) term)*   ; associates left
- *   term      := ("a" | "an") term | WORD | NUMBER
+ *   term      := ("a" | "an") term | WORD | NUMBER | TRUTH
  *
  * `a -> b -> c` is ((a -> b) -> c): a pipeline, reading left to right.
  * The operators also have word spellings (ask, inherits, mirrors) —
@@ -43,7 +43,8 @@
 
 typedef enum {
     MOOP_NODE_WORD,
-    MOOP_NODE_NUMBER,
+    MOOP_NODE_NUMBER,   /* checked when read: the literal is a number (U1) */
+    MOOP_NODE_TRUTH,    /* true or false */
     MOOP_NODE_RECEIVER, /* implicit head of a chain that starts with an op */
     MOOP_NODE_BIRTH,    /* a/an: left = the generator term */
     MOOP_NODE_SEND,     /* ->  */

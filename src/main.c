@@ -117,7 +117,13 @@ static bool is_comment(const char *line)
 static void print_value(const MoopValue *v)
 {
     switch (v->kind) {
-    case MOOP_VAL_NUMBER: printf("%ld\n", v->number);              break;
+    case MOOP_VAL_NUMBER: {
+        /* canonical: reads back as an equal number (F8) */
+        char text[MOOP_NUMBER_TEXT_MAX];
+        moop_number_text(v->number, text, sizeof text);
+        printf("%s\n", text);
+        break;
+    }
     case MOOP_VAL_BOOL:   printf(v->truth ? "true\n" : "false\n"); break;
     case MOOP_VAL_PROTO:  printf("a proto\n");                     break;
     }

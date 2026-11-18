@@ -575,6 +575,30 @@ static void test_parser(void)
           "a teaching names what its message takes");
     check(!moop_parse("box add 5 is 3", &ast, err, sizeof err),
           "what a message takes is named by a word, not a value");
+    /* value literals (Stage 2): read when the line is read */
+    check(moop_parse("-9/5", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_NUMBER &&
+              ast.nodes[ast.root].len == 4,
+          "a signed fraction is one number literal");
+    check(moop_parse("box add -5", &ast, err, sizeof err) &&
+              ast.nodes[ast.nodes[ast.root].right].kind == MOOP_NODE_NUMBER,
+          "a negative literal can be an argument");
+    check(moop_parse("x ask y -> z", &ast, err, sizeof err),
+          "a minus sign before > is still the arrow");
+    check(!moop_parse("5/0", &ast, err, sizeof err) &&
+              strstr(err, "denominator of 0") != NULL,
+          "a literal that is not a number is refused when read");
+    check(moop_parse("true", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_TRUTH &&
+              moop_parse("false", &ast, err, sizeof err) &&
+              ast.nodes[ast.root].kind == MOOP_NODE_TRUTH,
+          "true and false are truth literals");
+    check(!moop_parse("true is 5", &ast, err, sizeof err) &&
+              strstr(err, "not a name") != NULL,
+          "a truth literal cannot be bound");
+    check(moop_parse("trueish is 5", &ast, err, sizeof err),
+          "a word that begins like a truth literal is a name");
+
     check(moop_parse("x and y", &ast, err, sizeof err) &&
               ast.nodes[ast.root].kind == MOOP_NODE_TELL,
           "the logic words are messages, not reserved operators");

@@ -283,13 +283,71 @@ teaching. A chain that begins with a word is headed by that name; only
   message that takes nothing, and a body cannot give its own receiver
   something*). It is not a feature promised for later.
 
+## Values (0.10.0)
+
+Ratified in `foundations.md` (F4 to F6, F8, F9, U1, U4) and built in
+0.10.0. There are three kinds of value: numbers, truth values and
+protos.
+
+```
+-7      9/5      -9/5      0      true      false
+2/3 equals 4/6          ; true: numbers are equal exactly
+5 equals true           ; false: different kinds are unequal
+```
+
+- **Numbers are exact rationals, bounded.** A number is p/q in lowest
+  terms, with a positive denominator; zero is 0/1. Both |p| and q are at
+  most 2⁶³ − 1. That is a finite set of rationals, not all of them:
+  whatever is representable is exact, and whatever is not is refused,
+  never wrapped, rounded or saturated.
+- **Number literals:** an optional `-`, digits, then optionally `/` and
+  digits, with no spaces, and no decimal point. A literal is read when
+  its line is read, so a bad one is refused even in a teaching that has
+  not run. Reading takes five steps:
+  1. read each written part exactly, up to 2¹²⁷ − 1, the same for both
+     signs (*has a part too large to read*);
+  2. give the sign to the numerator;
+  3. refuse a denominator of 0;
+  4. reduce;
+  5. check the bounds (*cannot be represented*).
+
+  So `18446744073709551614/2` reads as 9223372036854775807.
+- **`true` and `false`** are reserved literals for the truth values the
+  language already has, so they cannot be rebound (*true is a truth
+  value, not a name*). The logic words stay messages.
+- **Printing reads back.** A whole number prints without `/1`, a
+  fraction reduced with the sign in front (`-9/5`), and a truth value as
+  `true` or `false`. Reading the printed text gives an equal value. A
+  proto still prints as `a proto`; there is no textual reconstruction of
+  a proto.
+- **One `equals`, innate on every kind.**
+  - numbers are equal exactly as rationals;
+  - truth values when they are the same truth value;
+  - protos only when they are the same proto: identity, never structure,
+    and no teaching is looked at;
+  - different kinds are unequal.
+
+  `equals` cannot be taught (*equals is innate*) and takes something,
+  so it is never sent with `ask`.
+- **Numbers answer only `equals`** in this version. Arithmetic is
+  ratified and comes in Stage 3, and the interpreter says so: *a number
+  answers equals, not "plus"*.
+- **A body still carries whole numbers from 0 to 255.** A fraction or a
+  negative number is refused (*an 8-cell loop carries whole numbers from
+  0 to 255*); `10/2` is 5 and deposits as 5.
+
 ## Lexical rules
 
 - Words: letters, digits, underscores; must start with a letter or
   underscore. Keywords (`is`, `ask`, `inherits`, `mirrors`, `a`, `an`)
   are matched exactly, so `island`, `asked`, and `answer` stay words.
-  The logic words are not keywords.
-- Numbers: decimal digit runs.
+  `true` and `false` are literals, matched the same way, so `trueish` is
+  a word. The logic words are not keywords.
+- Numbers: an optional `-`, digits, then optionally `/` and digits, with
+  no spaces (`-7`, `9/5`). A `-` before a digit begins a number and a
+  `-` before `>` an arrow; a `-` before anything else is a stray
+  character. Whether a literal is a number is decided when it is read
+  (above).
 - `<->` is matched before `<-` (longest match).
 - A bare `-`, `<`, or any other stray character is a lex error: the
   interpreter reports it rather than guessing.
@@ -346,6 +404,12 @@ Comments (0.9.0) are full lines only; a `;` after code is refused.
   values, not reserved words.
 - `mirrors 0` is the identity idiom: it answers with the receiver and
   changes nothing (2026-11-18).
+- Values (ratified in `foundations.md`, built in 0.10.0): numbers are
+  exact rationals with |p|, q ≤ 2⁶³ − 1, read from literals like `-9/5`
+  whose parts may reach 2¹²⁷ − 1 before reduction; `true` and `false`
+  are reserved literals; every number and truth prints as text that
+  reads back equal; `equals` is innate on every kind, with protos by
+  identity.
 - Comments (ratified as F1 to F3 of `foundations.md`, built in 0.9.0):
   full lines beginning with `;`, set aside before blocks are considered,
   so they leave a block open; a blank line still closes one; a `;` after
@@ -355,8 +419,8 @@ Comments (0.9.0) are full lines only; a `;` after code is refused.
 
 The items below that concern literals, arithmetic and invertible
 functions are treated together in `foundations.md`, ratified on
-2026-11-18 and built stage by stage. Its Stage 1, comments, is built in
-0.9.0; the rest is not built.
+2026-11-18 and built stage by stage. Stage 1 (comments, 0.9.0) and Stage
+2 (values, 0.10.0) are built; arithmetic and certified mirrors are not.
 
 - General invertible functions under `<->` (`celsius <-> fahrenheit`):
   the primitive involutions exist (deposit, exchange); composing them
@@ -366,6 +430,7 @@ functions are treated together in `foundations.md`, ratified on
 - Reflection: `is` stores chains as data, but the surface language
   cannot yet read one back (quote a chain, inspect a body, rewrite a
   teaching programmatically). The data is there; the mirror is missing.
-- String and boolean literal forms. (Whether the logic words are
-  keywords is settled: built-in messages, not reserved; `arguments.md`.)
+- Text: deferred, its syntax included (`foundations.md`, F7). Truth
+  literals are built (0.10.0); the logic words are built-in messages,
+  not reserved (`arguments.md`).
 

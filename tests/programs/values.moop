@@ -1,0 +1,45 @@
+; Values (docs/foundations.md, Stage 2): literals, truths, printing, equals.
+; Numbers print in canonical form, which reads back as an equal number.
+0
+-0
+-7
+10/4
+-9/5
+18446744073709551614/2
+1/9223372036854775807
+true
+false
+; equals: numbers exactly, whatever the spelling
+2/3 equals 4/6
+2/3 equals 1/3
+-0 equals 0
+5 equals 10/2
+-9/5 equals -18/10
+; truths by truth value
+true equals true
+true equals false
+; different kinds are unequal, even when they look alike
+5 equals true
+1 equals true
+; protos by identity: an alias is the same proto
+dog is a world
+pet is dog
+dog equals pet
+; two protos with the same parent and the same teaching are still two
+rex is a dog
+fido is a dog
+rex ask sound is 1
+fido ask sound is 1
+rex equals fido
+rex equals dog
+dog equals 5
+; truth literals are the truth values the language already has
+c is a world
+t is c inherits world
+t equals true
+t and true
+false or t
+; printing reads back: the printed value, read again, is equal
+n is 18/10
+n
+9/5 equals n

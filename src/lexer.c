@@ -30,6 +30,23 @@ MoopToken moop_lexer_next(MoopLexer *lx)
         lx->pos = p + 2;
         return make(MOOP_TOK_SEND, s + p, 2);
     }
+    /* a number literal (U1): an optional '-', digits, then optionally
+     * '/' and digits, with no spaces. '-' before a digit cannot be the
+     * start of '->'. Whether its value can be represented is decided
+     * when it is read (src/number.c), not here. */
+    if (isdigit((unsigned char)c) ||
+        (c == '-' && isdigit((unsigned char)s[p + 1]))) {
+        size_t n = c == '-' ? p + 1 : p;
+        while (isdigit((unsigned char)s[n]))
+            n++;
+        if (s[n] == '/' && isdigit((unsigned char)s[n + 1])) {
+            n++;
+            while (isdigit((unsigned char)s[n]))
+                n++;
+        }
+        lx->pos = n;
+        return make(MOOP_TOK_NUMBER, s + p, n - p);
+    }
     if (c == '<' && s[p + 1] == '-') {
         if (s[p + 2] == '>') {
             lx->pos = p + 3;
@@ -58,15 +75,10 @@ MoopToken moop_lexer_next(MoopLexer *lx)
             return make(MOOP_TOK_INHERIT, s + p, len);
         if (len == 7 && strncmp(s + p, "mirrors", 7) == 0)
             return make(MOOP_TOK_BIJECT, s + p, len);
+        if ((len == 4 && strncmp(s + p, "true", 4) == 0) ||
+            (len == 5 && strncmp(s + p, "false", 5) == 0))
+            return make(MOOP_TOK_TRUTH, s + p, len);
         return make(MOOP_TOK_WORD, s + p, len);
-    }
-
-    if (isdigit((unsigned char)c)) {
-        size_t n = p;
-        while (isdigit((unsigned char)s[n]))
-            n++;
-        lx->pos = n;
-        return make(MOOP_TOK_NUMBER, s + p, n - p);
     }
 
     lx->pos = p + 1;

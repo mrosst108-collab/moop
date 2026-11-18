@@ -7,6 +7,9 @@ BIN     := $(BUILD)/moop
 SRC     := $(wildcard src/*.c)
 OBJ     := $(SRC:src/%.c=$(BUILD)/%.o)
 TESTBIN := $(BUILD)/test_core
+# The number unit tests, twice: native 128-bit integers where the compiler
+# has them, and the portable implementation, forced (MOOP_PORTABLE_WIDE).
+NUMTEST := $(BUILD)/test_number $(BUILD)/test_number_portable
 
 all: $(BIN)
 
@@ -24,7 +27,13 @@ $(BUILD):
 $(TESTBIN): tests/test_core.c $(filter-out $(BUILD)/main.o,$(OBJ)) | $(BUILD)
 	$(CC) $(CFLAGS) -Isrc -o $@ $^
 
-test: $(BIN) $(TESTBIN)
+$(BUILD)/test_number: tests/test_number.c src/number.c src/number.h | $(BUILD)
+	$(CC) $(CFLAGS) -Isrc -o $@ tests/test_number.c src/number.c
+
+$(BUILD)/test_number_portable: tests/test_number.c src/number.c src/number.h | $(BUILD)
+	$(CC) $(CFLAGS) -DMOOP_PORTABLE_WIDE -Isrc -o $@ tests/test_number.c src/number.c
+
+test: $(BIN) $(TESTBIN) $(NUMTEST)
 	sh tests/run_tests.sh
 
 clean:

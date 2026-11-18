@@ -14,8 +14,11 @@ check() {
     fi
 }
 
-check "--version prints version" "moop 0.9.0" "$("$BIN" --version)"
+check "--version prints version" "moop 0.10.0" "$("$BIN" --version)"
 check "core unit tests pass" "0" "$(build/test_core > /dev/null; echo $?)"
+check "number unit tests pass with the default 128-bit implementation" "0" "$(build/test_number > /dev/null; echo $?)"
+check "number unit tests pass with the portable implementation, forced" "0" "$(build/test_number_portable > /dev/null; echo $?)"
+check "the forced build really uses the portable implementation" "wide: portable" "$(build/test_number_portable | head -1)"
 check "quit exits the repl cleanly" "0" "$(printf 'quit\n' | "$BIN" >/dev/null 2>&1; echo $?)"
 check "repl reports lex errors" "error: unexpected character '@'" "$(printf 'a @ b\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
@@ -76,8 +79,8 @@ check "body <-> body exchanges the other way" "$y2" "$x1"
 check "oversized values are refused, not truncated" "error: an 8-cell loop carries at most 255" "$(printf 'c is a world\n256 <-> c\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "number-number bijection is honestly absent" "error: a bijection relates a value and a body, or two bodies" "$(printf '1 <-> 2\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "the largest number literal is read exactly" "9223372036854775807" "$(printf '9223372036854775807\nquit\n' | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
-check "a number literal one past it is refused, not saturated" "error: 9223372036854775808 is too large: a number is at most 9223372036854775807" "$(printf '9223372036854775808\nquit\n' | "$BIN" 2>&1 >/dev/null)"
-check "a long literal is refused, not cut short" "1" "$(printf '99999999999999999999999999999999999999\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'is too large')"
+check "a number literal one past it is refused, not saturated" "error: 9223372036854775808 cannot be represented: reduced, its numerator and denominator must be at most 9223372036854775807" "$(printf '9223372036854775808\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a long literal is refused, not cut short" "1" "$(printf '99999999999999999999999999999999999999\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'cannot be represented')"
 check "unknown names are reported" "error: unknown name 'ghost'" "$(printf 'ghost\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 check "unhosted messages are reported" "error: nothing in the lineage hosts \"dance\"" "$(printf 'world -> dance\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
@@ -102,8 +105,9 @@ check "a teaching without ask must name what it takes" "error: 'helper' takes so
 check "what a message takes is named by a word" "error: the word after add names what it takes: write a name there, not a value" "$(printf "${A}box add 5 is 3\nquit\n" | "$BIN" 2>&1 >/dev/null)"
 check "a parameter is its own body's: another body does not see it" "error: unknown name 'n'" "$(printf "${A}box peek n is ask look\nbox ask look is n\nbox peek 5\nquit\n" | "$BIN" 2>&1 >/dev/null)"
 check "logic relates truths only" "error: and relates two truths" "$(printf 'c is a world\nt is c inherits world\nt and c\nquit\n' | "$BIN" 2>&1 >/dev/null)"
-check "a truth value answers only the logic words" "error: a truth value answers and, or, nand, nor and xor, not \"add\"" "$(printf 'c is a world\nt is c inherits world\nt add 5\nquit\n' | "$BIN" 2>&1 >/dev/null)"
-check "a number answers no message that takes something" "error: a number answers no message that takes something" "$(printf '5 add 3\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a truth value answers only the logic words and equals" "error: a truth value answers and, or, nand, nor, xor and equals, not \"add\"" "$(printf 'c is a world\nt is c inherits world\nt add 5\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a number answers only equals (no arithmetic until Stage 3)" "error: a number answers equals, not \"add\"" "$(printf '5 add 3\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "nor plus" "error: a number answers equals, not \"plus\"" "$(printf '5 plus 3\nquit\n' | "$BIN" 2>&1 >/dev/null)"
 
 # arity across inheritance (ruled 2026-11-18): the nearest teaching decides,
 # a mismatch is refused, and dispatch never falls back to an ancestor's teaching
@@ -129,6 +133,23 @@ one=$(printf "${O}r is a w pair a w\nr ask value\nquit\n" | "$BIN" 2>/dev/null |
 two=$(printf "${O}p is a w\nq is a w\np ask value\nq ask value\nquit\n" | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | tr '\n' ' ')
 check "the receiver is born before the argument" "$(echo $two | cut -d' ' -f2)" "$one"
 check "and the two births differ, so the order is seen" "yes" "$([ "$(echo $two | cut -d' ' -f1)" != "$(echo $two | cut -d' ' -f2)" ] && echo yes)"
+
+# values (0.10.0; docs/foundations.md, Stage 2): exact bounded rationals,
+# truth literals, canonical printing, one equals
+check "literals, printing and equals on every kind, as a program" "$(cat $P/values.out)" "$("$BIN" $P/values.moop 2>&1)"
+check "a denominator of 0 is refused" "error: 5/0 has a denominator of 0" "$(printf '5/0\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a part above 2^127 - 1 is refused as too large to read" "1" "$(printf '170141183460469231731687303715884105728/2\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'has a part too large to read')"
+check "a part of exactly 2^127 - 1 is read" "1" "$(printf '170141183460469231731687303715884105727/170141183460469231731687303715884105727\nquit\n' | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
+check "a reducible part beyond 64 bits is read" "9223372036854775807" "$(printf '18446744073709551614/2\nquit\n' | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d')"
+check "a reduced value beyond the bounds is refused" "1" "$(printf '18446744073709551616/2\nquit\n' | "$BIN" 2>&1 >/dev/null | grep -c 'cannot be represented')"
+check "a negative denominator is not a literal" "error: unexpected character '/'" "$(printf '5/-3\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a literal is read when its line is read, even in a teaching" "error: 5/0 has a denominator of 0" "$(printf 'world ask m is 5/0\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "true and false are not names" "error: true is a truth value, not a name: it cannot be bound" "$(printf 'true is 5\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "equals is innate: a proto cannot be taught its own" "error: equals is innate" "$(printf 'box is a world\nbox equals n is n\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "equals takes something" "error: equals takes something: write it after equals, without ask" "$(printf '5 ask equals\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a body takes no fraction" "error: an 8-cell loop carries whole numbers from 0 to 255" "$(printf 'box is a world\n1/2 mirrors box\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "nor a negative number" "error: an 8-cell loop carries whole numbers from 0 to 255" "$(printf 'box is a world\n-1 mirrors box\nquit\n' | "$BIN" 2>&1 >/dev/null)"
+check "a number that is a whole number still deposits" "yes" "$(v=$(printf 'box is a world\nbox ask value\n10/2 mirrors box\nbox ask value\n5 mirrors box\nbox ask value\nquit\n' | "$BIN" 2>/dev/null | sed -e '1,2d' -e 's/moop> //g' -e '/^$/d' | grep -v proto | tr '\n' ' '); set -- $v; [ "$1" = "$3" ] && [ "$1" != "$2" ] && echo yes)"
 
 # full-line comments (0.9.0; docs/foundations.md, F1-F3)
 check "comments, inside and outside blocks, as a program" "$(cat $P/comments.out)" "$("$BIN" $P/comments.moop 2>&1)"

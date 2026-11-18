@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "number.h"
 #include "parser.h"
 #include "proto.h"
 
@@ -32,12 +33,17 @@ typedef enum {
     MOOP_VAL_PROTO,
 } MoopValueKind;
 
+/* The value kinds and their one equality (docs/foundations.md, F9, U4):
+ * numbers are exact rationals, compared exactly; truths by truth value;
+ * protos by identity, never by structure. Different kinds are unequal. */
 typedef struct {
     MoopValueKind kind;
-    long number;
+    MoopNumber number;
     bool truth;
     MoopProto *proto;
 } MoopValue;
+
+bool moop_value_equal(MoopValue a, MoopValue b);
 
 void moop_eval_init(void);
 

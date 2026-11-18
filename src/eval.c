@@ -1,4 +1,3 @@
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,10 +162,25 @@ static bool same_word(const char *word, const char *start, size_t len)
     return strlen(word) == len && memcmp(word, start, len) == 0;
 }
 
+/* Innate messages cannot be taught. `equals` is innate on every kind:
+ * equality must not depend on teachings (U4). */
 static bool is_innate(const MoopNode *msg)
 {
     return same_word("maybe", msg->start, msg->len) ||
-           same_word("value", msg->start, msg->len);
+           same_word("value", msg->start, msg->len) ||
+           same_word("equals", msg->start, msg->len);
+}
+
+bool moop_value_equal(MoopValue a, MoopValue b)
+{
+    if (a.kind != b.kind)
+        return false;
+    switch (a.kind) {
+    case MOOP_VAL_NUMBER: return moop_number_equal(a.number, b.number);
+    case MOOP_VAL_BOOL:   return a.truth == b.truth;
+    case MOOP_VAL_PROTO:  return a.proto == b.proto;  /* identity */
+    }
+    return false;
 }
 
 /* Whether a C-hosted message of this name is found up the lineage. */
@@ -237,6 +251,11 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
         snprintf(err, errlen, "a message must be a name");
         return false;
     }
+    if (same_word("equals", msg->start, msg->len)) {
+        snprintf(err, errlen,
+                 "equals takes something: write it after equals, without ask");
+        return false;
+    }
     if (recv.kind != MOOP_VAL_PROTO) {
         snprintf(err, errlen, "only protos host messages (yet)");
         return false;
@@ -249,8 +268,10 @@ static bool eval_send(const MoopAst *ast, const MoopNode *node,
         return true;
     }
     if (msg->len == 5 && memcmp(msg->start, "value", 5) == 0) {
-        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER,
-                            .number = (long)moop_decode(&recv.proto->core) };
+        *out = (MoopValue){
+            .kind = MOOP_VAL_NUMBER,
+            .number = moop_number_whole((int64_t)moop_decode(&recv.proto->core)),
+        };
         return true;
     }
 
@@ -297,6 +318,13 @@ static bool eval_tell(const MoopAst *ast, const MoopNode *node,
         !eval_node(ast, node->right, &arg, err, errlen))
         return false;
 
+    /* innate on every kind, before anything taught or built in */
+    if (same_word("equals", node->start, node->len)) {
+        *out = (MoopValue){ .kind = MOOP_VAL_BOOL,
+                            .truth = moop_value_equal(recv, arg) };
+        return true;
+    }
+
     if (recv.kind == MOOP_VAL_BOOL) {
         /* built-in messages on truth values; the words are not reserved */
         for (size_t i = 0; i < sizeof logic_words / sizeof logic_words[0];
@@ -315,13 +343,13 @@ static bool eval_tell(const MoopAst *ast, const MoopNode *node,
             return true;
         }
         snprintf(err, errlen,
-                 "a truth value answers and, or, nand, nor and xor, "
-                 "not \"%.*s\"", (int)node->len, node->start);
+                 "a truth value answers and, or, nand, nor, xor and "
+                 "equals, not \"%.*s\"", (int)node->len, node->start);
         return false;
     }
     if (recv.kind != MOOP_VAL_PROTO) {
-        snprintf(err, errlen,
-                 "a number answers no message that takes something");
+        snprintf(err, errlen, "a number answers equals, not \"%.*s\"",
+                 (int)node->len, node->start);
         return false;
     }
 
@@ -476,21 +504,14 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         *out = (MoopValue){ .kind = MOOP_VAL_PROTO, .proto = child };
         return true;
     }
-    case MOOP_NODE_NUMBER: {
-        /* A literal too large for a number is refused, never saturated
-         * or cut short: a mistake must not become a value. */
-        long v = 0;
-        for (size_t i = 0; i < node->len; i++) {
-            if (v > (LONG_MAX - (node->start[i] - '0')) / 10) {
-                snprintf(err, errlen, "%.*s is too large: a number is at most %ld",
-                         (int)node->len, node->start, LONG_MAX);
-                return false;
-            }
-            v = v * 10 + (node->start[i] - '0');
-        }
-        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER, .number = v };
+    case MOOP_NODE_NUMBER:
+        /* the parser has already read it; read again for the value */
+        *out = (MoopValue){ .kind = MOOP_VAL_NUMBER };
+        return moop_number_read(node->start, node->len, &out->number,
+                                err, errlen);
+    case MOOP_NODE_TRUTH:
+        *out = (MoopValue){ .kind = MOOP_VAL_BOOL, .truth = node->len == 4 };
         return true;
-    }
     case MOOP_NODE_SEND:
         return eval_send(ast, node, out, err, errlen);
     case MOOP_NODE_TELL:
@@ -526,14 +547,20 @@ static bool eval_node(const MoopAst *ast, int idx, MoopValue *out,
         }
         if (num != NULL) {
             unsigned long max = moop_encode_max(&body->proto->core);
-            if (num->number < 0 || (unsigned long)num->number > max) {
+            if (!moop_number_is_whole(num->number) || num->number.p < 0) {
+                snprintf(err, errlen,
+                         "an %zu-cell loop carries whole numbers from 0 to %lu",
+                         body->proto->core.a.len, max);
+                return false;
+            }
+            if ((uint64_t)num->number.p > max) {
                 snprintf(err, errlen,
                          "an %zu-cell loop carries at most %lu",
                          body->proto->core.a.len, max);
                 return false;
             }
             moop_encode_xor(&body->proto->core,
-                            (unsigned long)num->number);
+                            (unsigned long)num->number.p);
             *out = *body;
             return true;
         }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
+#include "number.h"
 #include "parser.h"
 
 MoopAst *moop_ast_clone(const MoopAst *src)
@@ -90,11 +91,23 @@ static int parse_term(Parser *p)
             .kind = MOOP_NODE_BIRTH, .left = core, .right = -1,
         });
     }
-    if (t.kind == MOOP_TOK_WORD || t.kind == MOOP_TOK_NUMBER) {
+    if (t.kind == MOOP_TOK_NUMBER) {
+        /* a literal is read when its line is read, so one that is not a
+         * number is refused even in a teaching that has not run yet */
+        MoopNumber n;
+        char why[MOOP_ERR_MAX];
+        if (!moop_number_read(t.start, t.len, &n, why, sizeof why)) {
+            fail(p, why);
+            return -1;
+        }
+    }
+    if (t.kind == MOOP_TOK_WORD || t.kind == MOOP_TOK_NUMBER ||
+        t.kind == MOOP_TOK_TRUTH) {
         advance(p);
         return add_node(p, (MoopNode){
-            .kind = t.kind == MOOP_TOK_WORD ? MOOP_NODE_WORD
-                                            : MOOP_NODE_NUMBER,
+            .kind = t.kind == MOOP_TOK_WORD     ? MOOP_NODE_WORD
+                    : t.kind == MOOP_TOK_NUMBER ? MOOP_NODE_NUMBER
+                                                : MOOP_NODE_TRUTH,
             .start = t.start, .len = t.len, .left = -1, .right = -1,
         });
     }
@@ -114,7 +127,7 @@ static bool is_op(MoopTokKind kind)
 static bool starts_term(MoopTokKind kind)
 {
     return kind == MOOP_TOK_WORD || kind == MOOP_TOK_NUMBER ||
-           kind == MOOP_TOK_ARTICLE;
+           kind == MOOP_TOK_ARTICLE || kind == MOOP_TOK_TRUTH;
 }
 
 /* `tok` (a term the grammar cannot place) follows the step `left`.
@@ -255,6 +268,12 @@ bool moop_parse(const char *src, MoopAst *ast, char *err, size_t errlen)
             snprintf(msg, sizeof msg,
                      "the word after %.*s names what it takes: write a name "
                      "there, not a value",
+                     (int)lhs->len, lhs->start);
+            fail(&p, msg);
+        } else if (lhs->kind == MOOP_NODE_TRUTH) {
+            char msg[MOOP_ERR_MAX];
+            snprintf(msg, sizeof msg,
+                     "%.*s is a truth value, not a name: it cannot be bound",
                      (int)lhs->len, lhs->start);
             fail(&p, msg);
         } else if (!name_def && !msg_def) {
