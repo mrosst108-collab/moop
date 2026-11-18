@@ -270,8 +270,33 @@ language change and is left as a separate, optional question.
 | Moop's regenerated trace | — | Byte for byte, interpreter and compiled; Selvage's copy is moop's file |
 | Mutation check | 140 / 140 noticed | 145 / 145 noticed (40 min); the five tape mutations each by a mismatch with the model (148 to 409 findings) |
 | Examples and test programs: output against 0001 | — | All 11 examples and 9 programs identical |
-| Benchmarks against 0001 | — | Not yet run: after the mutation check, on an idle machine |
+| Benchmarks against 0001 | — | Geometric mean against C 1.11 for both; table below |
 | 0003 applied to a fresh archive after 0001 | — | Applies; reproduces the tested tree exactly |
+
+**Benchmarks** (measured; seven interleaved rounds, median seconds, on
+the reconstructed tree; every binary printed the same numbers):
+
+| Benchmark | 0001 | 0001 + 0003 | C | 0001 / C | 0001 + 0003 / C |
+|---|---:|---:|---:|---:|---:|
+| fib | 0.165 | 0.167 | 0.139 | 1.18 | 1.20 |
+| collatz | 0.578 | 0.578 | 0.566 | 1.02 | 1.02 |
+| sieve | 0.308 | 0.311 | 0.303 | 1.02 | 1.03 |
+| prefix | 0.291 | 0.279 | 0.236 | 1.24 | 1.18 |
+| orbit | 0.954 | 0.951 | 0.777 | 1.23 | 1.22 |
+| damped | 0.575 | 0.568 | 0.515 | 1.12 | 1.10 |
+| nbody | 0.648 | 0.661 | 0.643 | 1.01 | 1.03 |
+| **geometric mean** |  |  |  | **1.11** | **1.11** |
+
+No change: the geometric mean against handwritten C is 1.11 for both.
+Absolute times differ from section 4's run, which was taken before the
+session's worker restarted; compare only within one run. None of these
+benchmarks draws from the tape, so they show that admitting it slows
+nothing else, not what a draw costs.
+
+**What a draw costs.**
+- *Measured, compiled:* 100 million draws in 0.375 to 0.393 s (three runs), about 3.8 ns per draw. That is one tick plus a copy, consistent with the 3.5 ns per tick measured before G7.
+- *Counted from the circuit, not measured:* 2 Toffolis and 1 CNOT per draw on gates.
+- *Estimated, not measured:* the ~100 Toffolis per bit for an arithmetic generator mentioned elsewhere.
 
 **Which tree.** The suite and the mutation check run in a work copy at
 commit `87eaabc`, checked clean and byte-identical to the 0.4.9 archive

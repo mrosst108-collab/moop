@@ -80,7 +80,7 @@ because Selvage's own register already uses G1 to G11.
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
 | 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
 | 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 decided: retain `repeat while`** (2026-11-17); `0002` stays unadopted pending an explicit decision that the grammar reduction outweighs the lost iteration capability (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
-| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | The tape is in the prelude, interpreted and compiled, tested against the trace. **Built as `selvage-patches/0003`** (rules version); validation in `selvage-patches/README.md` |
+| 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | **Built and validated as `selvage-patches/0003`** (rules version): suite 185/185, mutation check 145/145, 20 programs unchanged, moop's trace byte for byte in the interpreter and compiled, benchmarks unchanged (`selvage-patches/README.md`) |
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
