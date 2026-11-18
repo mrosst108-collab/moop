@@ -4,8 +4,9 @@
 with the qualifications recorded here, and so are U1 to U4. F7 (text)
 is deferred. **Nothing is implemented.** The rulings settle the design;
 building it is authorized stage by stage, in the order of the plan at
-the end, and never all at once. One precision, U1's bound on reading
-literals, is marked for confirmation.
+the end, and never all at once. U1's bound on reading literals and the
+testing arrangement were confirmed on the same day, and Stage 1 is
+authorized.
 
 The ruling covered the common architecture, and it keeps the fourteen
 decisions as separate entries so that approving one does not blur
@@ -300,14 +301,24 @@ they have no mirror.
   refused because an unreduced part exceeds 64 bits:
   `18446744073709551614/2` reads as 9223372036854775807.
 
-  The ruling allows this *provided it can be parsed and reduced safely*.
-  For every implementation to refuse the same literals, that needs a
-  stated bound, so one is proposed here **for confirmation**: the width
-  of F5's intermediates. Each written part is read exactly up to
-  2¹²⁷ − 1; a literal with a larger part is refused as too large to
-  read; anything smaller is reduced and then checked against F4. This
-  adds no mechanism, since the arithmetic already needs that width.
-  Stage 2 builds this bound unless you rule otherwise.
+  **The bound on reading a literal (ratified 2026-11-18).** Let
+  L = 2¹²⁷ − 1. A literal is read in five steps:
+  1. read the magnitude of the numerator and the denominator exactly,
+     each no greater than L;
+  2. apply the sign to the numerator only;
+  3. reduce the fraction exactly;
+  4. check the canonical result against F4: |p| ≤ 2⁶³ − 1 and
+     1 ≤ q ≤ 2⁶³ − 1;
+  5. refuse the literal if either written part exceeds L, or if the
+     reduced value is outside F4's bounds.
+
+  The limit is the same for both signs, although signed 128-bit
+  arithmetic holds one more negative value. That avoids an asymmetric
+  edge case, and the absolute value of the signed minimum.
+
+  A part beyond L is refused, even where a reduction would give a
+  representable value. This bounds how literals are read; it does not
+  claim arbitrary-precision arithmetic.
 
 **U2. The form that defines a mirror.** A new statement form,
 authorized by this ruling and by no other:
@@ -381,10 +392,18 @@ document can make a mirror certified.
 
 ## Conformance requirements for realization
 
-The prototype's random pipelines and its independent model in Python
-fractions are kept, as a script run with each realization and reported
-with it. `make test` stays shell and C. Each stage must also pass these
-deterministic boundary tests:
+**Testing arrangement (accepted 2026-11-18).**
+- `make test` stays self-contained, in shell and C, and Python stays
+  outside it.
+- The native 128-bit path and the portable fallback are both exercised
+  by `make test`, and the fallback can be forced on a compiler that also
+  has native 128-bit integers.
+- The random pipelines and their independent model in Python fractions
+  are run and reported at each stage they concern, with reproducible
+  seeds. Agreement with the model never stands in for the conformance
+  tests.
+
+Each stage must also pass these deterministic boundary tests:
 
 - **Reader:** a comment line inside a block, indented and not indented;
   a comment line under no open block; a blank line after a comment line;
@@ -397,8 +416,10 @@ deterministic boundary tests:
   - refusals: division by zero, a denominator of 0, overflow at an
     intermediate step;
   - the needless-refusal case: it must give 1/6;
-  - reading: a reducible literal with a part beyond 64 bits reads; a
-    part beyond 2¹²⁷ − 1 is refused;
+  - reading: a reducible literal with a part beyond 64 bits reads
+    (`18446744073709551614/2` as 9223372036854775807); a part of exactly
+    2¹²⁷ − 1 is read; a part one beyond it is refused, with either
+    sign;
   - printing: every boundary value reads back equal.
 - **Arithmetic:** each message with negative operands, zero operands and
   operands at the bounds; each result reduced before the next step.
