@@ -1,0 +1,1114 @@
+diff --git a/README.md b/README.md
+index 36a4769..695f721 100644
+--- a/README.md
++++ b/README.md
+@@ -20,6 +20,7 @@ A minimal language in which every rule reads both ways, every loss is said aloud
+ - **The CCNOT tape.** The prelude rules `draw` and `birth` give deterministic draws and certified births from moop's CCNOT tape, pinned to a trace of moop's implementation in both backends. A draw is an observation, not a random bit; a program makes its own tape and passes it along (SPEC.md VI.6).
+ - **MAYBE.** `Trit` (`true | false | maybe`) carries Kleene logic; `decide` sends only the undecided cases to whoever answers `Decide` (a rule book, an LLM through `--decide command:…`, a person), and every decision is kept and replayable.
+ - **Live.** `selvage repl` checks each line before it runs.
++- **Reversible profile, in part.** `selvage circuit` lays out a certified rule over bits as X, CNOT and CCNOT gates, its words fixed at layout, and checks the circuit against the interpreter by simulation. Nothing runs on reversible or quantum hardware (SPEC.md IX.4).
+ - **Two backends.** Programs run in a reversible interpreter, or compile to C23 with no undefined behaviour. On seven benchmarks the C23 output runs within 12% of handwritten C23 and 6% of Rust in the geometric mean (`bench/results.md`), and about 580× faster than Io.
+ 
+ The language description is [SPEC.md](SPEC.md), specification 0.4. This toolchain is 0.4.9 and reads its notation. Part XII of the description lists what is ratified and not yet built.
+@@ -35,6 +36,7 @@ python3 -m selvage call examples/orbit.selv damped_orbit "Phase(1000, 5)" --para
+ python3 -m selvage invert examples/orbit.selv damped_orbit   # the derived inverse, as Selvage
+ python3 -m selvage lineage examples/prototypes.selv Resettable --verify   # the chain to ccnot, each link certified
+ python3 -m selvage census examples/declarations.selv                      # which constructs are forms a rule takes apart
++python3 -m selvage circuit examples/gates.selv ripple_add "(array(Bit, 4), array(Bit, 4), Bit(0))" --gates   # a certified rule as gates
+ python3 -m selvage run examples/triage.selv --decide "command:python3 examples/decider.py" --record decisions.json
+ python3 -m selvage run examples/triage.selv --decide replay:decisions.json
+ python3 -m selvage repl
+@@ -43,7 +45,7 @@ python3 tests/roundtrip_gen.py 2000              # generated rules: undo is the
+ python3 tests/generated_04.py 500                # generated programs with oracles: arrows, delegation, rows, operators, Any, refusal,
+                                                  #   seal, witness, depth, structures, decisions, journal, names, accounting, extent, forms, and the model of the proof
+ python3 tests/reference_model.py 600             # the interpreter and invert against the model of SPEC.md XI.3
+-python3 tools/mutation_check.py                  # break the toolchain 145 ways; the generated tests must notice each
++python3 tools/mutation_check.py                  # break the toolchain 150 ways; the generated tests must notice each
+ python3 tools/check_description.py               # every code block of SPEC.md, checked with the toolchain
+ python3 bench/run.py                             # Selvage vs C23 vs Rust
+ ```
+@@ -73,6 +75,7 @@ rule main uses Output
+ | `selvage/declared.py`, `census.py` | Declarations and programs as values a rule takes apart; the form census |
+ | `selvage/invert.py` | `invert`: reads the clauses of the prelude's `mirror` and runs them; blocks as sequences |
+ | `selvage/lineage.py` | What each rule's reversibility rests on, down to `ccnot` |
++| `selvage/circuit.py` | The reversible profile, in part: certified rules over bits laid out as X, CNOT and CCNOT, checked by simulation |
+ | `selvage/interp.py` | One forward engine for rules and inverses; `undo`, rewind, decisions; the journal as Root's state |
+ | `selvage/deciders.py`, `repl.py` | World deciders for `decide`; the interactive prompt |
+ | `selvage/cgen.py`, `runtime/selvage_rt.h` | C23 backend and runtime |
+diff --git a/SPEC.md b/SPEC.md
+index 444ca69..d50fd57 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -39,7 +39,7 @@ This description states design rules, reports what toolchain 0.4.9 implements, a
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+ - Part XII records binding rulings, deprecated forms, implementation work and open questions.
+ 
+-The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is specified and not built; the quantum profile is absent (IX.4). The suite has 187 tests.
++The Python interpreter is the reference implementation and covers the most of the language; some ratified items remain specified or deferred (XII.4). The C23 backend is partial: answers and messages (`ask`, `->`, `with`), quoted code, recursive data, rewind and `history` stay in the interpreter (IX.2). The reversible realization profile is built in part, for certified rules over bits whose words are layout; the quantum profile is absent (IX.4). The suite has 194 tests.
+ 
+ What is proved, what is an open obligation, and what rests on tests:
+ 
+@@ -75,7 +75,7 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 187 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 194 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+@@ -104,7 +104,7 @@ The toolchain is at 0.4.9 and reads the notation of this description. Its suite
+ 
+ | Objective | Implementation | Design | Evidence |
+ |---|---|---|---|
+-| Quantum readiness, as realization profiles outside the kernel | Specified (reversible profile); Absent (quantum profile) | Ratified | — |
++| Quantum readiness, as realization profiles outside the kernel | Partial (reversible profile); Absent (quantum profile) | Ratified | TestReversibleProfile; the circuits generator (XI.2) |
+ 
+ ### I.4 Admission
+ 
+@@ -988,6 +988,7 @@ rule birth takes CcnotTape returns (CcnotTape, CcnotTape)
+ 
+   The claims above are about the model. `selvage check` reports less, since no type states D: the tick and the draw as one-to-one with nothing more established, the birth as one-to-one and not onto (V.2). Stating D in types would be a language feature with its own admission case, and the tape does not justify it alone.
+ - **Both backends.** The three are clause rules, so compiled code runs them, `undo` included (IX.2).
++- **Gates.** The reversible profile lays the three out (IX.4). The heads are words, so a circuit is laid out for given heads: a tick is 2 CCNOTs, a draw 2 CCNOTs and a CNOT onto a fresh wire, a birth 2(m + n) CCNOTs and m + n CNOTs for tapes of m and n cells. The tape is the first program the profile was tried on, not its definition.
+ - **Moop's trace.** The tape is pinned to moop's own implementation: `tests/programs/ccnot_tape.selv` prints `tests/programs/ccnot_tape.trace` byte for byte, in the interpreter and compiled, and moop's C implementation prints the same file. A change of wiring is a new wiring with a new trace, never an edit.
+ - **Admission** (I.4). *Foundation:* a record (Tier 2) and three clause rules over bit updates (Tier 1). *Synergy:* it gives Selvage generation, a certified birth that is taken back, and it gives the realization lineage rules whose defining step is `ccnot` itself, a first program for the reversible profile (IX.4). It needs no request and so no compiled answers. Of the four steps this is still the weakest: it makes no existing construct unnecessary. *Interference:* four names are reserved; no example, test program or benchmark changes. *Uniformity:* only existing constructs, with the domain guarded by the existing checks. The decisions taken in admitting it are C1 to C5 (XII.6).
+ 
+@@ -1564,7 +1565,7 @@ Selvage's code is a tree, so a rule takes it apart one shape per clause; Io's co
+ | REPL | `selvage repl`: declarations, statements and expressions in one live scope, checked before they run | Built | Proposed | TestMaybe.test_repl |
+ | C23 backend | `selvage build`: clang `-std=c23 -O2`. Fixed-width integers, `Bit`, `Bool`, `Trit`, `F64`, text output, tuples, records, variants, arrays, both kinds of rule, `_inv` functions compiled forward from the derived inverse, the journal and `decide` | Partial | Proposed | TestC23Backend: output and ε identical to the interpreter |
+ | Tools | `selvage invert FILE NAME` prints a derived inverse; `selvage lineage FILE [NAME…] [--verify]` prints the chain to `ccnot` | Built | Proposed | TestInversion.test_lineage_reaches_ccnot_from_every_rule, test_inverse_passes_the_ordinary_checker_as_source |
+-| Reversible and quantum profiles | Certified rules on finite shapes lowered to gate circuits or reversible oracles (IX.4) | Specified (reversible); Absent (quantum) | Ratified | — |
++| Reversible and quantum profiles | Certified rules on finite shapes lowered to gate circuits or reversible oracles (IX.4); `selvage circuit FILE RULE INPUT` lays one out | Partial (reversible); Absent (quantum) | Ratified | TestReversibleProfile; the circuits generator (XI.2) |
+ 
+ ### IX.2 C23 coverage
+ 
+@@ -1601,9 +1602,40 @@ Selvage seeks to produce systems code competitive with C23 in speed, memory cont
+ | Profile | Execution model | `ccnot` role | Implementation | Design | Evidence |
+ |---|---|---|---|---|---|
+ | Classical | C23 on a CPU: native machine instructions | Not used; lineage only | Built | Ratified | TestC23Backend; benchmarks (IX.5) |
+-| Reversible | Certified finite-shape rules lowered to X, CNOT and CCNOT circuits, with explicit uncomputation | The primitive gate | Specified | Ratified | Gate rules and realization checks in the prelude |
++| Reversible | Certified finite-shape rules lowered to X, CNOT and CCNOT circuits, with explicit uncomputation | The primitive gate | Partial: rules over bits whose words are layout | Ratified | TestReversibleProfile; the circuits generator (XI.2); gate rules and realization checks in the prelude |
+ | Quantum | Certified finite-shape rules realized as reversible oracles; quantum-specific operations through a separate interface | A native or synthesized gate | Absent | Ratified | — |
+ 
++**What is built of the reversible profile.** `selvage/circuit.py` lays out a certified clause rule as X, CNOT and CCNOT gates, and `selvage circuit FILE RULE INPUT` prints it.
++- *Bits are wires; words are layout.* Every `Bit` of the input is a wire. Every word is known when the circuit is laid out, and the circuit holds for every input whose words have those values. It is a circuit for those words, not for the rule at every word. Index arithmetic and loop bounds are worked out at layout, with the interpreter's own arithmetic.
++- *What it lays out.*
++  - `add x * y to z`, `add x to z` and `add 1 to z` on bits are a CCNOT, a CNOT and an X. A constant factor folds.
++  - A call of `ccnot`, or of its derived inverse, is the gate.
++  - Other certified rules are laid out in place.
++  - A copy into a fresh name is a fresh wire and a CNOT. A fresh array of bits is fresh wires at 0.
++  - A swap relabels wires and lays out no gate.
++  - Loops and conditions on words are unrolled or decided at layout.
++  - An uncompute undoes its copy, and gives the wire back, which must then be 0.
++- *What it refuses, with the reason:*
++  - a rule that is not certified;
++  - a rule with no bit on a wire, which computes on words only: word arithmetic as gates would need adder circuits this profile does not lay out, so `orbit` and `prefix_sum` are refused;
++  - a word computed from a bit;
++  - a condition, an index or a clause choice that reads a bit;
++  - messages, decisions and any other step outside the list above.
++- *How a circuit is checked.* By classical simulation, which is exact for X, CNOT and CCNOT, since they permute basis states. Run forward, it must give what the interpreter gives, and refuse where the interpreter refuses. Run backward from its output, it must give its input back. The derived inverse, laid out on its own, must give the input back too. Every wire given back must be 0 where it is given back, and no wire may be left neither output nor given back.
++- *Embeddings.* An ancilla may become an output, as a draw's bit or a child's cells do. A circuit run backward from an output it does not give ends with such a wire at 1, and refuses it, as `undo` does.
++- *What it is not.* Nothing here runs on reversible or quantum hardware. A rule the profile lays out is eligible to be realized as a reversible oracle on such hardware; no backend for it exists. That a rule is certified does not make it lowerable: the refusals above are certified rules.
++
++Gate counts, counted from the laid-out circuits (they are not timings):
++
++| Rule | Laid out as | Ancillas |
++|---|---|---|
++| `tape_tick` | 2 CCNOT | none |
++| `draw` | 2 CCNOT, 1 CNOT | 1, which becomes the bit drawn |
++| `birth`, tapes of m and n cells | 2(m + n) CCNOT, m + n CNOT | m + n, which become the child's cells |
++| 104 ticks of tapes of 8 and 13 cells from heads 0, one alignment | 208 CCNOT | none |
++| `ripple_add` at width w | 2w CCNOT, 4w CNOT (laid out at widths 1 to 8) | none |
++| `and_into`, `or_into`, `nand_into` (`examples/gates.selv`) | 1 CCNOT; 1 CCNOT and 5 X; 1 CCNOT and 1 X | 1 each, which becomes the result |
++
+ **The bridge, and its conditions.**
+ - A bijection on a finite state space is a permutation, and its permutation matrix is unitary. A certified rule on finite shapes is therefore a reversible oracle.
+ - A certified partial bijection extends to a permutation only when its domain and codomain are subsets of one finite ambient space whose complements have equal cardinality. A backend that needs this must specify the extension or the embedding it uses.
+@@ -1765,9 +1797,10 @@ The 0.3.2 findings are all one defect, an index that reads what its step changes
+ | Forms | Programs from five other generators: round-trip rules, structures, tables of clauses, gate and word rules, and procedures with rows. To each, rules written in Selvage that read `program()` and say of every declaration its kind, its name, how many parameters, clauses, constructors or requests it has, and its row or its groups | The same, read off the source as text with no parser. Also: every declaration written as a value and back is the same; the program as a value prints as the program; the census finds nothing escaping and every constructor taken apart and put together; every clause written out whole, mirrored and written back is the clause `invert` gives; a name given back against an expression that reads it is refused | 600 programs, 457 accepted: 1,787 declarations; 457 programs read alike by a rule and from the text; 1,204 clauses mirrored; 2,633 constructors taken apart over 269,969 nodes; 457 self-reading uncomputes refused | 0 |
+ | Model | Rules the round-trip and structures generators write, where the checker certifies them | The model of XI.3, written out as a second evaluator that shares no code with the interpreter: the forward run, refusals included; `invert` as the model's table; `undo` as the model's inverse; every proved uncompute holding when it is reached | 600 programs: 275 certified rules; 2,750 forward and 2,750 inverse runs; 704 proved uncomputes reached | 0 |
+ | Tape | Tapes of 2 to 16 cells, random contents and heads; up to 40 draws, a birth in half of them, up to 10 draws from the child | A model of wiring 1 written from its description, sharing no code with the interpreter: every draw, the parent and the child after a birth, the child's draws; every draw and birth taken back restores the tape; a tick and its derived inverse | 600 tapes: 11,771 draws, 291 births, 12,062 taken back, 600 ticks undone | 0 |
++| Circuits | Gate rules over bits from the extent generator; the prelude's `exchange`, `fanout` and `ripple_add` at widths 1 to 6; the CCNOT tape's three rules at 2 to 6 cells a tape and random heads | The interpreter, on every input of a gate rule and six random inputs of the others: a circuit gives what the interpreter gives and refuses where it refuses; run backward, it gives its input back; the derived inverse, laid out on its own, gives it back too | 600 of each: 10,816 runs, 14,311 gates laid out, 10,220 inverses laid out, 596 refused alike | 0 |
+ | Declared types | At each of the sixteen sites where a value meets a declared type, a program that gives a `Trit` where a `Bool` is declared, under fresh names and beside a word, a `Bit` or a `Text`; and the same program with a `Bool` there. `set` to a literal on every word type and `F64`; a literal given as a rule's input and as its parameter; `set` on a `Trit` | That a `Bool` is a sub-shape of `Trit` and not the reverse: the program with a `Trit` refused with its reason and no failure of the toolchain, the program with a `Bool` accepted. A literal is of the declared type and is charged its width; `set` on a `Trit` is charged 2 bits whatever it replaces, and every run rewinds | 600 programs of each kind at all 16 sites: 600 refused, 600 accepted; 600 literals set, 1,130 literals given as words, 600 `Trit`s set; 2,400 rewinds | 0 |
+ 
+-**The mutation check.** Generated tests are only as good as their oracles, so `tools/mutation_check.py` breaks the toolchain one way at a time and runs the generator that should notice. Each of its 145 mutations undoes one piece of the behaviour above: an arrow accepted on the wrong class, an ambiguity resolved silently, `System` inferred from the word `decide`, a world reply not kept, an operator left unlabelled, a sealed request sent, `history` going straight to Root past its host, a copy given back through a kept record, a host keeping what it gives back, a run nesting past its bound or a bound off by one, a self tail call adding depth, answers for `Decide` consulted in the wrong order, an obligation of XI.3 removed, an uncompute proved in another pattern. Seven break inversion, five of them by changing a clause of the rule `mirror` in the prelude: an update or a discard read backward as itself, a counted loop keeping its direction, a loop body left unmirrored, a lossy clause mirrored as a certified one, which the checker itself refuses. Three break replay: a record for another question or another context taken as the answer, a record not used up. Five break the journal's identities: an entry taken back whatever code kept it, a clause chosen backward by its place, an entry kept under the rule's first clause, identities compared without the forms they name. Six break the identity of code: a call holding the name of the rule called, a rule's identity holding its own name, the members of a cycle told apart by name, a changed rule keeping its identity, exclusive clauses taken in the order written, rules sharing an identity unnoticed. Ten break what code refers to: a variable or a parameter identified by its name, a name bound again taken for the same variable, quoted code read as code, a message holding the name of its request, an instance or a type the name of its answer, a row the names of its groups, answers with the same code or requests with the same signature made one. Three break the scope rule: a name bound again where it is bound, a counter taking the name of a parameter or of the loop it is in, a counter taking a bound name in a body. Fourteen break accounting: a clause choice kept whatever the output shows, or counted among all the clauses, or taken back where none was kept; a variant charged for every constructor or sixteen bits; a `Trit` by the value it holds; a value still computable charged, or counted as computable after what it came from changed; a constructor ruled out wrongly, or not ruled out; compiled code charging a choice, a variant or a computable value the old way; a literal in a constructor keeping the type of a literal. Five break the extent report: a rule taken as onto because it takes every input, a refused input passed over, a division or a `was` against a constant taken as unable to refuse, fewer inputs than outputs not noticed. One cites Boolean logic as a theorem again. Nine break the forms: a constructor of `Code` missing from the prelude, a declaration losing its row or exchanging its types on the way to a value, a tuple left as the parser wrote it or its members reversed, `program()` giving the prelude as well, an answer's clauses reversed, a request group losing a request, a name given back against an expression that reads it. Sixteen break declared types: a `Trit` accepted where a `Bool` is declared, at each kind of site in turn and at all at once; a rule that reads backward into a `Bool` ending the check with a failure; `set` leaving a literal at a literal's width, or holding what it replaces in a `Trit` as a `Bool`; a literal keeping its width as a rule's input or parameter. Two break the charge for a `Text`, in each backend; one charges a decision by the answers asked; one gives a value taken back no type, so that compiled code cannot type what the two directions share. All 140 are noticed. Five of them break the CCNOT tape of VI.6: a CCNOT dropped, a CCNOT aimed two cells ahead, a head turned round, a draw observing before its tick, a child started with its head moved.
++**The mutation check.** Generated tests are only as good as their oracles, so `tools/mutation_check.py` breaks the toolchain one way at a time and runs the generator that should notice. Each of its 150 mutations undoes one piece of the behaviour above: an arrow accepted on the wrong class, an ambiguity resolved silently, `System` inferred from the word `decide`, a world reply not kept, an operator left unlabelled, a sealed request sent, `history` going straight to Root past its host, a copy given back through a kept record, a host keeping what it gives back, a run nesting past its bound or a bound off by one, a self tail call adding depth, answers for `Decide` consulted in the wrong order, an obligation of XI.3 removed, an uncompute proved in another pattern. Seven break inversion, five of them by changing a clause of the rule `mirror` in the prelude: an update or a discard read backward as itself, a counted loop keeping its direction, a loop body left unmirrored, a lossy clause mirrored as a certified one, which the checker itself refuses. Three break replay: a record for another question or another context taken as the answer, a record not used up. Five break the journal's identities: an entry taken back whatever code kept it, a clause chosen backward by its place, an entry kept under the rule's first clause, identities compared without the forms they name. Six break the identity of code: a call holding the name of the rule called, a rule's identity holding its own name, the members of a cycle told apart by name, a changed rule keeping its identity, exclusive clauses taken in the order written, rules sharing an identity unnoticed. Ten break what code refers to: a variable or a parameter identified by its name, a name bound again taken for the same variable, quoted code read as code, a message holding the name of its request, an instance or a type the name of its answer, a row the names of its groups, answers with the same code or requests with the same signature made one. Three break the scope rule: a name bound again where it is bound, a counter taking the name of a parameter or of the loop it is in, a counter taking a bound name in a body. Fourteen break accounting: a clause choice kept whatever the output shows, or counted among all the clauses, or taken back where none was kept; a variant charged for every constructor or sixteen bits; a `Trit` by the value it holds; a value still computable charged, or counted as computable after what it came from changed; a constructor ruled out wrongly, or not ruled out; compiled code charging a choice, a variant or a computable value the old way; a literal in a constructor keeping the type of a literal. Five break the extent report: a rule taken as onto because it takes every input, a refused input passed over, a division or a `was` against a constant taken as unable to refuse, fewer inputs than outputs not noticed. One cites Boolean logic as a theorem again. Nine break the forms: a constructor of `Code` missing from the prelude, a declaration losing its row or exchanging its types on the way to a value, a tuple left as the parser wrote it or its members reversed, `program()` giving the prelude as well, an answer's clauses reversed, a request group losing a request, a name given back against an expression that reads it. Sixteen break declared types: a `Trit` accepted where a `Bool` is declared, at each kind of site in turn and at all at once; a rule that reads backward into a `Bool` ending the check with a failure; `set` leaving a literal at a literal's width, or holding what it replaces in a `Trit` as a `Bool`; a literal keeping its width as a rule's input or parameter. Two break the charge for a `Text`, in each backend; one charges a decision by the answers asked; one gives a value taken back no type, so that compiled code cannot type what the two directions share. All 140 are noticed. Five of them break the CCNOT tape of VI.6: a CCNOT dropped, a CCNOT aimed two cells ahead, a head turned round, a draw observing before its tick, a child started with its head moved. Five break the reversible profile (IX.4): a CNOT laid out with its control and target exchanged, a copy sharing its wire, an uncompute laying out no gate, a constant 0 counted as 1, a loop laid out one pass short.
+ 
+ A generator counts a refused program as a refusal its oracle may have expected, so each first requires the toolchain to accept its own prelude.
+ 
+@@ -1918,7 +1951,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9, with the corrections listed under XII.4, passes 187 tests. Every test source is in the notation of this description.
++Toolchain 0.4.9, with the corrections listed under XII.4, passes 194 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -1943,9 +1976,10 @@ Toolchain 0.4.9, with the corrections listed under XII.4, passes 187 tests. Ever
+ | TestCensus | 3 | Every form the parser writes taken apart and put together; nothing escaping in any example; a tag with no constructor reported |
+ | TestBuiltValues | 2 | A literal inside a constructor taking the type its field declares; a copied instance sharing nothing with the original |
+ | TestCcnotTape | 8 | Moop's trace printed byte for byte, in the interpreter and compiled; draws and births taken back, and a draw the tape did not give refused; fewer than two cells refused; the three names not declared again, and no request for the tape; the tick realized by `ccnot`; extents as established, the birth not onto; on its domain, the tick a permutation and a draw and a birth one-to-one and not onto, over every state with 2 or 3 cells on each tape; outside it, every input refused in both backends |
++| TestReversibleProfile | 6 | The tape's three rules laid out and their gate counts; one alignment of 8 and 13 cells as 208 CCNOTs, against 104 interpreted ticks; an ancilla given back at 0, and an embedding refusing what it does not give; rules that are not the tape (`ripple_add` on all 512 inputs at width 4, the gates of `examples/gates.selv`, a swap as a relabelling); what the profile refuses, with its reasons; `selvage circuit` |
+ | TestSoundness | 10 | R4 for indices and parameters, under either arrow; sameness; instance unpacking; an uncompute proved only in the pattern that bound it; generated certified rules; the description check; a refused example checked for its reason; a generator requiring its prelude |
+ | TestSealAndWitness | 14 | The seal as a rule about places; `history` through `Witness`; Root's three groups kept apart; hosts deciding what inner code reads; an inquiry leaving the journal as it was; giving the copy back: what was transactional rewound, a kept record refusing it, a refused withdrawal leaving the answers further out as they stood, a host keeping nothing of it; a host in its installer's row; the one request passed outward; instance states typed; commit points in the row; layout as the only lineage exemption |
+-| TestGenerated04 | 21 | The twenty generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
++| TestGenerated04 | 22 | The twenty-one generators of XI.2, each with its oracle; an untaken refusal ending the run with status 70 |
+ 
+ ### XI.5 What the suite does not yet cover
+ 
+@@ -2377,6 +2411,7 @@ Built after 0.4.9, as corrections and the audit rulings (the version number is t
+ - **`Bit` described as the 1-bit unsigned word** (audit ruling A3); the toolchain already treated it so.
+ - **The CCNOT tape in the prelude** (VI.6): the record `CcnotTape` and the rules `tape_tick`, `draw` and `birth`, pinned to a trace of moop's implementation in both backends, with the tape generator and five mutations.
+ - **The CCNOT tape's domain stated** (VI.6): the domain D, each rule's extent on it with a proof, and every input outside it refused in both backends.
++- **The reversible profile, in part** (IX.4): certified rules over bits, their words laid out, lowered to X, CNOT and CCNOT and checked by simulation; `selvage circuit`; the circuits generator and five mutations. The CCNOT tape is its first program.
+ 
+ Ratified and next:
+ - **Typed encode and decode** (K5): for each serializable form type, tests that decoding an encoding gives the value, that encoding a decoding gives the canonical encoding, that an invalid encoding is refused, that the distinctions of identity are kept, and that the interpreter and compiled code agree.
+@@ -2393,7 +2428,7 @@ After these:
+ 6. **Typed code** `Code(T)`, once the untyped model shows a concrete failure.
+ 7. **The RME-7 prelude** and its conformance suite; seals for roles and units; evidence binding (G5).
+ 8. **Concurrency,** after its scheduling, message-ordering and replay semantics are specified.
+-9. **The reversible profile:** lowering certified finite-shape rules to X, CNOT and CCNOT circuits, with a check that every uncompute restores its scratch registers; the partial-bijection embedding.
++9. **The reversible profile:** lowering certified finite-shape rules to X, CNOT and CCNOT circuits, with a check that every uncompute restores its scratch registers; the partial-bijection embedding. Built in part (IX.4): rules over bits whose words are layout, with that check. What remains: conditions and clause choices on bits (controlled blocks), word arithmetic as adder circuits, the extension of a partial bijection to a permutation (IX.4), and a backend that runs the circuits.
+ 10. **The quantum realization interface:** qubit management, superposition and phase operations, a measurement backend, reset.
+ 11. **Notation and the derived printer.**
+ 
+diff --git a/selvage/__main__.py b/selvage/__main__.py
+index bea3013..ebbc921 100644
+--- a/selvage/__main__.py
++++ b/selvage/__main__.py
+@@ -8,6 +8,11 @@
+   invert FILE NAME                 print the derived inverse of a rule or answer, as Selvage
+   lineage FILE [NAME ...]          what each rule's reversibility rests on, down to ccnot,
+        --verify                    with every link's certificate; run each realization now
++  circuit FILE RULE INPUT          lay out a certified rule as X, CNOT and CCNOT gates (the
++                                   reversible profile, IX.4): bits are wires, INPUT's words
++                                   are the layout; check it against the interpreter on INPUT
++       --params "a, b"             parameters of the rule
++       --gates                     print every gate
+   call FILE RULE INPUT [options]   run one clause rule on INPUT
+        --params "a, b"             parameters of the rule
+        --undo                      then run it backward with `undo` (certified rules)
+@@ -174,6 +179,44 @@ def run_command(argv):
+             from .census import report as census_report
+             print(census_report(m))
+             return 0
++        if cmd == 'circuit':
++            from .circuit import lower, simulate, simulate_back, NotLowerable, Dirty, layout_text
++            from .interp import Interp, deep_copy, unflex_to
++            gates = '--gates' in rest
++            params_src = option(rest, '--params')
++            rest = [x for x in rest if x != '--gates']
++            r = m.rules.get(rest[1])
++            if r is None:
++                raise Fault(f'no rule {rest[1]}')
++            it = Interp(m)
++            value = it.ev(parse_expr(rest[2]), {})
++            params = it.ev(parse_expr('(' + params_src + ',)'), {}) if params_src else ()
++            params = tuple(unflex_to(v, t) for v, (_, t) in zip(params, r.params))
++            value = unflex_to(value, r.takes)
++            try:
++                c = lower(m, r, params, value)
++            except NotLowerable as e:
++                print(f'{r.name}: not lowered: {e}')
++                return 1
++            n = c.counts()
++            kept = len(set(c.ancillas) & set(c.output_wires()))
++            print(f'{r.name}, laid out for the words of its input')
++            print(f'input    {layout_text(c.input)}')
++            print(f'output   {layout_text(c.output)}')
++            print(f'wires    {c.wires}: {len(c.input_wires())} for the input, {len(c.ancillas)} ancillas '
++                  f'starting at 0 ({kept} become output, {len(c.released)} are given back at 0)')
++            print(f'gates    {n["CCNOT"]} CCNOT, {n["CNOT"]} CNOT, {n["X"]} X; '
++                  f'{c.relabels} swap{"s" if c.relabels != 1 else ""} done by relabelling wires')
++            if gates:
++                for g in c.gates:
++                    print('         ' + g[0] + ' ' + ' '.join(f'w{w}' for w in g[1:]))
++            want = it.forward(r, params, deep_copy(value))
++            got = simulate(c, value)
++            print('checked  ' + ('the circuit gives what the interpreter gives' if got == want
++                                 else 'THE CIRCUIT AND THE INTERPRETER DISAGREE') +
++                  ('; run backward, it gives the input back' if simulate_back(c, got) == value
++                   else '; RUN BACKWARD, IT DOES NOT GIVE THE INPUT BACK'))
++            return 0 if got == want else 1
+         if cmd == 'check':
+             print(f'{path}: all rules certified or declared')
+             print(classify_report(m))
+diff --git a/selvage/circuit.py b/selvage/circuit.py
+new file mode 100644
+index 0000000..d35144d
+--- /dev/null
++++ b/selvage/circuit.py
+@@ -0,0 +1,614 @@
++"""The reversible profile (IX.4), in part: certified clause rules lowered to X, CNOT and CCNOT.
++
++What it lowers.  Every `Bit` of a rule's input is a wire.  Every word is layout: it is known when
++the circuit is laid out, and the circuit holds for every input whose words have those values.  The
++steps it lays out are updates of bits (`add x * y to z` is a CCNOT, `add x to z` a CNOT, `add 1 to z`
++an X), calls of `ccnot` and of other rules it can lower (inlined), copies into fresh names (a fresh
++wire and a CNOT), fresh arrays of bits (fresh wires at 0), swaps (wires relabelled), loops and
++conditions on words, and uncomputes (the copy undone, and the wire given back, which must then be
++0).  Index arithmetic on words is done at layout, with the interpreter's own arithmetic.
++
++What it refuses, with a reason: a rule that is not certified; a word computed from a bit; a
++condition, an index or a clause choice that reads a bit; a rule with no bit on a wire at all, which
++computes on words only (word arithmetic would need adder circuits this profile does not lay out);
++messages, decisions and any other step outside the list above.
++
++A lowered circuit is checked by simulation: classical simulation is exact for X, CNOT and CCNOT,
++which permute basis states.  Nothing here runs on reversible or quantum hardware.
++"""
++from collections import Counter
++
++from .forms import Form, Word, Arr, Fault
++from .interp import Interp
++
++
++class NotLowerable(Exception):
++    """The rule, or a step of it, is outside what this profile lays out."""
++
++
++class Wire:
++    __slots__ = ('n',)
++
++    def __init__(self, n):
++        self.n = n
++
++    def __repr__(self):
++        return f'w{self.n}'
++
++
++class Lowered:
++    """A rule laid out as gates: wires, gates, where the input and output sit, and the ancillas."""
++
++    def __init__(self, rule):
++        self.rule = rule
++        self.wires = 0
++        self.gates = []            # ('X', t) | ('CNOT', c, t) | ('CCNOT', c1, c2, t), wire numbers
++        self.ancillas = []         # wires that start at 0
++        self.released = []         # (position in gates, wire): an ancilla given back, 0 there
++        self.relabels = 0          # swaps, done by relabelling wires
++        self.input = None          # the input with wires for bits and words as laid out
++        self.output = None
++
++    def wire(self):
++        w = Wire(self.wires)
++        self.wires += 1
++        return w
++
++    def ancilla(self):
++        w = self.wire()
++        self.ancillas.append(w.n)
++        return w
++
++    def counts(self):
++        c = Counter(g[0] for g in self.gates)
++        return {k: c.get(k, 0) for k in ('CCNOT', 'CNOT', 'X')}
++
++    def input_wires(self):
++        return [w.n for w in wires_of(self.input)]
++
++    def output_wires(self):
++        return [w.n for w in wires_of(self.output)]
++
++
++def wires_of(v):
++    """The wires of a laid-out value, in order."""
++    if isinstance(v, Wire):
++        return [v]
++    if isinstance(v, tuple):
++        return [w for x in v for w in wires_of(x)]
++    if isinstance(v, Arr):
++        return [w for x in v.data for w in wires_of(x)]
++    if isinstance(v, Form):
++        return [w for x in v.kids for w in wires_of(x)]
++    return []
++
++
++class Lowerer:
++    def __init__(self, m):
++        self.m = m
++        self.it = Interp(m)
++        self.c = None
++        self.depth = 0
++
++    # ---- the entry -------------------------------------------------------------------------
++    def lower(self, rule, params, sample):
++        if rule.kind != 'clauses':
++            raise NotLowerable(f'{rule.name} is an expression rule; the profile lowers clause rules')
++        if rule.cls not in ('bijection', 'partial'):
++            raise NotLowerable(f'{rule.name} is {rule.cls}, not certified')
++        self.c = Lowered(rule)
++        self.c.input = self.lay_input(sample)
++        if not wires_of(self.c.input):
++            raise NotLowerable(f'{rule.name} has no bit on a wire: it computes on words, which this '
++                               f'profile does not lay out as gates')
++        out = self.call(rule, tuple(params), self.c.input)
++        self.c.output = out
++        outs = [w.n for w in wires_of(out)]
++        if len(set(outs)) != len(outs):
++            raise NotLowerable('an output wire appears twice')
++        released = {w for _, w in self.c.released}
++        left = set(range(self.c.wires)) - set(outs) - released
++        if left:
++            raise NotLowerable(f'wires {sorted(left)} are neither output nor given back')
++        return self.c
++
++    def lay_input(self, v):
++        if isinstance(v, Word):
++            return self.c.wire() if v.ty == 'Bit' else v
++        if isinstance(v, tuple):
++            return tuple(self.lay_input(x) for x in v)
++        if isinstance(v, Arr):
++            return Arr(v.ty, [self.lay_input(x) for x in v.data])
++        if isinstance(v, Form):
++            return Form(v.tag, tuple(self.lay_input(x) for x in v.kids))
++        raise NotLowerable(f'an input of {type(v).__name__} is not laid out by this profile')
++
++    # ---- gates -----------------------------------------------------------------------------
++    def gate(self, *g):
++        self.c.gates.append(g)
++
++    def materialize(self, v):
++        """A bit as a wire: a constant becomes a fresh ancilla, flipped if it is 1."""
++        if isinstance(v, Wire):
++            return v
++        if isinstance(v, Word):
++            w = self.c.ancilla()
++            if v.v & 1:
++                self.gate('X', w.n)
++            return w
++        raise NotLowerable('a value that is not a bit is used as one')
++
++    def apply_terms(self, terms, target):
++        """XOR a sum of products of at most two bits onto the target wire."""
++        for term in terms:
++            if any(w.n == target.n for w in term):
++                raise Fault('R4: the update reads its own target')
++            if len(term) == 0:
++                self.gate('X', target.n)
++            elif len(term) == 1:
++                self.gate('CNOT', term[0].n, target.n)
++            elif len(term) == 2:
++                self.gate('CCNOT', term[0].n, term[1].n, target.n)
++            else:
++                raise NotLowerable('a product of more than two bits')
++
++    def release(self, w):
++        self.c.released.append((len(self.c.gates), w.n))
++
++    # ---- expressions -----------------------------------------------------------------------
++    def static(self, v, what):
++        if isinstance(v, Wire) or (isinstance(v, (tuple, Arr, Form)) and wires_of(v)):
++            raise NotLowerable(f'{what} reads a bit; the profile lays out only what words decide')
++        return v
++
++    def terms(self, e, env):
++        """A bit expression as a sum of products (lists of wires); constants fold."""
++        tag, k = e.tag, e.kids
++        if tag in ('Add', 'Subtract'):
++            return self.xor(self.terms(k[0], env), self.terms(k[1], env))
++        if tag == 'Multiply':
++            out = []
++            for x in self.terms(k[0], env):
++                for y in self.terms(k[1], env):
++                    ws = sorted({w.n: w for w in x + y}.values(), key=lambda w: w.n)
++                    out = self.xor(out, [ws])
++            return out
++        v = self.ev(e, env)
++        if isinstance(v, Wire):
++            return [[v]]
++        if isinstance(v, Word):
++            return [[]] if v.v & 1 else []
++        raise NotLowerable('an update by a value that is not a bit')
++
++    @staticmethod
++    def xor(a, b):
++        out = list(a)
++        for t in b:
++            key = sorted(w.n for w in t)
++            hit = next((i for i, u in enumerate(out) if sorted(w.n for w in u) == key), None)
++            if hit is None:
++                out.append(t)
++            else:
++                del out[hit]
++        return out
++
++    def ev(self, e, env):
++        tag, k = e.tag, e.kids
++        if tag == 'Literal':
++            return k[0]
++        if tag == 'Name':
++            n = k[0]
++            if n in env:
++                return env[n]
++            if n in self.m.ctors and not self.m.ctors[n][1]:
++                return Form(n, ())
++            raise NotLowerable(f'unknown name {n}')
++        if tag == 'Tuple':
++            return tuple(self.ev(x, env) for x in k)
++        if tag == 'Index':
++            a = self.ev(k[0], env)
++            i = self.static(self.ev(k[1], env), 'an index')
++            if not isinstance(a, Arr):
++                raise NotLowerable('an index into a value that is not an array')
++            if not 0 <= i.v < len(a.data):
++                raise Fault(f'index {i.v} is outside 0 to {len(a.data) - 1}')
++            return a.data[i.v]
++        if tag == 'Field':
++            r = self.ev(k[0], env)
++            fields = self.m.ctors[r.tag][1]
++            return r.kids[[f for f, _ in fields].index(k[1])]
++        if tag in ('Add', 'Subtract', 'Multiply', 'Divide', 'Mod'):
++            a = self.static(self.ev(k[0], env), 'a word')
++            b = self.static(self.ev(k[1], env), 'a word')
++            return self.it.arith(tag, a, b)
++        if tag in ('Equal', 'NotEqual', 'Less', 'Greater', 'LessEqual', 'GreaterEqual'):
++            a = self.static(self.ev(k[0], env), 'a condition')
++            b = self.static(self.ev(k[1], env), 'a condition')
++            return self.it.compare(tag, a, b)
++        if tag in ('And', 'Or', 'Not'):
++            vals = [self.static(self.ev(x, env), 'a condition') for x in k]
++            return (not vals[0]) if tag == 'Not' else (all(vals) if tag == 'And' else any(vals))
++        if tag == 'Call':
++            return self.ev_call(e, env)
++        if tag == 'Undo':
++            rule, params, arg = self.callee(k[0], env)
++            return self.call(rule.inverse, params, arg)
++        raise NotLowerable(f'{tag} is not laid out by this profile')
++
++    def callee(self, e, env):
++        head, args = e.kids[0], list(e.kids[1].kids)
++        params = ()
++        if head.tag == 'Call':
++            params = tuple(self.static(self.ev(p, env), 'a parameter') for p in head.kids[1].kids)
++            head = head.kids[0]
++        name = head.kids[0]
++        if name not in self.m.rules:
++            raise NotLowerable(f'{name} is not a rule')
++        if len(args) != 1:
++            raise NotLowerable(f'{name} takes one input')
++        return self.m.rules[name], params, self.take(args[0], env)
++
++    def take(self, e, env):
++        """A rule's input: evaluated, and the names it names consumed, as the call moves them."""
++        v = self.ev(e, env)
++        for n in moved_names(e):
++            env.pop(n, None)
++        return v
++
++    def ev_call(self, e, env):
++        head, args = e.kids[0], e.kids[1].kids
++        if head.tag == 'Name':
++            n = head.kids[0]
++            if n == 'length':
++                a = self.ev(args[0], env)
++                return Word(len(a.data), 'I64')
++            if n == 'array':
++                ty, size = args[0].kids[0], self.static(self.ev(args[1], env), 'a length')
++                zero = Word(0, ty) if ty != 'F64' else 0.0
++                return Arr(ty, [zero] * size.v)
++            if n in self.m.ctors:
++                return Form(n, tuple(self.ev(x, env) for x in args))
++            if n == 'Bit' and n not in self.m.rules:
++                v = self.ev(args[0], env)
++                return v if isinstance(v, Wire) else Word(v.v & 1, 'Bit')
++            if n == 'ccnot':
++                x, y, z = self.ev(args[0], env)
++                for p in moved_names(args[0]):
++                    env.pop(p, None)
++                return self.ccnot(x, y, z)
++            if n not in self.m.rules:
++                v = self.ev(args[0], env) if args else None
++                if len(args) == 1 and n in ('I64', 'U64', 'I32', 'U32', 'I16', 'U16', 'I8', 'U8'):
++                    if wires_of(v):
++                        raise NotLowerable(f'{n}(…) would compute a word from a bit; words are layout, bits are wires')
++                    return self.it.convert(n, v, e.line)
++                raise NotLowerable(f'{n}(…) is not laid out by this profile')
++        rule, params, arg = self.callee(e, env)
++        return self.call(rule, params, arg)
++
++    def ccnot(self, x, y, z):
++        """The base: z flips when x and y are both 1.  A constant control folds."""
++        controls = [c for c in (x, y) if not (isinstance(c, Word) and c.v & 1)]
++        if any(isinstance(c, Word) for c in controls):        # a control that is 0
++            return (x, y, z)
++        z = self.materialize(z)
++        self.apply_terms([controls], z)
++        return (x, y, z)
++
++    # ---- rules and steps -------------------------------------------------------------------
++    def call(self, rule, params, arg):
++        base = self.m.rules.get('ccnot')
++        if base is not None and (rule is base or rule is base.inverse):
++            # the base, and its derived inverse, which is the same gate: CCNOT is its own inverse
++            return self.ccnot(*arg)
++        if rule.kind != 'clauses' or rule.cls not in ('bijection', 'partial'):
++            raise NotLowerable(f'{rule.name} is not a certified clause rule')
++        self.depth += 1
++        if self.depth > 200:
++            raise NotLowerable('calls nest too deep to lay out')
++        try:
++            for c in rule.clauses:
++                env = {pn: pv for (pn, _), pv in zip(rule.params, params)}
++                if self.match(c.kids[0], arg, env):
++                    self.block(c.kids[2], env)
++                    return self.build(c.kids[1], env)
++            raise Fault(f'{rule.name}: no clause takes this input')
++        finally:
++            self.depth -= 1
++
++    def match(self, p, v, env):
++        tag, k = p.tag, p.kids
++        if tag == 'Name':
++            if k[0] in self.m.ctors:
++                return isinstance(v, Form) and v.tag == k[0]
++            env[k[0]] = v
++            return True
++        if tag == 'Literal':
++            if isinstance(v, Wire):
++                raise NotLowerable('a clause is chosen by a bit')
++            return isinstance(v, Word) and v.v == k[0].v or v == k[0]
++        if tag == 'Tuple':
++            return isinstance(v, tuple) and len(v) == len(k) and all(self.match(a, b, env) for a, b in zip(k, v))
++        if tag == 'Call' and k[0].tag == 'Name' and k[0].kids[0] in self.m.ctors:
++            if not isinstance(v, Form) or v.tag != k[0].kids[0]:
++                return False
++            return all(self.match(a, b, env) for a, b in zip(k[1].kids, v.kids))
++        raise NotLowerable(f'a pattern {tag} is not laid out by this profile')
++
++    def build(self, p, env):
++        tag, k = p.tag, p.kids
++        if tag == 'Name':
++            if k[0] in env:
++                return env.pop(k[0])
++            return self.ev(p, env)
++        if tag == 'Literal':
++            return k[0]
++        if tag == 'Tuple':
++            return tuple(self.build(x, env) for x in k)
++        if tag == 'Call':
++            return Form(k[0].kids[0], tuple(self.build(x, env) for x in k[1].kids))
++        raise NotLowerable(f'a pattern {tag} is not laid out by this profile')
++
++    def copy(self, v, live):
++        """Values are owned: a bit that another live name still holds is copied onto a fresh wire."""
++        if isinstance(v, Wire):
++            if v.n in live:
++                w = self.c.ancilla()
++                self.gate('CNOT', v.n, w.n)
++                return w
++            return v
++        if isinstance(v, tuple):
++            return tuple(self.copy(x, live) for x in v)
++        if isinstance(v, Arr):
++            return Arr(v.ty, [self.copy(x, live) for x in v.data])
++        if isinstance(v, Form):
++            return Form(v.tag, tuple(self.copy(x, live) for x in v.kids))
++        return v
++
++    def block(self, b, env):
++        for s in b.kids:
++            self.step(s, env)
++
++    def step(self, s, env):
++        tag, k = s.tag, s.kids
++        if tag == 'Let':
++            pat, rhs = k
++            if rhs.tag in ('Call', 'Undo') and self.is_rule_call(rhs):
++                v = self.ev(rhs, env)
++            else:
++                v = self.ev(rhs, env)
++                live = {w.n for x in env.values() for w in wires_of(x)}
++                v = self.copy(v, live)
++            if not self.match(pat, v, env):
++                raise Fault('a value does not match the pattern it is bound to')
++            return
++        if tag == 'Was':
++            pat, rhs = k
++            if self.is_rule_call(rhs):
++                # p was g(x): g's inverse takes p back to x
++                inner = rhs.kids[0] if rhs.tag == 'Undo' else rhs
++                rule, params, _ = self.callee_shape(inner, env)
++                if rhs.tag == 'Undo':
++                    rule = rule.inverse
++                held = self.build(pat, env)
++                back = self.call(rule.inverse, params, held)
++                if not self.match(self.input_pattern(inner), back, env):
++                    raise Fault('a value does not match the pattern it is given back to')
++                return
++            held = self.build(pat, env)
++            want = self.ev(rhs, env)
++            self.give_back(held, want)
++            return
++        if tag in ('AddTo', 'SubtractFrom'):
++            e, target = k
++            box, key = self.cell(target, env)
++            cur = box[key]
++            if isinstance(cur, Word) and cur.ty != 'Bit' and not cur.flex:
++                rhs = self.static(self.ev(e, env), 'an update of a word')
++                box[key] = self.it.arith('Add' if tag == 'AddTo' else 'Subtract', cur, rhs)
++                return
++            terms = self.terms(e, env)
++            if isinstance(cur, Word) and not terms:
++                return
++            if isinstance(cur, Word) and all(len(t) == 0 for t in terms):
++                box[key] = Word((cur.v + len(terms)) & 1, 'Bit')
++                return
++            w = self.materialize(cur)
++            box[key] = w
++            self.apply_terms(terms, w)
++            return
++        if tag == 'Swap':
++            b1, k1 = self.cell(k[0], env)
++            b2, k2 = self.cell(k[1], env)
++            b1[k1], b2[k2] = b2[k2], b1[k1]
++            self.c.relabels += 1
++            return
++        if tag == 'If':
++            cond = self.static(self.ev(k[0], env), 'a condition')
++            self.block(k[1] if cond else k[2], env)
++            return
++        if tag in ('RepeatWith', 'RepeatDown'):
++            var, first, last, body = k
++            a = self.static(self.ev(first, env), 'a loop bound')
++            b = self.static(self.ev(last, env), 'a loop bound')
++            seq = range(a.v, b.v + 1) if tag == 'RepeatWith' else range(a.v, b.v - 1, -1)
++            for i in seq:
++                env[var] = Word(i, a.ty if not a.flex else 'I64')
++                self.block(body, env)
++            env.pop(var, None)
++            return
++        raise NotLowerable(f'a step {tag} is not laid out by this profile')
++
++    def is_rule_call(self, e):
++        if e.tag == 'Undo':
++            return True
++        if e.tag != 'Call':
++            return False
++        head = e.kids[0]
++        if head.tag == 'Call':
++            head = head.kids[0]
++        return head.tag == 'Name' and (head.kids[0] in self.m.rules)
++
++    def callee_shape(self, e, env):
++        head = e.kids[0]
++        params = ()
++        if head.tag == 'Call':
++            params = tuple(self.static(self.ev(p, env), 'a parameter') for p in head.kids[1].kids)
++            head = head.kids[0]
++        return self.m.rules[head.kids[0]], params, None
++
++    @staticmethod
++    def input_pattern(call):
++        return call.kids[1].kids[0]
++
++    def give_back(self, held, want):
++        """An uncompute: what a name holds must be what its expression gives; a wire is undone
++        onto 0 and given back."""
++        if isinstance(held, tuple) and isinstance(want, tuple) and len(held) == len(want):
++            for h, x in zip(held, want):
++                self.give_back(h, x)
++            return
++        if isinstance(held, Arr) and isinstance(want, Arr) and len(held.data) == len(want.data):
++            for h, x in zip(held.data, want.data):
++                self.give_back(h, x)
++            return
++        if isinstance(held, Form) and isinstance(want, Form) and held.tag == want.tag:
++            for h, x in zip(held.kids, want.kids):
++                self.give_back(h, x)
++            return
++        if isinstance(held, Wire):
++            if isinstance(want, Wire):
++                if want.n != held.n:
++                    self.gate('CNOT', want.n, held.n)
++            elif isinstance(want, Word):
++                if want.v & 1:
++                    self.gate('X', held.n)
++            else:
++                raise NotLowerable('a bit given back against a value that is not a bit')
++            self.release(held)
++            return
++        if isinstance(want, Wire):
++            raise NotLowerable('a word given back against a bit')
++        if held != want and not (isinstance(held, Word) and isinstance(want, Word) and held.v == want.v):
++            raise Fault(f'{held} is not what it was computed from')
++
++    def cell(self, target, env):
++        if target.tag == 'Name':
++            return env, target.kids[0]
++        if target.tag == 'Index':
++            a = self.ev(target.kids[0], env)
++            i = self.static(self.ev(target.kids[1], env), 'an index')
++            if not isinstance(a, Arr):
++                raise NotLowerable('an update of a value that is not an array cell')
++            if not 0 <= i.v < len(a.data):
++                raise Fault(f'index {i.v} is outside 0 to {len(a.data) - 1}')
++            return a.data, i.v
++        raise NotLowerable(f'an update of a {target.tag} is not laid out by this profile')
++
++
++def moved_names(e):
++    """The names a call's input moves: the names it is built of directly."""
++    if e.tag == 'Name':
++        return [e.kids[0]]
++    if e.tag == 'Tuple':
++        return [n for x in e.kids for n in moved_names(x)]
++    return []
++
++
++def lower(m, rule, params, sample):
++    """Lay out a certified rule for the words of `sample`: a Lowered circuit, or NotLowerable."""
++    return Lowerer(m).lower(rule, params, sample)
++
++
++# ---- simulation: exact for X, CNOT and CCNOT, which permute basis states ----------------------
++def bits_of(v, template):
++    """The bits a value gives the wires of a laid-out template, as {wire: bit}."""
++    out = {}
++    if isinstance(template, Wire):
++        out[template.n] = v.v & 1
++    elif isinstance(template, tuple):
++        for x, t in zip(v, template):
++            out.update(bits_of(x, t))
++    elif isinstance(template, Arr):
++        for x, t in zip(v.data, template.data):
++            out.update(bits_of(x, t))
++    elif isinstance(template, Form):
++        for x, t in zip(v.kids, template.kids):
++            out.update(bits_of(x, t))
++    return out
++
++
++def fill(template, bits):
++    """The value a laid-out template holds, given its wires' bits."""
++    if isinstance(template, Wire):
++        return Word(bits[template.n], 'Bit')
++    if isinstance(template, tuple):
++        return tuple(fill(x, bits) for x in template)
++    if isinstance(template, Arr):
++        return Arr(template.ty, [fill(x, bits) for x in template.data])
++    if isinstance(template, Form):
++        return Form(template.tag, tuple(fill(x, bits) for x in template.kids))
++    return template
++
++
++def layout_text(v):
++    """A laid-out value for reading: wires as ~, words as they are."""
++    from .forms import show
++    if isinstance(v, Wire):
++        return '~'
++    if isinstance(v, tuple):
++        return '(' + ', '.join(layout_text(x) for x in v) + ')'
++    if isinstance(v, Arr):
++        if v.data and all(isinstance(x, Wire) for x in v.data):
++            return f'[{len(v.data)} wires]'
++        return '[' + ', '.join(layout_text(x) for x in v.data) + ']'
++    if isinstance(v, Form):
++        return v.tag + ('(' + ', '.join(layout_text(x) for x in v.kids) + ')' if v.kids else '')
++    return show(v)
++
++
++class Dirty(Exception):
++    """An ancilla given back is not 0, or a run backward ends with a wire that is not."""
++
++
++def simulate(c, value):
++    """Run the circuit forward on an input with the laid-out words: the output value."""
++    state = [0] * c.wires
++    for n, b in bits_of(value, c.input).items():
++        state[n] = b
++    releases = {}
++    for pos, w in c.released:
++        releases.setdefault(pos, []).append(w)
++    for pos, g in enumerate(c.gates):
++        for w in releases.get(pos, ()):
++            if state[w]:
++                raise Dirty(f'wire {w} is given back as 1 before gate {pos}')
++        apply(state, g)
++    for w in releases.get(len(c.gates), ()):
++        if state[w]:
++            raise Dirty(f'wire {w} is given back as 1 at the end')
++    return fill(c.output, dict(enumerate(state)))
++
++
++def simulate_back(c, value):
++    """Run the gates in reverse from an output: the input, or Dirty where a wire that started at
++    0 does not end there, which is an output the circuit does not give."""
++    state = [0] * c.wires
++    for n, b in bits_of(value, c.output).items():
++        state[n] = b
++    for g in reversed(c.gates):
++        apply(state, g)
++    inputs = set(c.input_wires())
++    for n in range(c.wires):
++        if n not in inputs and state[n]:
++            raise Dirty(f'wire {n} ends as 1: not an output this circuit gives')
++    return fill(c.input, dict(enumerate(state)))
++
++
++def apply(state, g):
++    if g[0] == 'X':
++        state[g[1]] ^= 1
++    elif g[0] == 'CNOT':
++        state[g[2]] ^= state[g[1]]
++    else:
++        state[g[3]] ^= state[g[1]] & state[g[2]]
+diff --git a/tests/generated_04.py b/tests/generated_04.py
+index 6fc6a62..f680890 100644
+--- a/tests/generated_04.py
++++ b/tests/generated_04.py
+@@ -3139,10 +3139,101 @@ def tape(programs=200, seed=1):
+     return stats, findings
+ 
+ 
++# ---- the reversible profile: certified rules laid out as gates, run against the interpreter ----
++def circuits(programs=200, seed=1):
++    """Generated gate rules over bits laid out as X, CNOT and CCNOT, run on every input; and the
++    prelude's array rules and the CCNOT tape at random sizes and head positions.  Each circuit must
++    give what the interpreter gives, refuse where it refuses, give its input back when run
++    backward, and agree with the derived inverse laid out on its own."""
++    from selvage.circuit import lower, simulate, simulate_back, NotLowerable, Dirty
++    rng = random.Random(seed)
++    stats = {'gate rules': 0, 'array rules': 0, 'tape rules': 0, 'runs': 0, 'refused alike': 0,
++             'gates laid out': 0, 'ancillas given back': 0, 'inverses laid out': 0}
++    findings = []
++    B = lambda v: Word(v, 'Bit')                                   # noqa: E731
++
++    def check(m, r, inputs, where):
++        try:
++            c = lower(m, r, (), inputs[0])
++        except NotLowerable as e:
++            findings.append(('a rule the profile should lay out was refused', where, str(e)))
++            return
++        except Fault:
++            # refused while laid out: what the words decide refuses, so every input refuses
++            for x in inputs:
++                stats['runs'] += 1
++                try:
++                    Interp(m).forward(r, (), deep_copy(x))
++                    findings.append(('refused when laid out, but the interpreter runs it', where, f'{x}'))
++                    return
++                except Fault:
++                    stats['refused alike'] += 1
++            return
++        stats['gates laid out'] += len(c.gates)
++        for x in inputs:
++            stats['runs'] += 1
++            try:
++                want = Interp(m).forward(r, (), deep_copy(x))
++            except Fault:
++                want = None
++            try:
++                got = simulate(c, x)
++            except Dirty:
++                got = None
++            if want is None or got is None:
++                if (want is None) != (got is None):
++                    findings.append(('the circuit and the interpreter refuse differently', where, f'{x}'))
++                else:
++                    stats['refused alike'] += 1
++                continue
++            stats['ancillas given back'] += len(c.released)
++            if got != want:
++                findings.append(('the circuit gives other than the interpreter', where, f'{x}'))
++                return
++            try:
++                if simulate_back(c, got) != x:
++                    findings.append(('run backward, the circuit does not give the input back', where, f'{x}'))
++                    return
++                ci = lower(m, r.inverse, (), got)
++                stats['inverses laid out'] += 1
++                if simulate(ci, got) != x:
++                    findings.append(('the derived inverse, laid out, does not give the input back', where, f'{x}'))
++                    return
++            except (Dirty, NotLowerable, Fault) as e:
++                findings.append(('the inverse failed', where, f'{x}: {e}'))
++                return
++
++    prelude = load('')[0]
++    for _ in range(programs):
++        g = Gates(rng, False)
++        src = g.program()
++        if refusal(src) is None:
++            m = load(src)[0]
++            stats['gate rules'] += 1
++            ins = [tuple(B((v >> k) & 1) for k in range(g.n)) for v in range(2 ** g.n)]
++            check(m, m.rules['f'], ins, src)
++        name = rng.choice(['exchange', 'fanout', 'ripple_add'])
++        w = rng.randint(1, 6)
++        def arr():
++            return Arr('Bit', [B(rng.randint(0, 1)) for _ in range(w)])
++        ins = [(arr(), arr(), B(rng.randint(0, 1))) if name == 'ripple_add' else (arr(), arr()) for _ in range(6)]
++        stats['array rules'] += 1
++        check(prelude, prelude.rules[name], ins, f'{name} at width {w}')
++        name = rng.choice(['tape_tick', 'draw', 'birth'])
++        la, lb = rng.randint(2, 6), rng.randint(2, 6)
++        i, j = rng.randrange(la), rng.randrange(lb)
++        ins = [Form('CcnotTape', (Arr('Bit', [B(rng.randint(0, 1)) for _ in range(la)]),
++                                  Arr('Bit', [B(rng.randint(0, 1)) for _ in range(lb)]), Word(i, 'I64'), Word(j, 'I64')))
++               for _ in range(6)]
++        stats['tape rules'] += 1
++        check(prelude, prelude.rules[name], ins, f'{name} at {la} and {lb} cells, heads {i} and {j}')
++    return stats, findings
++
++
+ PARTS = [('arrows', arrows), ('delegation', delegation), ('rows', rows), ('between runs', between_runs),
+          ('operators', operators), ('any', any_type), ('refusal', refusals), ('seal', seal), ('witness', witness), ('depth', depth), ('structures', structures), ('decisions', decisions),
+          ('journal', journal), ('names', names), ('accounting', accounting), ('extent', extents), ('forms', forms), ('model', model),
+-         ('declared', declared), ('tape', tape)]
++         ('declared', declared), ('tape', tape), ('circuits', circuits)]
+ 
+ 
+ def guarded(part):
+diff --git a/tests/test_selvage.py b/tests/test_selvage.py
+index 46115f7..8521be1 100644
+--- a/tests/test_selvage.py
++++ b/tests/test_selvage.py
+@@ -2385,6 +2385,111 @@ class TestCcnotTape(unittest.TestCase):
+         self.assertIn('add a * b on Bit = ccnot', r.stdout)
+ 
+ 
++class TestReversibleProfile(unittest.TestCase):
++    """The reversible profile (IX.4), in part: certified rules over bits, their words laid out,
++    lowered to X, CNOT and CCNOT and checked by simulation against the interpreter.  The CCNOT tape
++    is the first program it is tried on, not its definition."""
++    from selvage import circuit as C
++
++    @staticmethod
++    def tape(la, lb, i, j, rng):
++        bits = lambda n: Arr('Bit', [W(rng.randint(0, 1), 'Bit') for _ in range(n)])   # noqa: E731
++        return F_('CcnotTape', (bits(la), bits(lb), W(i), W(j)))
++
++    def agree(self, m, r, inputs):
++        from selvage.interp import deep_copy
++        c = self.C.lower(m, r, (), inputs[0])
++        for x in inputs:
++            got = self.C.simulate(c, x)
++            self.assertEqual(got, Interp(m).forward(r, (), deep_copy(x)), r.name)
++            self.assertEqual(self.C.simulate_back(c, got), x, r.name)
++            self.assertEqual(self.C.simulate(self.C.lower(m, r.inverse, (), got), got), x, r.name)
++        return c
++
++    def test_the_tape_s_rules_lower_to_their_gates(self):
++        m, rng = load('')[0], random.Random(3)
++        for name, counts, ancillas in (('tape_tick', {'CCNOT': 2, 'CNOT': 0, 'X': 0}, 0),
++                                       ('draw', {'CCNOT': 2, 'CNOT': 1, 'X': 0}, 1),
++                                       ('birth', {'CCNOT': 42, 'CNOT': 21, 'X': 0}, 21)):
++            c = self.agree(m, m.rules[name], [self.tape(8, 13, 3, 7, rng) for _ in range(40)])
++            self.assertEqual(c.counts(), counts, name)
++            self.assertEqual(len(c.ancillas), ancillas, name)
++            # every ancilla becomes an output: a draw's bit, a child's cells; none is left over
++            self.assertEqual(set(c.ancillas) <= set(c.output_wires()), True, name)
++
++    def test_an_epoch_lowers_to_208_ccnots(self):
++        # the 104 ticks of one alignment of tapes of 8 and 13 cells, from heads 0 and 0
++        m = load('rule epoch takes CcnotTape returns CcnotTape\n    s <-> s where\n'
++                 '        repeat with k from 1 to 104\n            s is tape_tick(s)\n')[0]
++        x = self.tape(8, 13, 0, 0, random.Random(4))
++        c = self.agree(m, m.rules['epoch'], [x])
++        self.assertEqual(c.counts(), {'CCNOT': 208, 'CNOT': 0, 'X': 0})
++        it, y = Interp(m), x
++        from selvage.interp import deep_copy
++        y = deep_copy(x)
++        for _ in range(104):
++            y = it.forward(m.rules['tape_tick'], (), y)
++        self.assertEqual(self.C.simulate(c, x), y)
++        self.assertEqual((y.kids[2].v, y.kids[3].v), (0, 0))
++
++    def test_ancillas_come_back_clean_and_an_embedding_refuses_what_it_does_not_give(self):
++        m = load('rule borrow takes (Bit, Bit) returns (Bit, Bit)\n    (a, b) <-> (a, b) where\n'
++                 '        t is a\n        add t to b\n        t was a\n')[0]
++        ins = [(W(a, 'Bit'), W(b, 'Bit')) for a in (0, 1) for b in (0, 1)]
++        c = self.agree(m, m.rules['borrow'], ins)
++        self.assertEqual((c.counts(), len(c.ancillas), len(c.released)), ({'CCNOT': 0, 'CNOT': 3, 'X': 0}, 1, 1))
++        m = load('')[0]
++        x = self.tape(8, 13, 0, 0, random.Random(5))
++        c = self.C.lower(m, m.rules['draw'], (), x)
++        bit, t = self.C.simulate(c, x)
++        with self.assertRaises(self.C.Dirty):
++            self.C.simulate_back(c, (W(1 - bit.v, 'Bit'), t))
++
++    def test_the_profile_is_not_the_tape(self):
++        m = load(src('gates.selv').split('rule main')[0])[0]
++        bit = lambda v: W(v, 'Bit')                                   # noqa: E731
++        ins = [tuple(bit((v >> k) & 1) for k in range(4)) for v in range(16)]
++        adds = [(Arr('Bit', list(x)), Arr('Bit', list(y)), bit(cin)) for x in ins for y in ins for cin in (0, 1)]
++        c = self.agree(m, m.rules['ripple_add'], adds)                 # all 512 inputs at width 4
++        self.assertEqual(c.counts(), {'CCNOT': 8, 'CNOT': 16, 'X': 0})
++        pairs = [(bit(a), bit(b)) for a in (0, 1) for b in (0, 1)]
++        for name, counts in (('and_into', {'CCNOT': 1, 'CNOT': 0, 'X': 0}), ('or_into', {'CCNOT': 1, 'CNOT': 0, 'X': 5}),
++                             ('nand_into', {'CCNOT': 1, 'CNOT': 0, 'X': 1})):
++            self.assertEqual(self.agree(m, m.rules[name], pairs).counts(), counts, name)
++        m = load('rule h takes (Bit, Bit) returns (Bit, Bit)\n    (a, b) <-> (b, a) where\n        swap a and b\n')[0]
++        c = self.agree(m, m.rules['h'], pairs)
++        self.assertEqual((len(c.gates), c.relabels), (0, 1))          # a swap relabels wires
++
++    def test_what_the_profile_refuses(self):
++        bit = lambda v: W(v, 'Bit')                                   # noqa: E731
++        for text, rule, sample, params, reason in (
++                (src('orbit.selv'), 'orbit', F_('Phase', (W(1000), W(5))), (W(10), W(50)), 'no bit on a wire'),
++                (src('orbit.selv'), 'damped_orbit', F_('Phase', (W(1000), W(5))), (W(10), W(50)), 'not certified'),
++                (src('arrays.selv'), 'prefix_sum', Arr('U64', [W(1, 'U64')] * 4), (), 'no bit on a wire'),
++                ('rule f takes (Bit, Bit) returns (Bit, Bit)\n    (a, b) <-> (a, b) where\n        if a = 1\n            add 1 to b\n',
++                 'f', (bit(0), bit(0)), (), 'a condition reads a bit'),
++                ('rule g takes (Bit, I64) returns (Bit, I64)\n    (a, n) <-> (a, n) where\n        add I64(a) to n\n',
++                 'g', (bit(0), W(3)), (), 'compute a word from a bit'),
++                ('rule k takes (Bit, Bit) returns (Bit, Bit)\n    (0, b) <-> (0, b)\n    (1, b) <-> (1, b) where\n        add 1 to b\n',
++                 'k', (bit(0), bit(0)), (), 'a clause is chosen by a bit')):
++            m = load(text)[0]
++            with self.assertRaises(self.C.NotLowerable, msg=rule) as e:
++                self.C.lower(m, m.rules[rule], params, sample)
++            self.assertIn(reason, str(e.exception), rule)
++
++    def test_the_circuit_command(self):
++        path = os.path.join(tempfile.mkdtemp(), 'min.selv')
++        with open(path, 'w') as f:
++            f.write('rule main uses Output\n    output 1\n')
++        r = cli('circuit', path, 'draw', 'CcnotTape(array(Bit, 8), array(Bit, 13), 0, 0)')
++        self.assertEqual(r.returncode, 0, r.stderr)
++        self.assertIn('gates    2 CCNOT, 1 CNOT, 0 X', r.stdout)
++        self.assertIn('checked  the circuit gives what the interpreter gives; run backward, it gives the input back', r.stdout)
++        r = cli('circuit', os.path.join(EX, 'orbit.selv'), 'orbit', 'Phase(1000, 5)', '--params', '10, 50')
++        self.assertEqual(r.returncode, 1)
++        self.assertIn('not lowered: orbit has no bit on a wire', r.stdout)
++
++
+ class TestSealAndWitness(unittest.TestCase):
+     """P3: retention is sealed to Root, disclosure goes through Witness, and a host mediates."""
+ 
+@@ -2660,6 +2765,10 @@ class TestGenerated04(unittest.TestCase):
+         self.part('forms', 120, accepted=80, declarations=250, read_alike_by_a_rule_and_from_the_text=80, clauses_mirrored=150,
+                   constructors_taken_apart=400, uncomputes_that_read_themselves_refused=80)
+ 
++    def test_certified_rules_laid_out_as_gates_agree_with_the_interpreter(self):
++        self.part('circuits', 150, gate_rules=150, array_rules=150, tape_rules=150, runs=2500,
++                  inverses_laid_out=2000, refused_alike=50)
++
+     def test_the_ccnot_tape_agrees_with_a_model_of_wiring_1(self):
+         self.part('tape', 150, tapes=150, draws=2000, births=50, taken_back=2000, ticks_undone=150)
+ 
+diff --git a/tools/mutation_check.py b/tools/mutation_check.py
+index 42e0156..320ff33 100644
+--- a/tools/mutation_check.py
++++ b/tools/mutation_check.py
+@@ -133,6 +133,17 @@ MUTATIONS = [
+  # the inverter is the prelude's rule `mirror`: these break the rule itself
+  ('mirror: a lossy clause is mirrored as a certified one', 'prelude.selv',
+   "    LossyClause(left, right, steps) <-> LossyClause(right, left, spets) where", "    LossyClause(left, right, steps) <-> Clause(right, left, spets) where", 'arrows'),
++ ('circuit: a CNOT laid out with its control and target exchanged', 'circuit.py',
++  "                self.gate('CNOT', term[0].n, target.n)", "                self.gate('CNOT', target.n, term[0].n)", 'circuits'),
++ ('circuit: a copy shares its wire instead of copying it', 'circuit.py',
++  "            if v.n in live:\n                w = self.c.ancilla()", "            if False:\n                w = self.c.ancilla()", 'circuits'),
++ ('circuit: an uncompute lays out no gate', 'circuit.py',
++  "                if want.n != held.n:\n                    self.gate('CNOT', want.n, held.n)", "                if False:\n                    self.gate('CNOT', want.n, held.n)", 'circuits'),
++ ('circuit: a constant bit 0 counts as 1 in an update', 'circuit.py',
++  "            return [[]] if v.v & 1 else []", "            return [[]]", 'circuits'),
++ ('circuit: a loop laid out one pass short', 'circuit.py',
++  "            seq = range(a.v, b.v + 1) if tag == 'RepeatWith' else range(a.v, b.v - 1, -1)",
++  "            seq = range(a.v, b.v) if tag == 'RepeatWith' else range(a.v, b.v - 1, -1)", 'circuits'),
+  ('tape: one of the two CCNOTs is dropped', 'prelude.selv',
+   "        add a[i] * b[j] to b[(j + length(b) - 1) mod length(b)]\n", "", 'tape'),
+  ('tape: the CCNOT on tape a targets two cells ahead', 'prelude.selv',

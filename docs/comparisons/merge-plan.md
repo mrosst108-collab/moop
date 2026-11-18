@@ -83,7 +83,7 @@ because Selvage's own register already uses G1 to G11.
 | 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | **Complete** (2026-11-18): built and validated as `selvage-patches/0003` (rules version): suite 185/185, mutation check 145/145, 20 programs unchanged, moop's trace byte for byte in the interpreter and compiled, benchmarks unchanged (`selvage-patches/README.md`) |
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported. **Complete** (2026-11-18): built and validated as `selvage-patches/0004`: suite 187/187, mutation check 145/145, the domain a model claim with a proof, refusals outside it in both backends |
-| 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates |
+| 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates. **Built as `selvage-patches/0005`** (the profile in part); validation running |
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it |
 
 Phases 1 and 2 are independent of the tape and of each other, and are
@@ -219,6 +219,15 @@ is pure layout.
 *Done when* the epoch of the 8- and 13-cell tapes lowers to exactly 208
 CCNOTs (2 per tick, 104 ticks) and simulating that circuit equals 104
 interpreted ticks.
+
+*As built (0005):* the profile lowers certified rules whose bits are
+wires and whose words are layout, and checks every circuit against the
+interpreter by simulation. The epoch criterion holds: 208 CCNOTs, equal
+to 104 interpreted ticks. The heads are words, so no separate epoch form
+was needed; laying out ticks from known heads makes the indices layout.
+The tape is the first program, not the definition: the same lowering
+handles `ripple_add`, the gates of `examples/gates.selv` and generated
+gate rules, and it refuses, with reasons, rules outside it.
 
 ### Phase 7 — Quantum interface (Selvage)
 

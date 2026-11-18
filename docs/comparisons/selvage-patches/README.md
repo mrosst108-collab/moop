@@ -17,6 +17,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0002-a1-remove-repeat-while.patch` | Ruling A1 (`repeat while` removed). **Not adopted:** A1 is decided in favour of keeping `repeat while` (section 2). Apply on top of 0001 only if a later decision reverses that |
 | `0003-phase3-ccnot-tape.patch` | Phase 3: the CCNOT tape in Selvage's prelude (section 5). Apply on top of 0001; it does not need 0002 |
 | `0004-phase5-tape-domain.patch` | Phase 5: the tape's domain, each rule's extent on it, and the refusals outside it (section 6). Apply on top of 0003 |
+| `0005-phase6-reversible-profile.patch` | Phase 6: the reversible profile, in part (section 7). Apply on top of 0004 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -29,6 +30,10 @@ git apply 0003-phase3-ccnot-tape.patch
 
 ```bash
 git apply 0004-phase5-tape-domain.patch
+```
+
+```bash
+git apply 0005-phase6-reversible-profile.patch
 ```
 
 0002 (not adopted) was written against 0001 alone and no longer applies
@@ -390,3 +395,98 @@ for those 8 and the tape generator's test in `TestGenerated04`.
 | Benchmarks | 1.11 against C | Not re-run: 0004 changes no code and no benchmark source, so the compiled programs are built by the same toolchain from the same sources |
 | 0004 applied to a fresh archive after 0001 and 0003 | — | Applies; reproduces the tested tree exactly |
 | Tree identity | — | Work copy clean at `d31de45` and byte-identical to the archive with 0001, 0003 and 0004 applied, after every run |
+
+## 7. Phase 6 — the reversible profile, in part (0005)
+
+Phase 5 is complete (2026-11-18). 0005 builds part of the reversible
+realization profile, which Selvage's description specified and did not
+build (IX.4). The CCNOT tape is the first program tried on it, not its
+definition.
+
+### 7a. Implementation
+
+| Change | Files |
+|---|---|
+| The lowering: a certified clause rule laid out as X, CNOT and CCNOT. Bits are wires; words are layout, worked out with the interpreter's own arithmetic, so a circuit holds for every input with those words | `selvage/circuit.py` (new) |
+| Simulation: forward, and backward from an output. It is exact for these gates, which permute basis states. Every wire given back must be 0 where it is given back, and a backward run refuses an output the circuit does not give | `selvage/circuit.py` |
+| `selvage circuit FILE RULE INPUT [--params P] [--gates]`: the layout, gate counts and ancillas, checked against the interpreter on INPUT | `selvage/__main__.py` |
+| Named tests (`TestReversibleProfile`, 6) | `tests/test_selvage.py` |
+| A generator: gate rules over bits from the extent generator on every input, and the prelude's array rules and the tape's rules at random sizes, each checked forward, backward and against its derived inverse laid out on its own | `tests/generated_04.py` (`circuits`) |
+| Five mutations the generator must notice. 150 mutations | `tools/mutation_check.py` |
+
+Each new mutation was first run alone against the generator, and each is
+noticed (38 to 257 findings). The five break the lowering:
+- a CNOT with its control and target exchanged;
+- a copy sharing its wire instead of copying it;
+- an uncompute that lays out no gate;
+- a constant 0 counted as 1;
+- a loop laid out one pass short.
+
+What it lays out:
+- bit updates: `add x * y to z` (CCNOT), `add x to z` (CNOT), `add 1 to z` (X);
+- calls of `ccnot` and of its derived inverse, the same gate;
+- other certified rules, inlined;
+- copies into fresh names (a fresh wire and a CNOT);
+- fresh bit arrays;
+- swaps (relabelled wires);
+- loops and conditions on words;
+- uncomputes, whose wire is given back at 0.
+
+What it refuses, with the reason:
+- a rule that is not certified;
+- a rule with no bit on a wire, such as `orbit` and `prefix_sum`;
+- a word computed from a bit;
+- a condition, an index or a clause choice that reads a bit;
+- messages, decisions and other steps.
+
+### 7b. The obligations, one by one
+
+| Obligation | What shows it |
+|---|---|
+| Lowering `tape_tick` | 2 CCNOT, no ancillas, at every size laid out |
+| Lowering `draw` and `birth` | `draw`: 2 CCNOT and 1 CNOT, 1 ancilla becoming the bit drawn. `birth`, tapes of m and n cells: 2(m + n) CCNOT and m + n CNOT, m + n ancillas becoming the child's cells |
+| State and output correspondence with the interpreter | The three rules on 40 random tapes each; one alignment (104 ticks of 8 and 13 cells) as **208 CCNOT**, equal to 104 interpreted ticks with the heads back at 0 and 0; the generator at random sizes and heads |
+| Inverse correctness | Every circuit run backward gives its input back, and each derived inverse, laid out on its own, gives it back too. Run backward from an output it does not give, the draw's circuit refuses it, as `undo` does |
+| Ancilla cleanup | Every wire given back is checked to be 0 where it is given back, and no wire may be left neither output nor given back. A copy, used and uncomputed, leaves no garbage |
+| Gate counts, apart from CPU timings | The table below, counted from the circuits; no timing is claimed for a circuit |
+| Eligibility against availability | A rule the profile lays out is eligible to be realized as a reversible oracle. Nothing runs on reversible or quantum hardware, and no backend for it exists |
+
+| Rule | Gates, counted | Ancillas |
+|---|---|---|
+| `tape_tick` | 2 CCNOT | none |
+| `draw` | 2 CCNOT, 1 CNOT | 1, the bit drawn |
+| `birth`, tapes of m and n cells | 2(m + n) CCNOT, m + n CNOT | m + n, the child's cells |
+| One alignment of 8 and 13 cells from heads 0 | 208 CCNOT | none |
+| `ripple_add` at width w (laid out at w = 1 to 8) | 2w CCNOT, 4w CNOT | none |
+| `and_into`; `or_into`; `nand_into` | 1 CCNOT; 1 CCNOT and 5 X; 1 CCNOT and 1 X | 1 each, the result |
+
+**Not tape-specific.** `ripple_add` at width 4 agrees with the
+interpreter on all 512 inputs, and generated gate rules are checked on
+every input. A certified rule is not thereby lowerable: the refusals
+above are certified rules.
+
+**What is not built:**
+- conditions and clause choices on bits (controlled blocks);
+- word arithmetic as adder circuits;
+- extending a partial bijection to a permutation (IX.4);
+- a backend that runs the circuits.
+
+### 7c. Specification
+
+- **IX.4:** a "What is built of the reversible profile" paragraph, the gate-count table, and the Reversible row marked Partial.
+- **IX.1, I.0, I.3:** the profile marked Partial.
+- **VI.6:** a Gates entry for the tape.
+- **XI.2:** the circuits generator's row, and 150 mutations.
+- **XI.4:** suite 194, and the `TestReversibleProfile` row.
+- **XII.4:** a Built entry, and backlog item 9 noting what remains.
+- **README:** the profile, `selvage circuit`, and 150 mutations.
+
+### 7d. Verification
+
+| Check | 0001 + 0003 + 0004 | + 0005 |
+|---|---|---|
+| Full suite (all tests) | 187 / 187 | Running; not yet recorded |
+| Mutation check | 145 / 145 | Running; not yet recorded |
+| Description check | Pass | Pass |
+| Benchmarks | 1.11 against C | The C emitted for all seven benchmarks is byte-identical with and without 0005, and the runtime header is unchanged, so the compiled programs, and so the timings, are those of 0003 |
+| 0005 applied to a fresh archive after 0001, 0003 and 0004 | — | Applies; reproduces the tested tree exactly |
