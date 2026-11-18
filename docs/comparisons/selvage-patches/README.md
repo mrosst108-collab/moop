@@ -21,6 +21,7 @@ none concerns the CCNOT tape, its wiring or its tape step.
 | `0006-phase7-measure.patch` | Phase 7: the request group `Measure`, declared and answered by nothing (section 8). Apply on top of 0005 |
 | `0007-phase7-rulings.patch` | The rulings on N1 to N3 entered in Selvage's description; no code or tests (section 8f). Apply on top of 0006 |
 | `0008-ratify-c-and-n.patch` | C1 to C5 and N1 to N3 ratified: moved from XII.6 to XII.1; a status change, no code or tests (section 9). Apply on top of 0007 |
+| `0009-version-0.5.0.patch` | Selvage 0.5.0: the version, in the declarations that state the current one (section 11). Apply on top of 0008 |
 | `a1-evidence/` | The five programs behind the A1 measurements (iteration only) |
 
 ```bash
@@ -49,6 +50,10 @@ git apply 0007-phase7-rulings.patch
 
 ```bash
 git apply 0008-ratify-c-and-n.patch
+```
+
+```bash
+git apply 0009-version-0.5.0.patch
 ```
 
 0002 (not adopted) was written against 0001 alone and no longer applies
@@ -710,5 +715,46 @@ Not touched:
 | Phase 4 | Not needed for the tape (G7) |
 | Further quantum work | Gated by actual quantum-state and backend support, not by the `Measure` request |
 | The merge plan | Complete, 2026-11-18 |
-| Applying the patches to Selvage | The maintainer's. `0001` and `0003` to `0008`, in order, on the 0.4.9 archive. No Selvage repository was reachable from these sessions, so none has been applied |
-| Selvage's version number | The maintainer's; 0.4.9 throughout the patches |
+| Applying the patches to Selvage | Integrated as a release tree, Selvage 0.5.0 (section 11). No Selvage repository is reachable from these sessions, so getting it into one is the maintainer's |
+| Selvage's version number | 0.5.0, as the maintainer recommended (section 11) |
+
+## 11. Integration: Selvage 0.5.0
+
+**Recommended by the maintainer, 2026-11-18:** Selvage 0.5.0, a minor
+version, because the merge brings substantial language and prelude
+changes. The patches keep their 0.4.9 baseline. The version is set once,
+in the integrated tree, by a patch of its own.
+
+**Patch 0009** changes only the declarations of the current version:
+- `__version__` in `selvage/__init__.py`, which `selvage --version`
+  prints;
+- the README's "This toolchain is …";
+- SPEC.md's heading line; I.0 ("what toolchain … implements"); I.1 ("the
+  toolchain is at …"); XI.4 (the suite); and the column of XII.2 that
+  gives the current toolchain's treatment of deprecated forms;
+- XII.4's "Built after 0.4.9 (the version number is the maintainer's to
+  set)", which becomes "Built in toolchain 0.5.0";
+- XII.3, which gains a "With toolchain 0.5.0" table of the sections the
+  merge changed.
+
+What 0009 leaves alone:
+- every historical mention, such as "Built in toolchain 0.4.9" or
+  "0.4.9 and earlier" in the defect table;
+- the specification's own number ("Specification 0.4"), which is a
+  separate number and the maintainer's.
+
+**The order, 0002 excluded:**
+
+```
+0001 → 0003 → 0004 → 0005 → 0006 → 0007 → 0008 → 0009
+```
+
+| Check | Result |
+|---|---|
+| The eight patches on a fresh extraction of the 0.4.9 archive | Apply cleanly; the tree is byte-identical to the work copy at `3be2404` |
+| `selvage --version` | `selvage 0.5.0` |
+| Description check | Pass: 14 blocks check, 1 inverse, 6 prelude, 1 refused |
+| Emitted C for the seven benchmarks | Identical between 0008 and 0.5.0, and between 0003, where the timings were measured, and 0.5.0. The runtime header is identical too |
+| Benchmarks, measured again on the integrated tree | Running; not yet recorded |
+| Full suite | Running; not yet recorded |
+| Mutation check | Running; not yet recorded |

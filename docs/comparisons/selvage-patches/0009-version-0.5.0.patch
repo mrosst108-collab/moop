@@ -1,0 +1,104 @@
+diff --git a/README.md b/README.md
+index 9a656e4..734f483 100644
+--- a/README.md
++++ b/README.md
+@@ -24,7 +24,7 @@ A minimal language in which every rule reads both ways, every loss is said aloud
+ - **Measurement, declared and unanswered.** The prelude declares the request `measure`, and nothing answers it: `ask measure()` is refused with status 70 until a quantum profile installs an answer. There are no quantum types (SPEC.md VII.4).
+ - **Two backends.** Programs run in a reversible interpreter, or compile to C23 with no undefined behaviour. On seven benchmarks the C23 output runs within 12% of handwritten C23 and 6% of Rust in the geometric mean (`bench/results.md`), and about 580× faster than Io.
+ 
+-The language description is [SPEC.md](SPEC.md), specification 0.4. This toolchain is 0.4.9 and reads its notation. Part XII of the description lists what is ratified and not yet built.
++The language description is [SPEC.md](SPEC.md), specification 0.4. This toolchain is 0.5.0 and reads its notation. Part XII of the description lists what is ratified and not yet built.
+ 
+ ## Quick start
+ 
+diff --git a/SPEC.md b/SPEC.md
+index 68df53c..3a195b1 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -2,7 +2,7 @@
+ 
+ **A minimal systems language in which transformations are explicit, reversible rules are certified, information loss is declared and accounted for, and undecided questions are routed through requests.**
+ 
+-*Specification 0.4 · toolchain 0.4.9 · working name*
++*Specification 0.4 · toolchain 0.5.0 · working name*
+ 
+ Selvage has three semantic mechanisms:
+ - **Form** represents values, structures, code and state.
+@@ -33,7 +33,7 @@ Selvage draws on Quorum-like readable syntax, Io's live object model and metapro
+ 
+ ### I.0 Reading this description
+ 
+-This description states design rules, reports what toolchain 0.4.9 implements, and records the evidence for each claim. The three are kept apart throughout.
++This description states design rules, reports what toolchain 0.5.0 implements, and records the evidence for each claim. The three are kept apart throughout.
+ - Parts II to VIII describe the language: its mechanisms, types, transformations, interactions, reversibility and code representation.
+ - Parts IX and X describe backends, realization profiles and the RME-7 library direction.
+ - Part XI reports tests, measurements and the stated soundness proof. Tests are evidence about the cases run; they are not proofs.
+@@ -75,7 +75,7 @@ The fields answer five separate questions, and no answer implies another:
+ | Proven: is there a stated proof? | Evidence says "proof". One theorem is proved: soundness, for the model of XI.3 |
+ | Deferred: deliberately not yet implemented? | Implementation is Deferred |
+ 
+-The toolchain is at 0.4.9 and reads the notation of this description. Its suite has 199 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
++The toolchain is at 0.5.0 and reads the notation of this description. Its suite has 199 tests (XI.4). An entry is marked Built only where the toolchain does what the entry says, and its evidence cell says what shows it. A ratified entry that is not built stays Specified, and XII.4 lists those in the order they are to be built.
+ 
+ ### I.2 Hard constraints
+ 
+@@ -1976,7 +1976,7 @@ An entry names a clause by the identity of its code (VII.3); who it was kept by
+ 
+ ### XI.4 The suite
+ 
+-Toolchain 0.4.9, with the corrections listed under XII.4, passes 199 tests. Every test source is in the notation of this description.
++Toolchain 0.5.0 passes 199 tests. Every test source is in the notation of this description.
+ 
+ | Test class | Tests | Covers |
+ |---|---:|---|
+@@ -2202,7 +2202,7 @@ Deferred by ruling:
+ 
+ Deprecated forms are listed here and nowhere else in this description.
+ 
+-| Deprecated form | Replaced by | In toolchain 0.4.9 |
++| Deprecated form | Replaced by | In toolchain 0.5.0 |
+ |---|---|---|
+ | `<->` on every clause, lossy ones included | `<->` certified only; `=>` for lossy clauses (R1) | Refused |
+ | `uses Discard` declaring loss | The `=>` arrow (R1) | Refused |
+@@ -2411,6 +2411,19 @@ With toolchain 0.4.8:
+ | XI.2, XI.4 | The forms generator; 120 mutations; the suite of 164 tests |
+ | XII.1, XII.2, XII.6 | L1 to L6 and the differentiation variable entered as rulings; what they replace; the decisions taken while building K4 |
+ 
++With toolchain 0.5.0:
++
++| Where | Change |
++|---|---|
++| III.1, IV | A text holds no NUL byte, refused alike by `check`, `run` and `build`; `Bit` described as the 1-bit unsigned word (A3) |
++| V.2 | The extent of each answer rule reported under the answer |
++| XII.2 | `repeat n times` deprecated (A2), replaced by `repeat with` |
++| VI.6 | The CCNOT tape in the prelude, pinned to moop's trace; its domain stated, with each rule's extent and the refusals outside it |
++| VII.4 | The request group `Measure`, declared and answered by nothing |
++| IX.4 | The reversible profile, in part, with `selvage circuit`; the two limits a quantum profile must state |
++| XI.2, XI.4 | The tape, circuits and measure generators; 153 mutations; the suite of 199 tests |
++| XII.1, XII.6 | C1 to C5 and N1 to N3 ratified and moved to XII.1; the decisions taken in building the merge |
++
+ ### XII.4 Implementation backlog
+ 
+ Built in toolchain 0.4.0, the first group the rulings set:
+@@ -2457,7 +2470,7 @@ Built in toolchain 0.4.9, a release of corrections:
+ - **A value taken back typed** as it was discarded, so that lossy rules which change or copy an input before discarding it compile.
+ - **The declared-types generator** (XI.2), and a regression test for each correction.
+ 
+-Built after 0.4.9, as corrections and the audit rulings (the version number is the maintainer's to set):
++Built in toolchain 0.5.0: corrections, the audit rulings, and the merge with moop's CCNOT tape:
+ - **A copied instance shares nothing.** A copy of an answer instance, directly or inside a record or tuple, copies its state, so a message to one copy leaves the others as they were (III.2).
+ - **A text holds no NUL byte** (III.1, IV): a literal with one is refused alike by `check`, `run` and `build`, where 0.4.9 printed it in the interpreter and an empty line compiled.
+ - **The extent of each answer rule** (V.2), reported under the answer, and checked on every generated rule hosted by an answer.
+diff --git a/selvage/__init__.py b/selvage/__init__.py
+index a6d5d70..f5e0cf2 100644
+--- a/selvage/__init__.py
++++ b/selvage/__init__.py
+@@ -5,7 +5,7 @@ from .parser import parse
+ from .checker import build_model, CheckError
+ from .forms import Fault
+ 
+-__version__ = '0.4.9'
++__version__ = '0.5.0'
+ PRELUDE_PATH = os.path.join(os.path.dirname(__file__), 'prelude.selv')
+ 
+ 
