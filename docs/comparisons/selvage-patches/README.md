@@ -268,15 +268,15 @@ language change and is left as a separate, optional question.
 | Full suite | 178 / 178 pass | 185 / 185 pass (243 s), none skipped |
 | Description check | Pass | Pass; the VI.6 block is the prelude's text |
 | Moop's regenerated trace | — | Byte for byte, interpreter and compiled; Selvage's copy is moop's file |
-| Mutation check | 140 / 140 noticed | Running; not yet recorded |
+| Mutation check | 140 / 140 noticed | 145 / 145 noticed (40 min); the five tape mutations each by a mismatch with the model (148 to 409 findings) |
 | Examples and test programs: output against 0001 | — | All 11 examples and 9 programs identical |
 | Benchmarks against 0001 | — | Not yet run: after the mutation check, on an idle machine |
 | 0003 applied to a fresh archive after 0001 | — | Applies; reproduces the tested tree exactly |
 
 **Which tree.** The suite and the mutation check run in a work copy at
 commit `87eaabc`, checked clean and byte-identical to the 0.4.9 archive
-with 0001 and 0003 applied, before the runs; the check is repeated after
-them. The example comparison and the benchmarks run on that
+with 0001 and 0003 applied, before the runs and again after them
+(unchanged). The example comparison and the benchmarks run on that
 reconstructed tree itself.
 
 The first, answer version of 0003 passed its suite (184 / 184) and left
