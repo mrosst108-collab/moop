@@ -704,9 +704,11 @@ Not touched:
 | C1 to C5 (the merge plan's G3 to G7) | Ratified (XII.1), 2026-11-18 |
 | N1 to N3 | Ratified (XII.1), 2026-11-18; N2 with its qualification |
 | A1 | `repeat while` retained; `0002` not adopted |
-| Phases 0, 3, 5 and 6 | Complete |
+| Phases 0, 1, 2, 3, 5 and 6 | Complete. Phase 2 as ruled: A2 and A3 built, A1 retained |
 | Phase 7 | Complete. `0007`, a description-only follow-up, validated: 199 / 199 |
 | `0008` | The ratification, description only, validated: 199 / 199 |
 | Phase 4 | Not needed for the tape (G7) |
-| Phases 1 and 2 | Built as `0001`; A1 as above |
 | Further quantum work | Gated by actual quantum-state and backend support, not by the `Measure` request |
+| The merge plan | Complete, 2026-11-18 |
+| Applying the patches to Selvage | The maintainer's. `0001` and `0003` to `0008`, in order, on the 0.4.9 archive. No Selvage repository was reachable from these sessions, so none has been applied |
+| Selvage's version number | The maintainer's; 0.4.9 throughout the patches |

@@ -80,16 +80,20 @@ ratified on 2026-11-18 and moved into Selvage's register of rulings
 | Phase | Repository | Depends on | Outcome |
 |---|---|---|---|
 | 0. Pin the reference | moop | G1, G2 | **Done:** moop's tape is tested against the shared trace |
-| 1. Clear known defects | Selvage | — | **Built as a patch** (`selvage-patches/0001`): both defects fixed; answers report an extent; suite green under Clang 18 |
-| 2. Build the audit rulings | Selvage | — | **A2 and A3 built** (`0001`, 38 keywords). **A1 decided: retain `repeat while`** (2026-11-17); `0002` stays unadopted pending an explicit decision that the grammar reduction outweighs the lost iteration capability (`selvage-patches/README.md`). A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
+| 1. Clear known defects | Selvage | — | **Complete** (2026-11-18): built and validated as `selvage-patches/0001`. Both defects are fixed, with regression tests in both backends; answers report an extent; the mutation count is reconciled. Suite 178/178 and mutation check 140/140 under Clang 18. Every later patch applies on top of 0001, and the last validation of the whole stack passed 199/199 |
+| 2. Build the audit rulings | Selvage | — | **Complete** (2026-11-18), as ruled: A2 and A3 built in `0001` (38 keywords). **A1 decided: retain `repeat while`** (2026-11-17), so `0002` is not adopted, and the phase's original criterion of 37 keywords gives way to that ruling. A1 is about ordinary iteration and does not touch the CCNOT tape or its trace |
 | 3. Admit the tape | Selvage | 0, 1 (the instance-copy fix), G3–G7 (decided); against wiring 1 | **Complete** (2026-11-18): built and validated as `selvage-patches/0003` (rules version): suite 185/185, mutation check 145/145, 20 programs unchanged, moop's trace byte for byte in the interpreter and compiled, benchmarks unchanged (`selvage-patches/README.md`) |
 | 4. Compile answers | Selvage | 3 | **Not needed for the tape** after G7: `draw` and `birth` are rules, which compile; compiled code prints moop's trace (verified). Answers in C remain backlog item 5 for other reasons |
 | 5. State the domain | Selvage | 1, 3 | The tape's valid inputs and extent are written down and reported. **Complete** (2026-11-18): built and validated as `selvage-patches/0004`: suite 187/187, mutation check 145/145, the domain a model claim with a proof, refusals outside it in both backends |
 | 6. Reversible profile | Selvage | 3 | The tape is the first program lowered to gates. **Complete** (2026-11-18): built and validated as `selvage-patches/0005` (the profile in part): suite 194/194, mutation check 150/150, the epoch 208 CCNOT against 104 interpreted ticks, benchmarks' emitted C unchanged |
 | 7. Quantum interface | Selvage | 3 | A `measure` request that refuses until a profile answers it. **Complete** (2026-11-18): built and validated as `selvage-patches/0006`, the `Measure` group in the prelude, answered by nothing: suite 199/199, mutation check 153/153, benchmarks' emitted C unchanged. N1 to N3 adopted, N2 with a qualification; the rulings are entered in Selvage's description by `0007` (description only) |
 
-Phases 1 and 2 are independent of the tape and of each other, and are
-built (`selvage-patches/`). Phase 0 is done. Birth is decided
+**The plan is complete (2026-11-18).** Every phase is complete, apart
+from Phase 4, which turned out not to be needed for the tape. What
+remains is outside this repository (*Status*, at the end).
+
+Phases 1 and 2 are independent of the tape and of each other. Phase 0 is
+done. Birth is decided
 (`docs/model.md`): it promises valid reversible initialization, not
 diversity, so wiring 1 stays and Phase 3 does not wait on a wiring 2.
 Diversity remains a separate design objective; if a wiring 2 is ever
@@ -136,6 +140,11 @@ Rulings A1 to A3: delete `repeat while` and `repeat N times`; ratify
 *Done when* the keyword count is 37, `RepeatWhile`, `RepeatTimes` and
 the `RepeatTimes` clause of `mirror` are gone, and the collatz and sieve
 benchmarks, rewritten as self tail calls, are no slower.
+
+*As ruled:* A1 retained `repeat while` (2026-11-17), so the parts of this
+criterion that remove it do not apply. The phase is complete with A2 and
+A3: `repeat n times` and its `Code` constructor and `mirror` clause are
+gone, `Bit` is ratified as the 1-bit word, and there are 38 keywords.
 
 ### Phase 3 — Admit the tape (Selvage, interpreter)
 
@@ -300,7 +309,7 @@ randomness stays a library rule of the Feistel kind.
 
 | | Before | After audit | After merge |
 |---|---|---|---|
-| Keywords | 39 | 37 | 37 |
+| Keywords | 39 | 38 (A1 retained `repeat while`) | 38 |
 | Mechanisms | 3 | 3 | 3 |
 | Checking rules | 8 | 8 | 8 |
 | Arrows | 4 | 4 | 4 |
@@ -324,3 +333,24 @@ Only Phase 0, now done: one test, one moved file, and a section in
 `docs/model.md`. moop's language, its two-layer rule and its open
 questions are untouched by this plan. Everything that remains happens in
 Selvage.
+
+## Status: complete (2026-11-18)
+
+| | |
+|---|---|
+| Phases 0, 1, 2, 3, 5, 6 and 7 | Complete |
+| Phase 4 | Not needed for the tape (G7) |
+| Rulings | G1 to G7 decided; in Selvage's register, C1 to C5 and N1 to N3 ratified (XII.1); A1 retains `repeat while`, so `0002` is not adopted |
+
+**Outside this repository, and the maintainer's:**
+- **Applying the patches to Selvage.** Patches `0001` and `0003` to
+  `0008` (`selvage-patches/`, with instructions in its README) apply in
+  order to the 0.4.9 release archive, and reproduce the validated tree
+  byte for byte. No Selvage repository was reachable from the sessions
+  that built them, so none has been applied anywhere.
+- **Selvage's version number.** It is 0.4.9 throughout the patches.
+
+**Permanent, on moop's side.** Wiring 1 stays frozen, and both languages
+reproduce `tests/tape_vectors.txt` byte for byte. A change of wiring is
+a new numbered wiring with a new trace, which Selvage would then rule
+on (G2).
