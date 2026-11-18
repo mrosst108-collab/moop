@@ -27,6 +27,7 @@ typedef struct {
 
 static void report(Reader *r, unsigned long line, const char *msg)
 {
+    fflush(stdout); /* what was printed before the error comes before it */
     if (r->name != NULL)
         fprintf(stderr, "%s:%lu: error: %s\n", r->name, line, msg);
     else
@@ -65,6 +66,7 @@ static LineStatus read_line(Reader *r, const char *prompt,
             too_long = true;
     }
     if (c == EOF && ferror(r->in)) {
+        fflush(stdout);
         if (r->name != NULL)
             fprintf(stderr, "error: cannot read %s: %s\n", r->name,
                     strerror(errno));

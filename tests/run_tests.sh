@@ -84,6 +84,8 @@ check "a file prints no banner and no prompt" "0" "$("$BIN" $P/pets.moop 2>&1 | 
 # a file stops at its first error, names the line, and exits 1
 check "an error names the file and the line" "$P/stops.moop:3: error: unknown name 'ghost'" "$("$BIN" $P/stops.moop 2>&1 >/dev/null)"
 check "nothing runs after the first error" "1" "$("$BIN" $P/stops.moop 2>/dev/null)"
+check "what was printed before an error comes before it" "1
+$P/stops.moop:3: error: unknown name 'ghost'" "$("$BIN" $P/stops.moop 2>&1)"
 check "a file with an error exits 1" "1" "$("$BIN" $P/stops.moop >/dev/null 2>&1 && echo 0 || echo $?)"
 check "an error inside a block names the body line" "$P/block_error.moop:4: error: unknown name 'ghost'" "$("$BIN" $P/block_error.moop 2>&1)"
 check "an indented line under no open block is refused" "$P/gap.moop:5: error: an indented line belongs to a block, and none is open" "$("$BIN" $P/gap.moop 2>&1)"
