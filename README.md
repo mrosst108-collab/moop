@@ -22,17 +22,26 @@ both loops, so there is no designated program tape — code rewrites code —
 while every tick remains exactly invertible. The system is causally closed:
 running any state backward recovers the program that produced it.
 
-The loops auto-prune: cells that stay causally unrelated to the rest of the
+The loops can prune: cells that stay causally unrelated to the rest of the
 state through a full alignment cycle are discarded at the epoch boundary —
 the machine's single, explicit act of forgetting.
+
+**These are properties of the core, shown by its C tests.** A moop
+program reaches the core through four things only: births, `maybe`,
+`value` and `mirrors`. In 0.10.0 it cannot run a body backward, and no
+body is pruned during a session. The core is also one fixed circuit
+applied again and again: CCNOT is a universal gate, but it has not been
+shown that this machine can be programmed.
+[docs/model.md](docs/model.md) says what the core is and what a program
+reaches.
 
 Around that core sit two segregated memory systems with matching operator
 layers: gate-based system memory driven by reversible operators (NOT, CNOT,
 CCNOT, SWAP), and conventional user-facing RAM driven by irreversible ones
 (AND, OR, NAND, NOR, XOR, MAYBE). MAYBE is the one bridge between the
-layers: an unpredictable-looking but replayable truth value drawn from the
-reversible core. See [docs/model.md](docs/model.md) for the wiring and open
-design questions.
+layers: a deterministic, replayable observation of the reversible core,
+and not a source of randomness. See [docs/model.md](docs/model.md) for
+the wiring and open design questions.
 
 **The language, described:** [docs/language.md](docs/language.md), a
 single readable description of moop 0.10.0, whose examples all run as

@@ -3,8 +3,11 @@
 The central primitive of moop is a single **CCNOT (Toffoli) gate** connected
 to two **counter-rotating circular Turing tapes** ("loops").
 
-- CCNOT — `target ^= (control1 AND control2)` — is reversible and universal
-  for classical computation.
+- CCNOT — `target ^= (control1 AND control2)` — is reversible, and as a
+  gate it is universal for classical computation: any Boolean function
+  is some circuit of CCNOTs, freely wired, with constant inputs. That is
+  a property of the gate, not of this machine, which wires one gate in
+  one fixed way (see "What the core is, and what a program reaches").
 - Tape rotation is a permutation of cell positions.
 
 Because every tick is a reversible gate followed by a permutation, the whole
@@ -20,7 +23,7 @@ Implemented in `src/tapeloop.{h,c}`:
 - Gate targets, symmetric: the shared controls drive two CCNOTs, one on the
   *next* cell of each loop (the one about to rotate under the gate). Each
   tick's outputs become controls on later ticks — that feedback is what
-  makes the core compute rather than merely permute.
+  makes the tapes' contents change one another, and not merely rotate.
 - The two CCNOTs share controls and write distinct targets, so they commute
   and the pair is self-inverse: reversibility survives the double write.
 - Each loop must have at least 2 cells, or its target would alias a control
@@ -105,10 +108,18 @@ Neither property alone yields any of this: reversibility with an external
 program keeps the *system* irreversible; homoiconicity without
 reversibility is self-modification with amnesia.
 
+**These are properties of the substrate.** "The program" here is the
+tapes' own contents, and the benefits listed are what the substrate
+makes possible. How much of this a moop program can reach today is a
+separate matter, set out in "What the core is, and what a program
+reaches".
+
 ## Causal pruning
 
-The loops auto-prune: information not causally related to the current state
-is discarded.
+The loops can prune: information not causally related to the current state
+is discarded. `moop_core_run()` does it automatically at each epoch
+boundary. The interpreter does not use it yet, so no body is pruned
+during a session (see "What the core is, and what a program reaches").
 
 - **Causal web.** Each cell carries a mark. A cell is marked the first time
   it participates in a *firing* — a tick where both controls are set, so
@@ -227,6 +238,74 @@ So the full object ladder is: actor (non-hereditary) → system root proto
 (delegation root, generative factory) → user root protos (roots of user
 delegation trees) → protos all the way down.
 
+## What the core is, and what a program reaches
+
+The sections above describe the substrate. This one says how much of it
+a moop program can use in 0.10.0, so that a property of the machine is
+not read as a feature of the language. Each statement was checked
+against the interpreter on 2026-11-24.
+
+**The core is one fixed circuit, applied again and again.** A tick fires
+two CCNOTs at positions the rotation fixes in advance, whatever the
+tapes hold. On the interpreter's 8/13-cell bodies an epoch is therefore
+one fixed circuit of 208 CCNOTs over 21 cells, and a run repeats it. A
+body has finitely many states and a tick permutes them, so every state
+lies on a cycle (the periods are measured below). The gate's
+universality does not carry over to this machine: it has not been shown
+that tape contents can be chosen so that running the tape computes a
+chosen function. `docs/comparisons/merge.md` found the same ("one fixed
+permutation; universality unshown").
+
+**"The program" is the tapes' own contents.** The program that running
+backward recovers is the earlier contents of the two loops: the system
+layer's code. It is not a moop program. What a user teaches is a chain
+kept in user memory (homoiconicity is layered: `docs/syntax.md`). It is
+replaced when the message is taught again, and nothing runs it backward.
+
+**What a session uses.** The interpreter calls two of the core's six
+functions: `moop_core_init`, when a body is made, and `moop_core_step`,
+only through `moop_maybe`. Four things in the language touch a body:
+
+| In the language | What it does to a body | Ticks |
+|---|---|---|
+| A birth (`a`, `an`) | Draws the child's cells one at a time from the parent's body: 8 for loop A, then 13 for loop B | 21, of the parent |
+| `ask maybe` | One tick, then an observation of the cell under loop A's head | 1 |
+| `ask value` | Reads loop A | 0 |
+| `mirrors` | NOT gates for a deposit, SWAP gates for an exchange | 0 |
+
+Only births and `maybe` use the dynamics. `value` and `mirrors` do not
+advance the core: they read, flip or exchange the eight cells of loop A
+where they lie.
+
+**What a session does not use.** The interpreter calls none of
+`moop_core_step_back`, `moop_core_prune`, `moop_core_run` and
+`moop_core_epoch`; `tests/test_core.c` exercises them. So in 0.10.0:
+
+- **No moop program can run a body backward.** The round trip, the
+  birth undone in the trace and "undo the reversible steps and the
+  actor's whole state returns" are facts about the C functions, shown by
+  the C tests.
+- **No body is pruned during a session.** A body advances one
+  `moop_core_step` at a time, and nothing calls a prune. Causal marks
+  are set, by firings and by deposits, and never used.
+- **Provenance, time-travel debugging and pruning as garbage collection
+  are what the substrate makes possible.** None is yet something a
+  program can do.
+
+**Where a program does reach them: Selvage.** There the tape's rules are
+certified, so a program takes a tick, a draw or a birth back with
+`undo`. The shared conformance program ends by taking a birth back
+(`related/selvage/tests/programs/ccnot_tape.selv`), and Selvage's suite
+checks it (`TestCcnotTape.test_draws_and_births_are_taken_back`). That
+is Selvage's own inversion, applied to its copy of the tape, which the
+shared trace holds to this one.
+
+**What a draw can be used for.** A draw is a truth value. A program can
+print it, name it, compare it with `equals` and combine it with the
+logic words. Nothing in 0.10.0 chooses what runs next from a truth
+value, so a draw cannot steer a program. With the measurements below,
+that bounds what `maybe` is for today.
+
 ## Wiring 1's draws, measured
 
 Measured on the interpreter's 8/13-cell bodies with
@@ -325,6 +404,18 @@ homoiconicity; it bounds what draws may be used for.
 - Whether one gate suffices in practice or the core grows a ring of gates.
 - How programs are encoded onto the loops, and how the surface language
   (natural, Quorum-like syntax) compiles down to initial tape states.
+  Narrowed since by the layering decision (`docs/syntax.md`): nothing
+  user-facing lives on the tapes, so the surface language does not
+  compile to tape states. What remains open is whether the tapes can be
+  programmed at all (above).
+- Whether a session should prune its bodies, and whether a program
+  should be able to run a body backward. Neither happens in 0.10.0
+  (above). A prune would be visible to a program, since it clears the
+  unmarked cells of loop A, which `value` reads. Measured on the
+  interpreter's world (`docs/comparisons/experiments/prune_visible.c`):
+  a birth marks none of the child's cells, so a body pruned straight
+  after its birth reads 0 where it read 52; the world's first child,
+  after 300 draws, loses nothing to the same prune.
 - MAYBE's final semantics: nullary oracle draw (current design), or a binary
   operator (`a maybe b`) choosing between its operands.
 - How user RAM and the surface language exchange values with the system

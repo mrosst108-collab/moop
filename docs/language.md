@@ -272,11 +272,16 @@ Every proto's body is a small reversible machine: two circular tapes of
 bits turning in opposite directions, joined by a CCNOT (Toffoli) gate
 that fires into both.
 
-- **Every step runs backward exactly.** Both tapes stay writable, so
-  code and data share one substrate. Run backward, a state yields the
-  program that produced it.
+- **Every step runs backward exactly.** Both tapes stay writable, so on
+  the tapes code and data are the same cells. Run backward, a state
+  yields the states that led to it.
 - **One sanctioned way to forget.** Causal pruning clears only cells
   whose values provably affect nothing else.
+- **What a program reaches of this.** These are properties of the
+  machine, shown by its C tests. A program reaches the machine through
+  births, `ask maybe`, `ask value` and `mirrors`, and through nothing
+  else. In 0.10.0 a program cannot run a body backward, and no body is
+  pruned while a program runs (`model.md`).
 - **Two memories, two logics.**
   - Gates act on the tapes; ordinary logic acts on values in memory.
   - They meet in one shape only: a reversible effect inside, an
@@ -321,5 +326,7 @@ a reason.
 | Certified inverses: `world celsius mirrors fahrenheit` | Ratified (F11 to F14, U2); not yet built |
 | Text values | Deferred, and so is its syntax |
 | Reflection: reading a taught body back as a value | Deferred |
+| Running a body backward, and pruning a body | The machine can do both; no message reaches either |
+| Choosing what runs next from a truth value | Not designed. A truth value can be printed, named, compared and combined, and nothing more |
 | Definitions nested inside a block | Refused (*definitions cannot nest (yet)*) |
 | A comment on the same line as code | Not part of the language |

@@ -175,7 +175,10 @@ related/selvage/
   share one substrate. Run backward, a state yields the program that
   produced it (causal closure). The one sanctioned way to forget is
   causal pruning, which zeroes only cells provably independent of the
-  rest.
+  rest. (Added 2026-11-24: these are properties of the machine, and "the
+  program" is the tapes' own contents. A moop program cannot run a body
+  backward, and no session prunes one: `../model.md`, "What the core is,
+  and what a program reaches".)
 - **Two memories and two logics, with one bridge.**
   - Gates (NOT, CNOT, CCNOT, SWAP) act on the tapes; irreversible logic
     acts on RAM.

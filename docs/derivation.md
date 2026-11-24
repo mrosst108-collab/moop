@@ -83,6 +83,11 @@ Causal pruning is then exactly the discharge of premises that were
 never used in any inference — the one sanctioned act of forgetting,
 performed only on what provably contributed nothing.
 
+This is a statement about the machine, whose "program" is the tapes'
+own contents. In 0.10.0 no moop program can run a body backward and no
+session prunes one; `model.md` ("What the core is, and what a program
+reaches") keeps the two apart.
+
 ## What this demands of future work
 
 Derivation is an obligation, not a compliment. A proposed feature must

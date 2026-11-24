@@ -21,6 +21,7 @@ repository at `related/selvage`. Under it (checked 2026-11-18):
 | `conform.selv` | The conformance scenario in Selvage, with rule calls: 40 draws, a birth, 20 draws from the child, and a birth taken back. Prints `tests/tape_vectors.txt` byte for byte, in the interpreter and compiled |
 | `instance_copy_defect.selv` | Selvage defect found on the way: a copy of an answer instance shares its array with the original |
 | `tape_statistics.c` | moop's tape (wiring 1, 8/13 cells), exhaustively: the cycle structure of all 2²¹ states and the bias and correlation of draws. Build and run instructions are in its header; results are in `docs/model.md` |
+| `prune_visible.c` | What pruning a body would do to a moop program, which no session does (2026-11-24): it rebuilds the interpreter's world and prunes two bodies by hand. A body pruned straight after its birth reads 0 where it read 52. Build and run instructions are in its header; the finding is in `docs/model.md` |
 
 The trace both implementations must reproduce, byte for byte, is
 `tests/tape_vectors.txt`. moop checks it in `make test`
