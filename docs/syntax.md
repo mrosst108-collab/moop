@@ -440,6 +440,10 @@ functions are treated together in `foundations.md`, ratified on
 - Reflection: `is` stores chains as data, but the surface language
   cannot yet read one back (quote a chain, inspect a body, rewrite a
   teaching programmatically). The data is there; the mirror is missing.
+- Choice: nothing chooses what runs next from a truth value. A
+  derivation is drafted for ruling in `choice.md` (D1 to D5: a truth
+  value hosts taught messages, so choice is dispatch); nothing is
+  adopted or built.
 - Text: deferred, its syntax included (`foundations.md`, F7). Truth
   literals are built (0.10.0); the logic words are built-in messages,
   not reserved (`arguments.md`).

@@ -327,6 +327,6 @@ a reason.
 | Text values | Deferred, and so is its syntax |
 | Reflection: reading a taught body back as a value | Deferred |
 | Running a body backward, and pruning a body | The machine can do both; no message reaches either |
-| Choosing what runs next from a truth value | Not designed. A truth value can be printed, named, compared and combined, and nothing more |
+| Choosing what runs next from a truth value | Not in the language. A truth value can be printed, named, compared and combined, and nothing more. A design is drafted for ruling (`choice.md`); nothing is adopted |
 | Definitions nested inside a block | Refused (*definitions cannot nest (yet)*) |
 | A comment on the same line as code | Not part of the language |

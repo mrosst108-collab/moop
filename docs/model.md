@@ -304,7 +304,8 @@ shared trace holds to this one.
 print it, name it, compare it with `equals` and combine it with the
 logic words. Nothing in 0.10.0 chooses what runs next from a truth
 value, so a draw cannot steer a program. With the measurements below,
-that bounds what `maybe` is for today.
+that bounds what `maybe` is for today. A derivation of choice is
+drafted for ruling in `docs/choice.md`; nothing in it is adopted.
 
 ## Wiring 1's draws, measured
 
