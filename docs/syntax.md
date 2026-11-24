@@ -22,7 +22,7 @@ messages.
 |---|---|---|---|---|
 | `ask` | `->` | message passing | asymmetric | user (irreversible) |
 | `inherits` | `<-` | lineage predicate | asymmetric | user (irreversible) |
-| `mirrors` | `<->` | bijection | symmetric | system (reversible) |
+| `mirrors` | `<->` | bijection | symmetric | system (reversible) for bodies; certified in the user layer for numbers (ruled 2026-11-24) |
 | `is` | — | identity | asymmetric | binding |
 | `a` / `an` | — | birth | prefix | generation (the bridge) |
 
@@ -46,6 +46,13 @@ in their shape — the two-layer model surfacing in the syntax:
   compiled to gate-layer constructions — the syntax's window onto the
   reversible core. Every implemented form is an **involution**: applying
   the same `<->` twice is the identity, so "bijective" is a tested fact.
+  **What `mirrors` means (ruled 2026-11-24; `foundations.md`):** a
+  certified bijection, applied twice the identity on its domain. Every
+  form needs a certificate that it loses nothing: on bodies, that it is
+  made only of self-inverse gates, as both built forms are; on numbers,
+  the derivation of F11–F14, a user-layer operation that does not touch
+  the tapes. Never add a form without a certificate, or one that can
+  lose information.
   - `5 <-> box` (value ↔ body): XOR-encodes the number onto the body's
     loop A via gate-layer NOTs. Self-inverse — depositing and erasing are
     the same act. Values that don't fit are refused, never truncated
@@ -404,6 +411,9 @@ Comments (0.9.0) are full lines only; a `;` after code is refused.
   values, not reserved words.
 - `mirrors 0` is the identity idiom: it answers with the receiver and
   changes nothing (2026-11-18).
+- `mirrors` is a certified bijection (ruled 2026-11-24): gates certify
+  the forms on bodies, F11–F14 certify the forms on numbers, and no form
+  is added without a certificate (see above and `foundations.md`).
 - Values (ratified in `foundations.md`, built in 0.10.0): numbers are
   exact rationals with |p|, q ≤ 2⁶³ − 1, read from literals like `-9/5`
   whose parts may reach 2¹²⁷ − 1 before reduction; `true` and `false`

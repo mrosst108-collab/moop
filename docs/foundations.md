@@ -2,7 +2,8 @@
 
 **Status: ratified 2026-11-18.** F1 to F6 and F8 to F14 are adopted,
 with the qualifications recorded here, and so are U1 to U4. F7 (text)
-is deferred. **Nothing is implemented.** The rulings settle the design;
+is deferred. What `mirrors` means was ruled on 2026-11-24 and
+is recorded below. **Nothing is implemented.** The rulings settle the design;
 building it is authorized stage by stage, in the order of the plan at
 the end, and never all at once. U1's bound on reading literals and the
 testing arrangement were confirmed on the same day, and Stage 1 is
@@ -389,6 +390,37 @@ The property *defined exactly on the image* then follows from that
 structure and from F5's rule, by the argument under F11 to F14, and the
 conformance tests check it at the edges. No comment, annotation or
 document can make a mirror certified.
+
+## What `mirrors` means (ruled 2026-11-24)
+
+**The ruling, as adopted:**
+
+> `mirrors` is a certified bijection: applied twice, it is the identity
+> on its domain. Every form needs a certificate that it loses nothing.
+> On bodies, the certificate is that the form is made only of
+> self-inverse gates. On numbers, it is the derivation of F11–F14, which
+> is a user-layer operation and does not touch the tapes. The standing
+> rule becomes: never add a `mirrors` form without a certificate, or one
+> that can lose information.
+
+**What it settles.** The standing rule had been "never add a `<->` form
+that isn't gate-backed". F11 to F14 ratified mirrors that are arithmetic
+on numbers in user memory, and this document did not say how they relate
+to gates. The two now agree: the invariant is that a form is certified
+to lose nothing on its domain, and gates are one certificate, not the
+only one.
+
+**What it does not do.**
+- It authorizes nothing new. Stage 3 and Stage 4 are as they were, and
+  Stage 4 is still built only when authorized.
+- It adds no form of `mirrors`. The forms are the deposit and the
+  exchange, which are built, and U2's, which is ratified.
+- It does not move arithmetic to the tapes. Certified mirrors on numbers
+  are user-layer operations (F10 already places arithmetic there), and
+  nothing lowers them to gates.
+- It leaves F11 to F14, the partial-bijection qualification and "defined
+  exactly on the image of its forward" unchanged. "On its domain" in the
+  ruling is that domain.
 
 ## Conformance requirements for realization
 
